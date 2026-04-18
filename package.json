@@ -1,0 +1,33 @@
+{
+  "name": "zelify-core",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "tamagui build --target web ./src -- next build",
+    "start": "next start",
+    "lint": "eslint",
+    "tamagui:build": "tamagui build --target web ./src"
+  },
+  "dependencies": {
+    "@tamagui/config": "2.0.0-rc.41",
+    "@tamagui/next-theme": "2.0.0-rc.41",
+    "@tamagui/react-native-svg": "2.0.0-rc.41",
+    "next": "16.2.4",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-native": "^0.85.1",
+    "react-native-svg": "^15.15.4",
+    "react-native-web": "^0.21.2",
+    "tamagui": "2.0.0-rc.41"
+  },
+  "devDependencies": {
+    "@tamagui/cli": "2.0.0-rc.41",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.4",
+    "typescript": "^5"
+  }
+}
