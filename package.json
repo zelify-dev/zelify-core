@@ -4,10 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "tamagui build --target web ./src -- next build",
+    "predev": "npm run tamagui:css",
+    "build": "next build",
+    "prebuild": "npm run tamagui:css",
     "start": "next start",
     "lint": "eslint",
-    "tamagui:build": "tamagui build --target web ./src"
+    "tamagui:css": "tamagui generate-css --output public/tamagui.generated.css",
+    "tamagui:build": "npm run tamagui:css"
   },
   "dependencies": {
     "@tamagui/config": "2.0.0-rc.41",

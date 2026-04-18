@@ -4,6 +4,16 @@ Guia oficial para la estructura de carpetas, reglas de organizacion y limites de
 
 Este documento existe para que un equipo de 4 a 5 personas pueda trabajar en paralelo con una estructura clara, predecible y facil de leer.
 
+## Regla de tipografia
+
+La tipografia oficial del producto es `Nata Sans`.
+
+Reglas:
+
+- toda la aplicacion debe usar `Nata Sans` como fuente principal
+- no introducir nuevas familias tipograficas sin una decision explicita de producto o branding
+- componentes nuevos deben heredar la fuente global, no redefinir otra familia localmente
+
 ## Objetivo
 
 La arquitectura del repo sigue estas ideas:

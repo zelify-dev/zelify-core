@@ -1,0 +1,400 @@
+.zelify-topbar {
+  width: 100%;
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 20px;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: #1a2740;
+  border-bottom: 1px solid rgba(214, 219, 226, 0.12);
+  transition:
+    min-height 180ms ease,
+    padding 180ms ease,
+    background-color 180ms ease,
+    border-color 180ms ease;
+}
+
+.zelify-topbar.is-condensed {
+  min-height: 58px;
+  padding: 7px 18px;
+}
+
+.zelify-topbar__brand-wrap,
+.zelify-topbar__brand,
+.zelify-topbar__actions,
+.zelify-profile-trigger,
+.zelify-nav-tab,
+.zelify-topbar__nav {
+  display: flex;
+  align-items: center;
+}
+
+.zelify-topbar__brand-wrap {
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.zelify-topbar__brand {
+  gap: 10px;
+}
+
+.zelify-context-selector {
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid rgba(214, 219, 226, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(214, 219, 226, 0.86);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.zelify-context-selector:hover {
+  background: rgba(255, 255, 255, 0.035);
+  border-color: rgba(214, 219, 226, 0.16);
+}
+
+.zelify-context-selector svg,
+.zelify-nav-tab svg,
+.zelify-topbar-button svg,
+.zelify-profile-trigger svg {
+  flex-shrink: 0;
+}
+
+.zelify-topbar__divider {
+  width: 1px;
+  height: 24px;
+  background: rgba(214, 219, 226, 0.14);
+}
+
+.zelify-topbar.is-condensed .zelify-topbar__divider {
+  height: 20px;
+}
+
+.zelify-topbar__nav {
+  flex: 1;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.zelify-nav-tab {
+  gap: 6px;
+  padding: 8px 11px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(214, 219, 226, 0.82);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  position: relative;
+}
+
+.zelify-topbar.is-condensed .zelify-nav-tab {
+  padding-top: 7px;
+  padding-bottom: 8px;
+}
+
+.zelify-nav-tab:hover {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.zelify-nav-tab.is-active {
+  color: #f8fafc;
+}
+
+.zelify-nav-tab.is-active::after {
+  content: "";
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  bottom: 4px;
+  height: 2px;
+  border-radius: 999px;
+  background: #6aff00;
+}
+
+.zelify-topbar__actions {
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.zelify-topbar__menu-anchor {
+  position: relative;
+}
+
+.zelify-topbar-button,
+.zelify-icon-button,
+.zelify-topbar-search {
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.zelify-topbar-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 13px;
+  border-radius: 10px;
+  border: 1px solid rgba(214, 219, 226, 0.12);
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  color: rgba(248, 250, 252, 0.9);
+}
+
+.zelify-topbar.is-condensed .zelify-topbar-button,
+.zelify-topbar.is-condensed .zelify-icon-button,
+.zelify-topbar.is-condensed .zelify-topbar-search {
+  height: 34px;
+}
+
+.zelify-topbar-button.is-primary {
+  background: #76fb4c;
+  border-color: rgba(255, 255, 255, 0.06);
+  color: #10253b;
+}
+
+.zelify-topbar-button.is-primary:hover {
+  background: #82ff59;
+}
+
+.zelify-topbar-button.is-primary:active {
+  background: #69ea3f;
+}
+
+.zelify-topbar-button.is-secondary {
+  background: rgba(255, 255, 255, 0.025);
+  color: rgba(248, 250, 252, 0.9);
+}
+
+.zelify-topbar-button.is-secondary:hover,
+.zelify-icon-button:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.zelify-topbar-button.is-secondary:active,
+.zelify-icon-button:active {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.zelify-icon-button {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid rgba(214, 219, 226, 0.12);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.zelify-topbar.is-condensed .zelify-icon-button {
+  width: 34px;
+}
+
+.zelify-topbar-search {
+  width: 214px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  border: 1px solid rgba(214, 219, 226, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+  cursor: text;
+}
+
+.zelify-topbar-button.is-open,
+.zelify-topbar-search-wrap:focus-within .zelify-topbar-search {
+  border-color: rgba(214, 219, 226, 0.18);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.zelify-topbar.is-condensed .zelify-topbar-search {
+  width: 196px;
+}
+
+.zelify-topbar-search:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(214, 219, 226, 0.16);
+}
+
+.zelify-topbar-search:focus-within {
+  border-color: #6aff00;
+}
+
+.zelify-dropdown-menu,
+.zelify-topbar-search-results {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 212px;
+  display: grid;
+  gap: 2px;
+  padding: 8px;
+  border: 1px solid rgba(214, 219, 226, 0.1);
+  border-radius: 12px;
+  background: #223148;
+  box-shadow: 0 14px 34px rgba(6, 14, 28, 0.22);
+}
+
+.zelify-dropdown-menu__item,
+.zelify-topbar-search-results__item {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(248, 250, 252, 0.92);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.zelify-dropdown-menu__item:hover,
+.zelify-topbar-search-results__item:hover {
+  background: rgba(106, 255, 0, 0.08);
+}
+
+.zelify-topbar-search-wrap {
+  position: relative;
+}
+
+.zelify-topbar-search-results {
+  min-width: 280px;
+}
+
+.zelify-topbar-search-results__group {
+  color: rgba(214, 219, 226, 0.6);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.zelify-topbar-search-results__label {
+  color: rgba(248, 250, 252, 0.94);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.zelify-topbar-search-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.zelify-input {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  box-shadow: none;
+  font-family: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.zelify-topbar-search-input {
+  width: 100%;
+  color: rgba(248, 250, 252, 0.9);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.zelify-topbar-search-input::placeholder {
+  color: rgba(214, 219, 226, 0.48);
+}
+
+.zelify-profile-trigger {
+  gap: 8px;
+  padding: 2px 0 2px 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(214, 219, 226, 0.72);
+  cursor: pointer;
+}
+
+.zelify-topbar.is-condensed .zelify-profile-trigger {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.zelify-profile-trigger:hover {
+  background: transparent;
+}
+
+.zelify-avatar,
+.zelify-profile-trigger__avatar {
+  width: 27px;
+  height: 27px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(214, 219, 226, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(248, 250, 252, 0.92);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.zelify-topbar.is-condensed .zelify-avatar,
+.zelify-topbar.is-condensed .zelify-profile-trigger__avatar {
+  width: 26px;
+  height: 26px;
+}
+
+.zelify-profile-trigger__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.zelify-profile-trigger__meta strong {
+  color: #f8fafc;
+  font-size: 12px;
+  line-height: 1.1;
+  font-weight: 600;
+}
+
+@media (max-width: 1280px) {
+  .zelify-topbar__nav {
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+
+  .zelify-topbar__actions {
+    gap: 8px;
+  }
+
+  .zelify-topbar-search {
+    width: 168px;
+  }
+}

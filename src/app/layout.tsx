@@ -1,19 +1,15 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Nata_Sans } from "next/font/google";
 
 import { TamaguiProvider } from "@/providers/tamagui-provider";
 
 import "./globals.css";
 import "../../public/tamagui.generated.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const nataSans = Nata_Sans({
+  variable: "--font-nata-sans",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
 });
 
 export const metadata: Metadata = {
@@ -27,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html lang="es" className={nataSans.variable}>
       <body>
         <TamaguiProvider>{children}</TamaguiProvider>
       </body>

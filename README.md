@@ -12,15 +12,17 @@ Base inicial para una plataforma de core banking SaaS.
 ## Scripts
 
 - `npm run dev`: entorno local
-- `npm run build`: build de produccion con optimizacion de Tamagui
+- `npm run build`: build de produccion
 - `npm run lint`: validacion de lint
-- `npm run tamagui:build`: genera `public/tamagui.generated.css`
+- `npm run tamagui:css`: genera `public/tamagui.generated.css` sin transformar `src`
+- `npm run tamagui:build`: alias de compatibilidad para generar el CSS
 
 ## Estado actual
 
 - Proyecto Next inicializado en la raiz del repo
 - Tamagui configurado y conectado al layout principal
 - Pantalla inicial reemplazada por una base alineada al producto
+- El flujo de desarrollo evita transformar archivos dentro de `src` para no ensuciar el editor
 
 ## Arquitectura
 
