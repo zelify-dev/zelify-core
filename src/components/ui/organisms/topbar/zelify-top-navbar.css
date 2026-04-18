@@ -384,17 +384,122 @@
   font-weight: 600;
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 1440px) {
   .zelify-topbar__nav {
-    overflow-x: auto;
     justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none; /* IE and Edge */
+  }
+
+  .zelify-topbar__nav::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
+  }
+}
+
+@media (max-width: 1100px) {
+  .zelify-topbar {
+    flex-wrap: wrap;
+    row-gap: 12px;
+    padding-bottom: 12px;
+  }
+
+  .zelify-topbar.is-condensed {
+    padding-bottom: 10px;
+  }
+
+  .zelify-topbar__nav {
+    order: 3;
+    flex: 0 0 100%;
   }
 
   .zelify-topbar__actions {
-    gap: 8px;
+    margin-left: auto;
+  }
+
+  .zelify-topbar__divider {
+    display: none;
   }
 
   .zelify-topbar-search {
     width: 168px;
+  }
+}
+
+@media (max-width: 768px) {
+  .zelify-profile-trigger__meta {
+    display: none;
+  }
+
+  .zelify-context-selector span {
+    display: none;
+  }
+
+  .zelify-topbar__brand-wrap {
+    gap: 8px;
+  }
+  
+  /* Protegemos los botones para que no se apachurren */
+  .zelify-topbar__actions > * {
+    flex-shrink: 0;
+  }
+
+  /* Buscador colapsable en pantallas pequeñas */
+  .zelify-topbar-search {
+    width: 36px;
+    padding: 0;
+    justify-content: center;
+    border-color: transparent;
+    background: transparent;
+  }
+  
+  .zelify-topbar-search-input {
+    display: none;
+  }
+  
+  .zelify-topbar-search-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid rgba(214, 219, 226, 0.12);
+    background: rgba(255, 255, 255, 0.025);
+  }
+
+  /* Al enfocar, el buscador flota por encima ocupando espacio */
+  .zelify-topbar-search-wrap:focus-within {
+    position: absolute;
+    right: 90px; /* Para no tapar notificaciones ni perfil */
+    z-index: 50;
+  }
+  
+  .zelify-topbar-search-wrap:focus-within .zelify-topbar-search {
+    width: 220px;
+    justify-content: flex-start;
+    padding: 0 11px;
+    background: #223148;
+    border-color: #6aff00;
+  }
+  
+  .zelify-topbar-search-wrap:focus-within .zelify-topbar-search-input {
+    display: block;
+  }
+  
+  .zelify-topbar-search-wrap:focus-within .zelify-topbar-search-icon {
+    border-color: transparent;
+    background: transparent;
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@media (max-width: 500px) {
+  .zelify-topbar__actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: 10px;
+  }
+  
+  .zelify-topbar-search-wrap:focus-within {
+    right: 0;
   }
 }

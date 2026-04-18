@@ -13,9 +13,9 @@
 .zelify-home__hero {
   display: flex;
   align-items: end;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 24px;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 .zelify-home__eyebrow,
@@ -44,18 +44,23 @@
   line-height: 1.55;
 }
 
-.zelify-home__hero-note {
-  min-width: 210px;
+.zelify-home__hero-meta {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 14px 16px;
-  border: 1px solid rgba(26, 39, 64, 0.08);
-  border-radius: 12px;
-  background: #f8fafc;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 18px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(26, 39, 64, 0.08);
 }
 
-.zelify-home__hero-note-label {
+.zelify-home__hero-meta-block {
+  display: grid;
+  gap: 4px;
+  min-width: 180px;
+}
+
+.zelify-home__hero-meta-label {
   color: #6b778d;
   font-size: 11px;
   font-weight: 700;
@@ -63,12 +68,13 @@
   text-transform: uppercase;
 }
 
-.zelify-home__hero-note strong {
+.zelify-home__hero-meta-block strong {
   color: #0a1538;
-  font-size: 16px;
+  font-size: 14px;
+  line-height: 1.2;
 }
 
-.zelify-home__hero-note span:last-child {
+.zelify-home__hero-meta-block span:last-child {
   color: #55657f;
   font-size: 12px;
 }
@@ -416,6 +422,7 @@
 
   .zelify-home__hero {
     flex-direction: column;
+    align-items: flex-start;
   }
 
   .zelify-home__indicator-grid {
@@ -435,6 +442,14 @@
 
   .zelify-home__title {
     font-size: 24px;
+  }
+
+  .zelify-home__hero-meta {
+    gap: 14px;
+  }
+
+  .zelify-home__hero-meta-block {
+    min-width: 100%;
   }
 
   .zelify-activity-item {

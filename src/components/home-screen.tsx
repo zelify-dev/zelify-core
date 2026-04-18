@@ -159,10 +159,18 @@ export default function HomeScreen() {
               approval queues and saved working views.
             </p>
           </div>
-          <div className="zelify-home__hero-note">
-            <span className="zelify-home__hero-note-label">Operating window</span>
+        </section>
+
+        <section className="zelify-home__hero-meta" aria-label="Operating context">
+          <div className="zelify-home__hero-meta-block">
+            <span className="zelify-home__hero-meta-label">Operating window</span>
             <strong>Tuesday, 18 April</strong>
             <span>09:30 UTC-5</span>
+          </div>
+          <div className="zelify-home__hero-meta-block">
+            <span className="zelify-home__hero-meta-label">Workspace scope</span>
+            <strong>All branches</strong>
+            <span>Retail and corporate operations</span>
           </div>
         </section>
 
