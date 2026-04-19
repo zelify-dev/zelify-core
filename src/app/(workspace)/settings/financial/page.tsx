@@ -1,5 +1,5 @@
-import { WorkspacePlaceholderScreen } from "@/modules/workspace/screens/workspace-placeholder-screen";
+import { redirect } from "next/navigation";
 
-export default function FinancialSetupPage() {
-  return <WorkspacePlaceholderScreen title="Financial Setup" />;
+export default function FinancialSetupIndexPage() {
+  redirect("/settings/financial/currency");
 }

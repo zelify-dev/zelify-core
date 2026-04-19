@@ -87,6 +87,7 @@ const ROUTE_LINKS: { href: string; label: string }[] = [
   { href: "/settings/general/holidays", label: "General Setup → Holidays" },
   { href: "/settings/general/client-types", label: "General Setup → Client Types" },
   { href: "/settings/organization", label: "Admin → Organization (branches)" },
+  { href: "/settings/financial/currency", label: "Financial Setup → Currency" },
 ];
 
 export default function AtomicDesignScreen() {
@@ -110,10 +111,12 @@ export default function AtomicDesignScreen() {
           <div className="atomic-design-page__status">
             <div className="atomic-design-page__status-card">
               <span className="atomic-design-page__status-label">Design system</span>
-              <strong>Tokens + CSS</strong>
+              <strong>Zelify (CSS) + Tamagui</strong>
               <AppText tone="muted">
-                Botones, inputs y tablas de settings comparten clases `zelify-*` importadas desde
-                cada átomo.
+                Los átomos y organismos de este catálogo usan clases `zelify-*` (CSS por componente).
+                En paralelo, gran parte del producto sigue usando Tamagui (`YStack`, `XStack`, tema,
+                etc.) para layout y piezas legacy; la idea es ir alineando pantallas nuevas o
+                refactorizadas con estos bloques.
               </AppText>
             </div>
             <div className="atomic-design-page__status-card">

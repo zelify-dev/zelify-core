@@ -1,0 +1,182 @@
+.zelify-financial-currency {
+  flex: 1;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 20px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.zelify-financial-currency__section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.zelify-financial-currency__section-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  cursor: pointer;
+  text-align: left;
+  width: fit-content;
+}
+
+.zelify-financial-currency__section-toggle:hover {
+  color: #006064;
+}
+
+.zelify-financial-currency__chevron {
+  flex-shrink: 0;
+  color: #64748b;
+  transition: transform 0.2s ease;
+}
+
+.zelify-financial-currency__chevron.is-open {
+  transform: rotate(0deg);
+}
+
+.zelify-financial-currency__chevron:not(.is-open) {
+  transform: rotate(-90deg);
+}
+
+.zelify-financial-currency__table-wrap {
+  min-width: 0;
+}
+
+.zelify-financial-currency__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.zelify-financial-currency__base-badge.zelify-badge {
+  background: #2563eb;
+  color: #fff;
+  vertical-align: middle;
+}
+
+.zelify-financial-currency__empty {
+  color: #94a3b8;
+}
+
+.zelify-financial-currency__code {
+  font-weight: 600;
+  color: #0a1538;
+}
+
+.zelify-financial-currency__not-set {
+  color: #b91c1c;
+  font-weight: 500;
+}
+
+.zelify-financial-currency__empty-row {
+  text-align: center !important;
+  padding: 28px 16px !important;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.zelify-financial-currency .zelify-settings-data-table th.is-numeric-header,
+.zelify-financial-currency .zelify-settings-data-table td.is-numeric {
+  text-align: right;
+}
+
+.zelify-financial-currency__footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* Fila de acciones: botón estilo Mambu (verde oscuro) + menú */
+.zelify-currency-row-actions {
+  position: relative;
+  display: inline-block;
+  text-align: right;
+}
+
+.zelify-currency-row-actions__summary svg {
+  transition: transform 0.15s ease;
+}
+
+.zelify-currency-row-actions[open] .zelify-currency-row-actions__summary svg {
+  transform: rotate(180deg);
+}
+
+.zelify-currency-row-actions__summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 96, 100, 0.25);
+  background: #006064;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.zelify-currency-row-actions__summary::-webkit-details-marker {
+  display: none;
+}
+
+.zelify-currency-row-actions__summary:hover {
+  filter: brightness(1.05);
+}
+
+.zelify-currency-row-actions[open] .zelify-currency-row-actions__summary {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.zelify-currency-row-actions__menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  min-width: 180px;
+  padding: 6px 0;
+  border-radius: 8px;
+  border: 1px solid rgba(26, 39, 64, 0.12);
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+.zelify-currency-row-actions__menu .zelify-dropdown-menu {
+  position: static;
+  top: auto;
+  right: auto;
+  min-width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.zelify-currency-row-actions__menu .zelify-dropdown-menu__item {
+  width: 100%;
+  text-align: left;
+  color: #0f172a;
+  border-radius: 6px;
+}
+
+.zelify-currency-row-actions__menu .zelify-dropdown-menu__item:hover {
+  background: rgba(0, 96, 100, 0.08);
+  color: #0f172a;
+}
