@@ -59,6 +59,12 @@
   min-width: 0;
 }
 
+.zelify-products-settings__create-loan {
+  display: flex;
+  justify-content: flex-start;
+  padding-top: 4px;
+}
+
 /* Cebra suave (referencia Figma Deposits) */
 .zelify-products-settings__data-table.zelify-settings-data-table--clients tbody tr:nth-child(even) td {
   background: rgba(248, 250, 252, 0.85);

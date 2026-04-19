@@ -8,6 +8,7 @@ import { AppCheckbox } from "@/components/ui/atoms/checkbox/app-checkbox";
 import { AppSelect } from "@/components/ui/atoms/select/app-select";
 import { FinancialTableRowActions } from "@/modules/settings/components/financial-table-row-actions/financial-table-row-actions";
 import { SettingsDataTable } from "@/components/ui/organisms/settings-data-table/settings-data-table";
+import { CreateLoanProductModal } from "@/modules/settings/components/create-loan-product-modal/create-loan-product-modal";
 import { mockAdminProductsDeposits } from "../data/admin-products-deposits.mock";
 import { mockAdminProductsLoans } from "../data/admin-products-loans.mock";
 import type { AdminProductKind, AdminProductRow } from "../types/admin-product.types";
@@ -20,6 +21,7 @@ export function ProductsSettingsScreen() {
   const [kind, setKind] = useState<AdminProductKind>("loans");
   const [branch, setBranch] = useState("");
   const [showDeactivated, setShowDeactivated] = useState(false);
+  const [createLoanOpen, setCreateLoanOpen] = useState(false);
 
   const sourceRows = kind === "loans" ? mockAdminProductsLoans : mockAdminProductsDeposits;
 
@@ -86,6 +88,16 @@ export function ProductsSettingsScreen() {
       <div className="zelify-products-settings__table-wrap">
         <ProductsTable rows={rows} productKind={kind} />
       </div>
+
+      {kind === "loans" ? (
+        <div className="zelify-products-settings__create-loan">
+          <AppButton type="button" tone="primary" onClick={() => setCreateLoanOpen(true)}>
+            Create new loan product
+          </AppButton>
+        </div>
+      ) : null}
+
+      <CreateLoanProductModal open={createLoanOpen} onClose={() => setCreateLoanOpen(false)} />
     </div>
   );
 }
