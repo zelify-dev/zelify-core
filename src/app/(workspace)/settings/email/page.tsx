@@ -1,5 +1,5 @@
-import { AdminSettingsPlaceholderScreen } from "@/modules/settings/screens/admin-settings-placeholder-screen";
+import { EmailSettingsScreen } from "@/modules/settings/screens/email-settings-screen";
 
 export default function EmailSettingsPage() {
-  return <AdminSettingsPlaceholderScreen title="Email" />;
+  return <EmailSettingsScreen />;
 }

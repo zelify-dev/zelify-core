@@ -1,5 +1,5 @@
-import { WorkspacePlaceholderScreen } from "@/modules/workspace/screens/workspace-placeholder-screen";
+import { WebhooksNotificationsScreen } from "@/modules/settings/screens/webhooks-notifications-screen";
 
-export default function WebhooksSettingsPage() {
-  return <WorkspacePlaceholderScreen title="Webhooks" />;
+export default function WebhooksNotificationsPage() {
+  return <WebhooksNotificationsScreen />;
 }

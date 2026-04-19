@@ -1,5 +1,5 @@
-import { AdminSettingsPlaceholderScreen } from "@/modules/settings/screens/admin-settings-placeholder-screen";
+import { SmsSettingsScreen } from "@/modules/settings/screens/sms-settings-screen";
 
 export default function SmsSettingsPage() {
-  return <AdminSettingsPlaceholderScreen title="SMS" />;
+  return <SmsSettingsScreen />;
 }

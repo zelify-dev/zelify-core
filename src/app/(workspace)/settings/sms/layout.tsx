@@ -1,9 +1,9 @@
-import { ViewsSettingsShell } from "@/modules/settings/components/views-settings-shell";
+import { AdminSectionSettingsShell } from "@/modules/settings/components/admin-section-settings-shell";
 
 export default function SmsSettingsLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <ViewsSettingsShell>{children}</ViewsSettingsShell>;
+  return <AdminSectionSettingsShell integrationSection="sms">{children}</AdminSectionSettingsShell>;
 }

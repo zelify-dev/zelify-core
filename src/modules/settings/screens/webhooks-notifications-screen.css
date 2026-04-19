@@ -1,0 +1,54 @@
+.zelify-webhooks-notifications {
+  flex: 1;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 20px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.zelify-webhooks-notifications__table-wrap {
+  min-width: 0;
+}
+
+.zelify-webhooks-notifications__data-table.zelify-settings-data-table--clients tbody tr:nth-child(even) td {
+  background: rgba(248, 250, 252, 0.85);
+}
+
+.zelify-webhooks-notifications__data-table.zelify-settings-data-table--clients tbody tr:hover td {
+  background: rgba(106, 255, 0, 0.04);
+}
+
+.zelify-webhooks-notifications__name {
+  font-weight: 600;
+  color: #0a1538;
+}
+
+.zelify-webhooks-notifications__event-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  max-width: 420px;
+}
+
+.zelify-webhooks-notifications__event-title {
+  font-weight: 600;
+  color: #0a1538;
+}
+
+.zelify-webhooks-notifications__event-desc {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.zelify-webhooks-notifications__footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 4px;
+}

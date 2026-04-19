@@ -93,6 +93,9 @@ const ROUTE_LINKS: { href: string; label: string }[] = [
   { href: "/settings/products", label: "Administration → Products" },
   { href: "/settings/views", label: "Administration → Views" },
   { href: "/settings/event-streaming", label: "Administration → Events Streaming" },
+  { href: "/settings/webhooks", label: "Administration → Webhooks" },
+  { href: "/settings/sms", label: "Administration → SMS" },
+  { href: "/settings/email", label: "Administration → Email" },
 ];
 
 export default function AtomicDesignScreen() {
