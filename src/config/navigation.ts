@@ -31,11 +31,17 @@ export const zelifyAdminSubNavItems: ZelifyAdminSubNavItem[] = [
   { label: "Organization", href: "/settings/organization" },
   { label: "Access", href: "/settings/access" },
   { label: "Products", href: "/settings/products" },
+  { label: "Fields", href: "/settings/fields" },
   { label: "Views", href: "/settings/views" },
   { label: "Forms", href: "/settings/forms" },
-  { label: "Data", href: "/settings/data" },
-  { label: "Tasks", href: "/settings/tasks" },
+  { label: "SMS", href: "/settings/sms" },
+  { label: "Email", href: "/settings/email" },
   { label: "Webhooks", href: "/settings/webhooks" },
+  { label: "Events Streaming", href: "/settings/event-streaming" },
+  { label: "Templates", href: "/settings/templates" },
+  { label: "Apps", href: "/settings/apps" },
+  { label: "Tasks", href: "/settings/tasks" },
+  { label: "Data", href: "/settings/data" },
 ];
 
 const ADMIN_PREFIX = "/settings";
