@@ -1,0 +1,6 @@
+.zelify-general-setup-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f4f6f8;
+}

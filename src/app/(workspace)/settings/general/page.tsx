@@ -1,5 +1,5 @@
-import { WorkspacePlaceholderScreen } from "@/modules/workspace/screens/workspace-placeholder-screen";
+import { redirect } from "next/navigation";
 
-export default function GeneralSetupPage() {
-  return <WorkspacePlaceholderScreen title="General Setup" />;
+export default function GeneralSetupIndexPage() {
+  redirect("/settings/general/organization-details");
 }

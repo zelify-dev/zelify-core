@@ -1,0 +1,93 @@
+.zelify-org-details {
+  flex: 1;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 20px 40px;
+}
+
+.zelify-org-details__form {
+  max-width: 920px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.zelify-org-details__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.zelify-org-details__field--full {
+  width: 100%;
+}
+
+.zelify-org-details__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px 24px;
+}
+
+@media (max-width: 720px) {
+  .zelify-org-details__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.zelify-org-details__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.zelify-org-details__label-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.zelify-org-details__help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #94a3b8;
+  cursor: help;
+  line-height: 0;
+}
+
+.zelify-org-details__help:hover {
+  color: #64748b;
+}
+
+.zelify-org-details__input,
+.zelify-org-details__select {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid rgba(26, 39, 64, 0.14);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  color: #0f172a;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.zelify-org-details__select {
+  cursor: pointer;
+  appearance: auto;
+}
+
+.zelify-org-details__input:focus,
+.zelify-org-details__select:focus {
+  outline: none;
+  border-color: #006064;
+  box-shadow: 0 0 0 2px rgba(0, 96, 100, 0.15);
+}

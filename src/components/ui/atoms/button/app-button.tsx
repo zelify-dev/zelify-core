@@ -2,6 +2,8 @@
 
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
+import "./app-button.css";
+
 export type AppButtonTone = "primary" | "secondary" | "neutral";
 
 type AppButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {

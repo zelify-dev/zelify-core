@@ -195,34 +195,6 @@
   border-radius: 12px;
 }
 
-.zelify-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  background: transparent;
-  color: inherit;
-  font-family: inherit;
-  line-height: 1.2;
-  text-decoration: none;
-  appearance: none;
-  -webkit-appearance: none;
-}
-
-.zelify-button--md {
-  min-height: 42px;
-}
-
-.zelify-button--neutral {
-  color: #13223f;
-}
-
-.zelify-button.is-full-width {
-  width: 100%;
-}
-
 .zelify-text {
   margin: 0;
   color: #0d1b3d;
