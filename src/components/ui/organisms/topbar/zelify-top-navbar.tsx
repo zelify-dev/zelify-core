@@ -4,29 +4,51 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 
+import { LanguageSwitcher } from "@/components/common/language-switcher/language-switcher";
 import {
   type ZelifyTopNavItem,
   isAdministrationPath,
-  resolveActiveAdminSubNavLabel,
-  resolveActiveTopNavLabel,
+  resolveActiveAdminSubNavId,
+  resolveActiveTopNavId,
   zelifyAdminSubNavItems,
   zelifyTopNavItems,
 } from "@/config/navigation";
-import { getTopNavDropdown } from "@/config/top-nav-dropdowns";
+import { getTopNavDropdown, resolveTopNavDropdown } from "@/config/top-nav-dropdowns";
 import { NavTabDropdown } from "@/components/ui/molecules/nav-tab-dropdown/nav-tab-dropdown";
 import { AppButton } from "@/components/ui/atoms/button/app-button";
 import { AppIconButton } from "@/components/ui/atoms/icon-button/app-icon-button";
 import { ContextSelector } from "@/components/ui/molecules/context-selector/context-selector";
 import { DropdownMenu } from "@/components/ui/molecules/dropdown-menu/dropdown-menu";
 import { NavTab } from "@/components/ui/molecules/nav-tab/nav-tab";
-import { ProfileTrigger } from "@/components/ui/molecules/profile-trigger/profile-trigger";
+import { ProfileMenu } from "@/components/ui/molecules/profile-trigger/profile-menu";
 import { TopbarSearchBox } from "@/components/ui/molecules/search-box/topbar-search-box";
+import { useI18n } from "@/providers/i18n-provider";
 
 import "./zelify-top-navbar.css";
 
+const CREATE_MENU_KEYS = [
+  "topbar.createMenu.client",
+  "topbar.createMenu.organization",
+  "topbar.createMenu.group",
+  "topbar.createMenu.account",
+  "topbar.createMenu.user",
+  "topbar.createMenu.communication",
+] as const;
+
+const VIEW_MENU_KEYS = [
+  "topbar.viewMenu.clients",
+  "topbar.viewMenu.organizations",
+  "topbar.viewMenu.accounts",
+  "topbar.viewMenu.transactions",
+  "topbar.viewMenu.activities",
+  "topbar.viewMenu.users",
+  "topbar.viewMenu.communications",
+  "topbar.viewMenu.reports",
+] as const;
+
 type ZelifyTopNavbarProps = {
   /** Si se omite, se infiere desde la ruta actual. */
-  activeItem?: string;
+  activeNavId?: string;
   organizationLabel?: string;
   userName?: string;
   userInitials?: string;
@@ -34,17 +56,18 @@ type ZelifyTopNavbarProps = {
 };
 
 export function ZelifyTopNavbar({
-  activeItem: activeItemProp,
-  organizationLabel = "ALL ORGANIZATIONS",
+  activeNavId: activeNavIdProp,
+  organizationLabel: organizationLabelProp,
   userName = "Juan Carlos",
   userInitials = "JC",
   items = zelifyTopNavItems,
 }: ZelifyTopNavbarProps) {
+  const { t } = useI18n();
   const pathname = usePathname();
-  const activeItem =
-    activeItemProp ?? resolveActiveTopNavLabel(pathname, items);
-  const adminSubActiveLabel = resolveActiveAdminSubNavLabel(pathname);
+  const activeNavId = activeNavIdProp ?? resolveActiveTopNavId(pathname, items);
+  const adminSubActiveId = resolveActiveAdminSubNavId(pathname);
   const showAdminSubBar = isAdministrationPath(pathname);
+  const organizationLabel = organizationLabelProp ?? t("org.allOrganizations");
 
   const [isCondensed, setIsCondensed] = useState(false);
   const [openMenu, setOpenMenu] = useState<null | "create" | "view">(null);
@@ -106,103 +129,104 @@ export function ZelifyTopNavbar({
       {/* Nivel Superior: Marca y Acciones */}
       <div className="zelify-topbar-primary">
         <div className="zelify-topbar__brand-wrap">
-          <BrandBlock organizationLabel={organizationLabel} />
+          <BrandBlock organizationLabel={organizationLabel} brandAlt={t("topbar.brandAlt")} />
         </div>
 
-      <div className="zelify-topbar__actions">
-        <div className="zelify-topbar__menu-anchor" ref={createMenuRef}>
-          <TopbarActionButton
-            tone="primary"
-            isOpen={openMenu === "create"}
-            onClick={() =>
-              setOpenMenu((current) => (current === "create" ? null : "create"))
-            }
+        <div className="zelify-topbar__actions">
+          <div className="zelify-topbar__menu-anchor" ref={createMenuRef}>
+            <TopbarActionButton
+              tone="primary"
+              isOpen={openMenu === "create"}
+              onClick={() =>
+                setOpenMenu((current) => (current === "create" ? null : "create"))
+              }
+            >
+              {t("topbar.create")}
+            </TopbarActionButton>
+            {openMenu === "create" ? (
+              <DropdownMenu
+                className="zelify-topbar-dropdown"
+                items={CREATE_MENU_KEYS.map((key) => t(key))}
+              />
+            ) : null}
+          </div>
+
+          <div className="zelify-topbar__menu-anchor" ref={viewMenuRef}>
+            <TopbarActionButton
+              tone="secondary"
+              isOpen={openMenu === "view"}
+              onClick={() =>
+                setOpenMenu((current) => (current === "view" ? null : "view"))
+              }
+            >
+              {t("topbar.view")}
+            </TopbarActionButton>
+            {openMenu === "view" ? (
+              <DropdownMenu
+                className="zelify-topbar-dropdown"
+                items={VIEW_MENU_KEYS.map((key) => t(key))}
+              />
+            ) : null}
+          </div>
+
+          <TopbarSearchBox
+            placeholder={t("topbar.searchPlaceholder")}
+            results={[
+              {
+                group: t("topbar.search.groupClients"),
+                label: t("topbar.search.sampleOrg"),
+              },
+              {
+                group: t("topbar.search.groupAccounts"),
+                label: t("topbar.search.sampleAccount"),
+              },
+              {
+                group: t("topbar.search.groupTransactions"),
+                label: t("topbar.search.sampleTx"),
+              },
+              {
+                group: t("topbar.search.groupUsers"),
+                label: t("topbar.search.sampleUser"),
+              },
+            ]}
+          />
+          <AppIconButton
+            ariaLabel={t("topbar.notifications")}
+            className="zelify-topbar-icon-button"
           >
-            Create
-          </TopbarActionButton>
-          {openMenu === "create" ? (
-            <DropdownMenu
-              className="zelify-topbar-dropdown"
-              items={[
-                "Client",
-                "Organization",
-                "Group",
-                "Account",
-                "User",
-                "Communication",
-              ]}
-            />
-          ) : null}
+            <BellIcon />
+          </AppIconButton>
+          <ProfileMenu name={userName} initials={userInitials} />
+          <LanguageSwitcher />
         </div>
-
-        <div className="zelify-topbar__menu-anchor" ref={viewMenuRef}>
-          <TopbarActionButton
-            tone="secondary"
-            isOpen={openMenu === "view"}
-            onClick={() =>
-              setOpenMenu((current) => (current === "view" ? null : "view"))
-            }
-          >
-            View
-          </TopbarActionButton>
-          {openMenu === "view" ? (
-            <DropdownMenu
-              className="zelify-topbar-dropdown"
-              items={[
-                "Clients",
-                "Organizations",
-                "Accounts",
-                "Transactions",
-                "Activities",
-                "Users",
-                "Communications",
-                "Reports",
-              ]}
-            />
-          ) : null}
-        </div>
-
-        <TopbarSearchBox
-          results={[
-            { group: "Clients", label: "Andean Treasury Group" },
-            { group: "Accounts", label: "002-4481 Operating Account" },
-            { group: "Transactions", label: "TX-2026-04-18-88214" },
-            { group: "Users", label: "Andrea Molina" },
-          ]}
-        />
-        <AppIconButton ariaLabel="Notifications" className="zelify-topbar-icon-button">
-          <BellIcon />
-        </AppIconButton>
-        <ProfileTrigger
-          name={userName}
-          initials={userInitials}
-          trailingIcon={<ChevronDownIcon />}
-        />
-      </div>{/* Fin Nivel Superior Actions */}
-      </div>{/* Fin Nivel Superior Primary */}
+        {/* Fin Nivel Superior Actions */}
+      </div>
+      {/* Fin Nivel Superior Primary */}
 
       {/* Nivel Inferior: Navegación de rutas */}
       <div className="zelify-topbar-secondary">
-        <nav className="zelify-topbar__nav" aria-label="Primary">
+        <nav className="zelify-topbar__nav" aria-label={t("topbar.navPrimary")}>
           {items.map((item) => {
-            const dropdown = getTopNavDropdown(item.label);
+            const rawDropdown = getTopNavDropdown(item.id);
+            const dropdown = rawDropdown ? resolveTopNavDropdown(rawDropdown, t) : null;
             if (dropdown?.length) {
               return (
                 <NavTabDropdown
-                  key={item.label}
-                  label={item.label}
+                  key={item.id}
+                  instanceId={item.id}
+                  label={t(item.labelKey)}
                   href={item.href}
-                  isActive={item.label === activeItem}
+                  isActive={item.id === activeNavId}
                   entries={dropdown}
                 />
               );
             }
             return (
               <NavTab
-                key={item.label}
-                label={item.label}
+                key={item.id}
+                label={t(item.labelKey)}
                 href={item.href}
-                isActive={item.label === activeItem}
+                isActive={item.id === activeNavId}
                 trailingIcon={item.hasDropdown ? <ChevronDownIcon /> : null}
               />
             );
@@ -212,14 +236,14 @@ export function ZelifyTopNavbar({
 
       {showAdminSubBar ? (
         <div className="zelify-topbar-tertiary">
-          <nav className="zelify-topbar__nav" aria-label="Administration">
+          <nav className="zelify-topbar__nav" aria-label={t("topbar.navAdministration")}>
             {zelifyAdminSubNavItems.map((item) => (
               <NavTab
                 key={item.href}
-                label={item.label}
+                label={t(item.labelKey)}
                 href={item.href}
                 variant="adminSub"
-                isActive={item.label === adminSubActiveLabel}
+                isActive={item.id === adminSubActiveId}
               />
             ))}
           </nav>
@@ -231,23 +255,21 @@ export function ZelifyTopNavbar({
 
 type BrandBlockProps = {
   organizationLabel: string;
+  brandAlt: string;
 };
 
-function BrandBlock({ organizationLabel }: BrandBlockProps) {
+function BrandBlock({ organizationLabel, brandAlt }: BrandBlockProps) {
   return (
     <div className="zelify-topbar__brand">
       <Image
         src="/zelifyLogo_dark.svg"
-        alt="Zelify"
+        alt={brandAlt}
         width={106}
         height={30}
         priority
       />
 
-      <ContextSelector
-        label={organizationLabel}
-        icon={<ChevronDownIcon />}
-      />
+      <ContextSelector label={organizationLabel} icon={<ChevronDownIcon />} />
     </div>
   );
 }

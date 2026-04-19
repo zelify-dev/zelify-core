@@ -148,7 +148,7 @@ const systemSummary: SummaryGridItem[] = [
 export default function HomeScreen() {
   return (
     <div className="zelify-home">
-      <ZelifyTopNavbar activeItem="Dashboard" />
+      <ZelifyTopNavbar activeNavId="dashboard" />
 
       <main className="zelify-home__content">
         <section className="zelify-home__hero">

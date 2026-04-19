@@ -103,7 +103,7 @@ export default function AtomicDesignScreen() {
 
   return (
     <div className="atomic-design-page">
-      <ZelifyTopNavbar activeItem="Dashboard" />
+      <ZelifyTopNavbar activeNavId="dashboard" />
 
       <main className="atomic-design-page__content">
         <section className="atomic-design-page__hero">
@@ -334,7 +334,7 @@ export default function AtomicDesignScreen() {
           </PreviewCard>
           <PreviewCard label="ZelifyTopNavbar" full>
             <div className="atomic-design-demo__navbar-shell">
-              <ZelifyTopNavbar activeItem="Dashboard" />
+              <ZelifyTopNavbar activeNavId="dashboard" />
             </div>
           </PreviewCard>
         </CatalogSection>

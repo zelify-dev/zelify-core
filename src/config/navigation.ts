@@ -1,47 +1,50 @@
 export type ZelifyTopNavItem = {
-  label: string;
+  /** Stable id for routing logic and dropdown maps — not shown to the user. */
+  id: string;
+  labelKey: string;
   href: string;
   hasDropdown?: boolean;
 };
 
 export type ZelifyAdminSubNavItem = {
-  label: string;
+  id: string;
+  labelKey: string;
   href: string;
 };
 
 export const zelifyTopNavItems: ZelifyTopNavItem[] = [
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "Clients", href: "/customers" },
-  { label: "Groups", href: "/groups" },
-  { label: "Loans", href: "/loans" },
-  { label: "Deposits", href: "/deposits" },
-  { label: "Loan Transactions", href: "/loan-transactions" },
-  { label: "Deposit Transactions", href: "/deposit-transactions" },
-  { label: "Activities", href: "/activities" },
-  { label: "Branches", href: "/branches" },
-  { label: "Products", href: "/products" },
-  { label: "Reporting", href: "/reports" },
-  { label: "Accounting", href: "/accounting" },
-  { label: "Administration", href: "/settings" },
+  { id: "dashboard", labelKey: "nav.top.dashboard", href: "/dashboard" },
+  { id: "clients", labelKey: "nav.top.clients", href: "/customers" },
+  { id: "groups", labelKey: "nav.top.groups", href: "/groups" },
+  { id: "loans", labelKey: "nav.top.loans", href: "/loans" },
+  { id: "deposits", labelKey: "nav.top.deposits", href: "/deposits" },
+  { id: "loanTransactions", labelKey: "nav.top.loanTransactions", href: "/loan-transactions" },
+  { id: "depositTransactions", labelKey: "nav.top.depositTransactions", href: "/deposit-transactions" },
+  { id: "activities", labelKey: "nav.top.activities", href: "/activities" },
+  { id: "branches", labelKey: "nav.top.branches", href: "/branches" },
+  { id: "products", labelKey: "nav.top.products", href: "/products" },
+  { id: "reporting", labelKey: "nav.top.reporting", href: "/reports" },
+  { id: "accounting", labelKey: "nav.top.accounting", href: "/accounting" },
+  { id: "administration", labelKey: "nav.top.administration", href: "/settings" },
 ];
 
 export const zelifyAdminSubNavItems: ZelifyAdminSubNavItem[] = [
-  { label: "General Setup", href: "/settings/general" },
-  { label: "Financial Setup", href: "/settings/financial" },
-  { label: "Organization", href: "/settings/organization" },
-  { label: "Access", href: "/settings/access" },
-  { label: "Products", href: "/settings/products" },
-  { label: "Fields", href: "/settings/fields" },
-  { label: "Views", href: "/settings/views" },
-  { label: "Forms", href: "/settings/forms" },
-  { label: "SMS", href: "/settings/sms" },
-  { label: "Email", href: "/settings/email" },
-  { label: "Webhooks", href: "/settings/webhooks" },
-  { label: "Events Streaming", href: "/settings/event-streaming" },
-  { label: "Templates", href: "/settings/templates" },
-  { label: "Apps", href: "/settings/apps" },
-  { label: "Tasks", href: "/settings/tasks" },
-  { label: "Data", href: "/settings/data" },
+  { id: "generalSetup", labelKey: "nav.admin.generalSetup", href: "/settings/general" },
+  { id: "financialSetup", labelKey: "nav.admin.financialSetup", href: "/settings/financial" },
+  { id: "organization", labelKey: "nav.admin.organization", href: "/settings/organization" },
+  { id: "access", labelKey: "nav.admin.access", href: "/settings/access" },
+  { id: "products", labelKey: "nav.admin.products", href: "/settings/products" },
+  { id: "fields", labelKey: "nav.admin.fields", href: "/settings/fields" },
+  { id: "views", labelKey: "nav.admin.views", href: "/settings/views" },
+  { id: "forms", labelKey: "nav.admin.forms", href: "/settings/forms" },
+  { id: "sms", labelKey: "nav.admin.sms", href: "/settings/sms" },
+  { id: "email", labelKey: "nav.admin.email", href: "/settings/email" },
+  { id: "webhooks", labelKey: "nav.admin.webhooks", href: "/settings/webhooks" },
+  { id: "eventsStreaming", labelKey: "nav.admin.eventsStreaming", href: "/settings/event-streaming" },
+  { id: "templates", labelKey: "nav.admin.templates", href: "/settings/templates" },
+  { id: "apps", labelKey: "nav.admin.apps", href: "/settings/apps" },
+  { id: "tasks", labelKey: "nav.admin.tasks", href: "/settings/tasks" },
+  { id: "data", labelKey: "nav.admin.data", href: "/settings/data" },
 ];
 
 const ADMIN_PREFIX = "/settings";
@@ -51,28 +54,28 @@ export function isAdministrationPath(pathname: string): boolean {
 }
 
 /**
- * Resuelve la etiqueta del ítem principal activo. Rutas más específicas primero.
+ * Resuelve el id del ítem principal activo. Rutas más específicas primero.
  */
-export function resolveActiveTopNavLabel(
+export function resolveActiveTopNavId(
   pathname: string,
   items: ZelifyTopNavItem[] = zelifyTopNavItems
 ): string {
   const sorted = [...items].sort((a, b) => b.href.length - a.href.length);
   for (const item of sorted) {
     if (pathname === item.href || pathname.startsWith(`${item.href}/`)) {
-      return item.label;
+      return item.id;
     }
   }
   if (pathname === "/") {
-    return "Dashboard";
+    return "dashboard";
   }
-  return "Dashboard";
+  return "dashboard";
 }
 
 /**
  * Resuelve la sub-sección activa bajo Administración, o null si no aplica.
  */
-export function resolveActiveAdminSubNavLabel(
+export function resolveActiveAdminSubNavId(
   pathname: string,
   items: ZelifyAdminSubNavItem[] = zelifyAdminSubNavItems
 ): string | null {
@@ -80,8 +83,8 @@ export function resolveActiveAdminSubNavLabel(
   const sorted = [...items].sort((a, b) => b.href.length - a.href.length);
   for (const item of sorted) {
     if (pathname === item.href || pathname.startsWith(`${item.href}/`)) {
-      return item.label;
+      return item.id;
     }
   }
-  return "General Setup";
+  return "generalSetup";
 }

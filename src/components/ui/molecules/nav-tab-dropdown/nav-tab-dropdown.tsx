@@ -13,6 +13,8 @@ type NavTabDropdownProps = {
   href: string;
   isActive?: boolean;
   entries: TopNavDropdownEntry[];
+  /** Stable id for DOM/ARIA (e.g. top nav item id), independent of translated label. */
+  instanceId: string;
 };
 
 function ChevronDownIcon() {
@@ -29,9 +31,15 @@ function ChevronDownIcon() {
   );
 }
 
-export function NavTabDropdown({ label, href, isActive = false, entries }: NavTabDropdownProps) {
+export function NavTabDropdown({
+  label,
+  href,
+  isActive = false,
+  entries,
+  instanceId,
+}: NavTabDropdownProps) {
   const reactId = useId();
-  const safeId = `topnav-dd-${label.replace(/\s+/g, "-").toLowerCase()}-${reactId.replace(/:/g, "")}`;
+  const safeId = `topnav-dd-${instanceId}-${reactId.replace(/:/g, "")}`;
   const triggerId = `${safeId}-trigger`;
   const panelId = `${safeId}-panel`;
 
