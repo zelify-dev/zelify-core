@@ -12,6 +12,8 @@ import {
   zelifyAdminSubNavItems,
   zelifyTopNavItems,
 } from "@/config/navigation";
+import { getTopNavDropdown } from "@/config/top-nav-dropdowns";
+import { NavTabDropdown } from "@/components/ui/molecules/nav-tab-dropdown/nav-tab-dropdown";
 import { AppButton } from "@/components/ui/atoms/button/app-button";
 import { AppIconButton } from "@/components/ui/atoms/icon-button/app-icon-button";
 import { ContextSelector } from "@/components/ui/molecules/context-selector/context-selector";
@@ -182,15 +184,29 @@ export function ZelifyTopNavbar({
       {/* Nivel Inferior: Navegación de rutas */}
       <div className="zelify-topbar-secondary">
         <nav className="zelify-topbar__nav" aria-label="Primary">
-          {items.map((item) => (
-            <NavTab
-              key={item.label}
-              label={item.label}
-              href={item.href}
-              isActive={item.label === activeItem}
-              trailingIcon={item.hasDropdown ? <ChevronDownIcon /> : null}
-            />
-          ))}
+          {items.map((item) => {
+            const dropdown = getTopNavDropdown(item.label);
+            if (dropdown?.length) {
+              return (
+                <NavTabDropdown
+                  key={item.label}
+                  label={item.label}
+                  href={item.href}
+                  isActive={item.label === activeItem}
+                  entries={dropdown}
+                />
+              );
+            }
+            return (
+              <NavTab
+                key={item.label}
+                label={item.label}
+                href={item.href}
+                isActive={item.label === activeItem}
+                trailingIcon={item.hasDropdown ? <ChevronDownIcon /> : null}
+              />
+            );
+          })}
         </nav>
       </div>
 
