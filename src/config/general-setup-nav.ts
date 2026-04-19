@@ -3,7 +3,7 @@ export type GeneralSetupSubNavItem = {
   href: string;
 };
 
-/** Pestañas internas de Administración → General Setup (referencia Mambu / Figma). */
+/** Pestañas internas de Administración → General Setup (referencia Figma). */
 export const generalSetupSubNavItems: GeneralSetupSubNavItem[] = [
   { label: "Organization Details", href: "/settings/general/organization-details" },
   { label: "Holidays", href: "/settings/general/holidays" },

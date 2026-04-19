@@ -5,7 +5,7 @@ export type TransactionChannelRow = {
   isDefault: boolean;
   created: string;
   createdBy: string;
-  /** Si es false, “Created by” se muestra como texto plano (ej. Mambu). */
+  /** Si es false, “Created by” se muestra como texto plano (ej. Zelify Core). */
   createdByIsLink: boolean;
   isActive: boolean;
   /** Oculto salvo que “Show deactivated” esté activado. */

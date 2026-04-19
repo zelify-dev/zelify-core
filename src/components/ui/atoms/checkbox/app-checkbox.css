@@ -16,7 +16,7 @@
 }
 
 .zelify-checkbox__native:focus-visible + .zelify-checkbox__ui {
-  outline: 2px solid #006064;
+  outline: 2px solid var(--zelify-brand-green);
   outline-offset: 2px;
 }
 

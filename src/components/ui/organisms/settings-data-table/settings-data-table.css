@@ -77,7 +77,7 @@
 }
 
 .zelify-settings-data-table--clients tbody tr:hover td {
-  background: rgba(106, 255, 0, 0.04);
+  background: rgba(var(--zelify-brand-green-rgb), 0.08);
 }
 
 .zelify-settings-data-table--clients tbody tr:last-child td {

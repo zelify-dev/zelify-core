@@ -21,9 +21,9 @@
   min-height: 32px;
   padding: 0 12px;
   border-radius: 8px;
-  border: 1px solid rgba(0, 96, 100, 0.25);
-  background: #006064;
-  color: #fff;
+  border: 1px solid rgba(var(--zelify-brand-green-rgb), 0.45);
+  background: var(--zelify-brand-green);
+  color: var(--zelify-brand-on-green);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -35,11 +35,12 @@
 }
 
 .zelify-financial-table-row-actions__summary:hover {
-  filter: brightness(1.05);
+  background: var(--zelify-brand-green-hover);
+  border-color: rgba(var(--zelify-brand-green-rgb), 0.55);
 }
 
 .zelify-financial-table-row-actions[open] .zelify-financial-table-row-actions__summary {
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
 .zelify-financial-table-row-actions__menu {
@@ -75,6 +76,6 @@
 }
 
 .zelify-financial-table-row-actions__menu .zelify-dropdown-menu__item:hover {
-  background: rgba(0, 96, 100, 0.08);
+  background: rgba(var(--zelify-brand-green-rgb), 0.18);
   color: #0f172a;
 }

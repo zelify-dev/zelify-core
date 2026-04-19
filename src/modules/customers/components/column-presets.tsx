@@ -50,8 +50,8 @@ export const ColumnPresets: React.FC = () => {
             <Button 
               icon={<Plus size={16} />} 
               variant="outlined" 
-              borderColor="#006064" 
-              color="#006064" 
+              borderColor="#a9fb5d" 
+              color="#0d1b3d" 
               borderRadius="$4"
               size="$3"
             >
@@ -63,7 +63,7 @@ export const ColumnPresets: React.FC = () => {
 
       <XStack gap="$3" justifyContent="flex-end" marginTop="$4">
         <Button variant="outlined" borderColor="$borderColor">Cancel</Button>
-        <Button backgroundColor="#006064" color="white" hoverStyle={{ backgroundColor: '#004D40' }}>Save Changes</Button>
+        <Button backgroundColor="#a9fb5d" color="#0d1b3d" hoverStyle={{ backgroundColor: '#98e84a' }}>Save Changes</Button>
       </XStack>
     </YStack>
   );

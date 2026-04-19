@@ -10,7 +10,7 @@ import { FormField } from "@/components/ui/molecules/form-field/form-field";
 import "./organization-details-screen.css";
 
 export function OrganizationDetailsScreen() {
-  const [institutionName, setInstitutionName] = useState("Mambu - Demo");
+  const [institutionName, setInstitutionName] = useState("Zelify Core - Demo");
   const [street1, setStreet1] = useState("");
   const [city, setCity] = useState("");
   const [stateRegion, setStateRegion] = useState("");

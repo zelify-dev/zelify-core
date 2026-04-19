@@ -3,7 +3,7 @@ export type FinancialSetupSubNavItem = {
   href: string;
 };
 
-/** Pestañas de Administración → Financial Setup (referencia Figma / Mambu). */
+/** Pestañas de Administración → Financial Setup (referencia Figma). */
 export const financialSetupSubNavItems: FinancialSetupSubNavItem[] = [
   { label: "Currency", href: "/settings/financial/currency" },
   { label: "Risk Levels", href: "/settings/financial/risk-levels" },

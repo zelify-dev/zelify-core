@@ -48,16 +48,16 @@
 
 .zelify-general-setup-subnav__tab:hover {
   color: #111827;
-  background: rgba(0, 96, 100, 0.04);
+  background: rgba(var(--zelify-brand-green-rgb), 0.12);
 }
 
 .zelify-general-setup-subnav__tab.is-active {
   color: #0f172a;
   font-weight: 700;
-  border-color: rgba(0, 96, 100, 0.35);
+  border-color: rgba(var(--zelify-brand-green-rgb), 0.45);
   border-bottom-color: transparent;
   margin-bottom: -1px;
   padding-bottom: 12px;
-  box-shadow: inset 0 2px 0 0 #6aff00;
+  box-shadow: inset 0 2px 0 0 var(--zelify-brand-green);
   background: #fafbfc;
 }

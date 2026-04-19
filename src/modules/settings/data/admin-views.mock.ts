@@ -26,7 +26,7 @@ export const mockAdminViews: AdminViewRow[] = [
     name: "Tennis Player",
     isFavorite: true,
     filter: "Where Client Type is Tennis Player",
-    owner: "mambu",
+    owner: "zelify",
   },
   {
     id: "v3",
@@ -42,7 +42,7 @@ export const mockAdminViews: AdminViewRow[] = [
     name: "Inactive",
     isFavorite: false,
     filter: "Where Client State is Inactive",
-    owner: "mambu",
+    owner: "zelify",
   },
   {
     id: "v5",
@@ -58,7 +58,7 @@ export const mockAdminViews: AdminViewRow[] = [
     name: "Set Aside",
     isFavorite: false,
     filter: "Where Client State is Set Aside",
-    owner: "mambu",
+    owner: "zelify",
   },
   {
     id: "v7",
@@ -66,7 +66,7 @@ export const mockAdminViews: AdminViewRow[] = [
     name: "Blacklist",
     isFavorite: false,
     filter: "Where Client State is Blacklisted",
-    owner: "mambu",
+    owner: "zelify",
   },
   {
     id: "v8",

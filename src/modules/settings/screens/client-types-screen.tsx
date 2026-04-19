@@ -20,7 +20,7 @@ type ClientTypeRow = {
 };
 
 const MOCK_ROWS: ClientTypeRow[] = [
-  { id: "1", name: "Cliente", created: "21-05-2025", createdBy: "Mambu", isDefault: true },
+  { id: "1", name: "Cliente", created: "21-05-2025", createdBy: "Zelify Core", isDefault: true },
   { id: "2", name: "Tennis Player", created: "02-06-2025", createdBy: "Valerio Ferrari" },
   { id: "3", name: "F1 Pilot", created: "28-05-2025", createdBy: "Valerio Ferrari" },
 ];

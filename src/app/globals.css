@@ -1,3 +1,12 @@
+/* Verde primario de producto (alineado con botones del topbar, ej. Create) */
+:root {
+  --zelify-brand-green: #a9fb5d;
+  --zelify-brand-green-hover: #98e84a;
+  --zelify-brand-green-active: #86d441;
+  --zelify-brand-on-green: #0d1b3d;
+  --zelify-brand-green-rgb: 169, 251, 93;
+}
+
 html {
   height: 100%;
 }

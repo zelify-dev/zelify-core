@@ -19,16 +19,16 @@
     color 140ms ease;
 }
 
-/* Hover / abierto — fondo verde bosque, texto blanco (Figma) */
+/* Hover / abierto — mismo verde que botones del navbar */
 .zelify-nav-tab-dropdown:hover > .zelify-nav-tab--with-menu,
 .zelify-nav-tab-dropdown.is-open > .zelify-nav-tab--with-menu {
-  background: #0d4f3c;
-  color: #ffffff;
+  background: var(--zelify-brand-green);
+  color: var(--zelify-brand-on-green);
 }
 
 .zelify-nav-tab-dropdown:hover > .zelify-nav-tab--with-menu.is-active::after,
 .zelify-nav-tab-dropdown.is-open > .zelify-nav-tab--with-menu.is-active::after {
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--zelify-brand-on-green);
 }
 
 /* Panel en portal: solo estilos visuales; posición vía inline (fixed) */
@@ -57,7 +57,7 @@
 }
 
 .zelify-nav-tab-dropdown__item:hover {
-  background: rgba(106, 255, 0, 0.1);
+  background: rgba(var(--zelify-brand-green-rgb), 0.18);
   color: #ffffff;
 }
 

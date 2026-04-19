@@ -71,7 +71,7 @@
 }
 
 .zelify-products-settings__data-table.zelify-settings-data-table--clients tbody tr:hover td {
-  background: rgba(106, 255, 0, 0.04);
+  background: rgba(var(--zelify-brand-green-rgb), 0.08);
 }
 
 .zelify-products-settings__product-link {

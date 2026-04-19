@@ -18,7 +18,7 @@
 
 .zelify-select:focus {
   outline: none;
-  border-color: #6aff00;
+  border-color: var(--zelify-brand-green);
 }
 
 .zelify-select--full-height {

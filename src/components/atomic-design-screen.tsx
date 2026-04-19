@@ -17,6 +17,7 @@ import { ContextSelector } from "@/components/ui/molecules/context-selector/cont
 import { DropdownMenu } from "@/components/ui/molecules/dropdown-menu/dropdown-menu";
 import { FormField } from "@/components/ui/molecules/form-field/form-field";
 import { NavTab } from "@/components/ui/molecules/nav-tab/nav-tab";
+import { NavTabDropdown } from "@/components/ui/molecules/nav-tab-dropdown/nav-tab-dropdown";
 import { PanelHeader } from "@/components/ui/molecules/panel-header/panel-header";
 import { ProfileTrigger } from "@/components/ui/molecules/profile-trigger/profile-trigger";
 import { TableFilters } from "@/components/ui/molecules/table-filters/table-filters";
@@ -24,6 +25,9 @@ import { TopbarSearchBox } from "@/components/ui/molecules/search-box/topbar-sea
 import { StatCard } from "@/components/ui/molecules/stat-card/stat-card";
 import { ActivityFeed } from "@/components/ui/organisms/activity-feed/activity-feed";
 import { GeneralSetupSubNav } from "@/components/ui/organisms/settings-general-subnav/settings-general-subnav";
+import { FinancialSetupSubNav } from "@/components/ui/organisms/financial-setup-subnav/financial-setup-subnav";
+import { AccountingWorkspaceSubNav } from "@/modules/accounting/components/accounting-workspace-subnav";
+import { WebhooksSetupSubNav } from "@/modules/settings/components/webhooks-setup-subnav";
 import { QuickViewList } from "@/components/ui/organisms/quick-view-list/quick-view-list";
 import { SettingsDataTable } from "@/components/ui/organisms/settings-data-table/settings-data-table";
 import { StatusList } from "@/components/ui/organisms/status-list/status-list";
@@ -31,6 +35,8 @@ import { SummaryGrid } from "@/components/ui/organisms/summary-grid/summary-grid
 import { TaskQueue } from "@/components/ui/organisms/task-queue/task-queue";
 import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
 import { SandboxBanner } from "@/modules/customers/components/sandbox-banner";
+import { FinancialTableRowActions } from "@/modules/settings/components/financial-table-row-actions/financial-table-row-actions";
+import { getTopNavDropdown } from "@/config/top-nav-dropdowns";
 import { IndicatorTile } from "@/components/ui/molecules/indicator-tile/indicator-tile";
 
 import "./home-screen.css";
@@ -82,7 +88,12 @@ const summaryItems = [
 
 const ROUTE_LINKS: { href: string; label: string }[] = [
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/activities", label: "Activities (System Activities)" },
   { href: "/customers", label: "Clients" },
+  { href: "/accounting/journal-entries", label: "Accounting → Journal Entries" },
+  { href: "/accounting/chart-of-accounts", label: "Accounting → Chart Of Accounts" },
+  { href: "/accounting/balance-sheet", label: "Accounting → Balance Sheet (placeholder)" },
+  { href: "/settings", label: "Administration (hub)" },
   { href: "/settings/general/organization-details", label: "General Setup → Organization" },
   { href: "/settings/general/holidays", label: "General Setup → Holidays" },
   { href: "/settings/general/client-types", label: "General Setup → Client Types" },
@@ -92,10 +103,17 @@ const ROUTE_LINKS: { href: string; label: string }[] = [
   { href: "/settings/financial/eod-processing", label: "Financial Setup → EOD Processing" },
   { href: "/settings/products", label: "Administration → Products" },
   { href: "/settings/views", label: "Administration → Views" },
-  { href: "/settings/event-streaming", label: "Administration → Events Streaming" },
-  { href: "/settings/webhooks", label: "Administration → Webhooks" },
+  { href: "/settings/fields", label: "Administration → Fields (placeholder)" },
+  { href: "/settings/forms", label: "Administration → Forms (placeholder)" },
+  { href: "/settings/templates", label: "Administration → Templates (placeholder)" },
+  { href: "/settings/apps", label: "Administration → Apps (placeholder)" },
   { href: "/settings/sms", label: "Administration → SMS" },
   { href: "/settings/email", label: "Administration → Email" },
+  { href: "/settings/webhooks", label: "Administration → Webhooks → Notifications" },
+  { href: "/settings/webhooks/settings", label: "Administration → Webhooks → Settings (placeholder)" },
+  { href: "/settings/event-streaming", label: "Administration → Events Streaming" },
+  { href: "/settings/tasks", label: "Administration → Tasks (placeholder)" },
+  { href: "/settings/data", label: "Administration → Data (placeholder)" },
 ];
 
 export default function AtomicDesignScreen() {
@@ -224,6 +242,22 @@ export default function AtomicDesignScreen() {
               <NavTab label="Products" trailingIcon={<ChevronDownIcon />} />
             </div>
           </PreviewCard>
+          <PreviewCard label="NavTabDropdown" wide>
+            <AppText tone="muted">
+              Pasa el cursor sobre la pestaña (menú fijado con portal). Datos de ejemplo: Clients.
+            </AppText>
+            <div className="atomic-design-demo__nav-tabs atomic-design-demo__nav-tabs--elevated">
+              <NavTabDropdown
+                label="Clients"
+                href="/customers"
+                isActive={false}
+                entries={getTopNavDropdown("Clients") ?? []}
+              />
+            </div>
+          </PreviewCard>
+          <PreviewCard label="FinancialTableRowActions">
+            <FinancialTableRowActions rowLabel="atomic-demo" />
+          </PreviewCard>
           <PreviewCard label="DropdownMenu">
             <div className="atomic-design-demo__menu-shell">
               <DropdownMenu
@@ -329,6 +363,21 @@ export default function AtomicDesignScreen() {
               <GeneralSetupSubNav />
             </div>
           </PreviewCard>
+          <PreviewCard label="FinancialSetupSubNav" wide>
+            <div className="atomic-design-demo__general-subnav">
+              <FinancialSetupSubNav />
+            </div>
+          </PreviewCard>
+          <PreviewCard label="AccountingWorkspaceSubNav" wide>
+            <div className="atomic-design-demo__general-subnav">
+              <AccountingWorkspaceSubNav />
+            </div>
+          </PreviewCard>
+          <PreviewCard label="WebhooksSetupSubNav" wide>
+            <div className="atomic-design-demo__general-subnav">
+              <WebhooksSetupSubNav />
+            </div>
+          </PreviewCard>
           <PreviewCard label="SandboxBanner" wide>
             <SandboxBanner />
           </PreviewCard>
@@ -355,6 +404,31 @@ export default function AtomicDesignScreen() {
               Navbar + barra Administration + pestañas General Setup + cuerpo +{" "}
               <strong>Sandbox</strong>. Ver{" "}
               <Link href="/settings/general/organization-details">/settings/general/*</Link>.
+            </AppText>
+          </PreviewCard>
+          <PreviewCard label="FinancialSetupShell" wide>
+            <AppText tone="muted">
+              Navbar + subnave Financial Setup + cuerpo + Sandbox. Ver{" "}
+              <Link href="/settings/financial/currency">/settings/financial/*</Link>.
+            </AppText>
+          </PreviewCard>
+          <PreviewCard label="AccountingWorkspaceShell" wide>
+            <AppText tone="muted">
+              Navbar + pestañas Accounting (Balance Sheet, Chart Of Accounts, …) + cuerpo + Sandbox. Ver{" "}
+              <Link href="/accounting/chart-of-accounts">/accounting/*</Link>.
+            </AppText>
+          </PreviewCard>
+          <PreviewCard label="WebhooksSetupShell" wide>
+            <AppText tone="muted">
+              Navbar + Notifications | Settings + cuerpo + Sandbox. Ver{" "}
+              <Link href="/settings/webhooks">/settings/webhooks</Link>.
+            </AppText>
+          </PreviewCard>
+          <PreviewCard label="AdminSectionSettingsShell (SMS / Email)" wide>
+            <AppText tone="muted">
+              Navbar + subnave única “Settings” para integraciones. Ver{" "}
+              <Link href="/settings/sms">/settings/sms</Link> y{" "}
+              <Link href="/settings/email">/settings/email</Link>.
             </AppText>
           </PreviewCard>
         </CatalogSection>

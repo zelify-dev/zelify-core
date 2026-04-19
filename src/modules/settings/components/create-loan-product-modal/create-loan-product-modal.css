@@ -77,8 +77,8 @@
 }
 
 .zelify-loan-product-modal__field-help:hover {
-  background: rgba(0, 96, 100, 0.08);
-  color: #006064;
+  background: rgba(var(--zelify-brand-green-rgb), 0.18);
+  color: var(--zelify-brand-on-green);
 }
 
 .zelify-loan-product-modal__body {
@@ -189,7 +189,7 @@
 }
 
 .zelify-loan-product-modal__details[open] {
-  border-color: rgba(0, 96, 100, 0.35);
+  border-color: rgba(var(--zelify-brand-green-rgb), 0.45);
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
 }
 
@@ -227,7 +227,7 @@
 
 .zelify-loan-product-modal__details[open] > summary .zelify-loan-product-modal__chev {
   transform: rotate(0deg);
-  color: #006064;
+  color: #15803d;
 }
 
 .zelify-loan-product-modal__details > summary:hover .zelify-loan-product-modal__chev {
@@ -270,7 +270,7 @@
 }
 
 .zelify-loan-product-modal__rte-btn:hover {
-  background: rgba(0, 96, 100, 0.08);
+  background: rgba(var(--zelify-brand-green-rgb), 0.15);
   color: #0f172a;
 }
 

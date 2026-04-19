@@ -31,15 +31,15 @@
 }
 
 .zelify-button--primary {
-  background: #6aff00;
-  color: #0d1b3d;
+  background: var(--zelify-brand-green);
+  color: var(--zelify-brand-on-green);
   font-weight: 700;
-  border-color: #6aff00;
+  border-color: var(--zelify-brand-green);
 }
 
 .zelify-button--primary:hover:not(:disabled) {
-  background: #5ee500;
-  border-color: #5ee500;
+  background: var(--zelify-brand-green-hover);
+  border-color: var(--zelify-brand-green-hover);
 }
 
 .zelify-button--secondary {

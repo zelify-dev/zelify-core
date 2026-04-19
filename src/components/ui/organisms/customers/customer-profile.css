@@ -78,7 +78,7 @@
   right: 0;
   bottom: -1px;
   height: 2px;
-  background: #6aff00;
+  background: var(--zelify-brand-green);
 }
 
 /* Main Content Grid */
@@ -198,7 +198,7 @@
   border: 2px solid #f8fafc;
 }
 
-.zelify-timeline-item__dot--product { background: #6aff00; }
+.zelify-timeline-item__dot--product { background: var(--zelify-brand-green); }
 .zelify-timeline-item__dot--identity { background: #3b82f6; }
 .zelify-timeline-item__dot--operation { background: #64748b; }
 

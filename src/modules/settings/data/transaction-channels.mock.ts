@@ -6,7 +6,7 @@ export const mockTransactionChannels: TransactionChannelRow[] = [
     name: "Cash",
     isDefault: true,
     created: "21-05-2025",
-    createdBy: "Mambu",
+    createdBy: "Zelify Core",
     createdByIsLink: false,
     isActive: true,
     isDeactivated: false,

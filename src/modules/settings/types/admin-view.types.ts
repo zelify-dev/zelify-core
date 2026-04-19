@@ -14,5 +14,5 @@ export type AdminViewRow = {
   name: string;
   isFavorite: boolean;
   filter: string;
-  owner: "you" | "mambu";
+  owner: "you" | "zelify";
 };

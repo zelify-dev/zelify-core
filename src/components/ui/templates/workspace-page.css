@@ -50,8 +50,8 @@
 .zelify-workspace-page__spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid rgba(0, 96, 100, 0.15);
-  border-top-color: #006064;
+  border: 3px solid rgba(var(--zelify-brand-green-rgb), 0.2);
+  border-top-color: var(--zelify-brand-green);
   border-radius: 50%;
   animation: zelify-spin 0.8s linear infinite;
   margin-bottom: 16px;
@@ -124,8 +124,8 @@
 
 .zelify-org-tab.is-active {
   font-weight: 700;
-  color: #006064;
-  border-bottom-color: #006064;
+  color: var(--zelify-brand-on-green);
+  border-bottom-color: var(--zelify-brand-green);
 }
 
 .zelify-org-toolbar {
@@ -146,6 +146,6 @@
 .zelify-org-toolbar__switch input {
   width: 18px;
   height: 18px;
-  accent-color: #006064;
+  accent-color: var(--zelify-brand-green);
   cursor: pointer;
 }

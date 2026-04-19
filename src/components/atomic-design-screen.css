@@ -235,6 +235,12 @@
   flex-wrap: wrap;
 }
 
+.atomic-design-demo__nav-tabs--elevated {
+  min-height: 52px;
+  align-items: center;
+  padding: 6px 0;
+}
+
 .atomic-design-demo__menu-shell {
   position: relative;
   min-height: 190px;

@@ -79,7 +79,7 @@
   top: 0;
   height: 3px;
   border-radius: 0 0 4px 4px;
-  background: #6aff00;
+  background: var(--zelify-brand-green);
 }
 
 .zelify-topbar__brand-wrap,
@@ -185,7 +185,7 @@
   bottom: 0px;
   height: 3px;
   border-radius: 4px 4px 0 0;
-  background: #6aff00;
+  background: var(--zelify-brand-green);
 }
 
 .zelify-topbar__actions {
@@ -229,17 +229,17 @@
 }
 
 .zelify-topbar-button.is-primary {
-  background: #76fb4c;
+  background: var(--zelify-brand-green);
   border-color: rgba(255, 255, 255, 0.06);
-  color: #10253b;
+  color: var(--zelify-brand-on-green);
 }
 
 .zelify-topbar-button.is-primary:hover {
-  background: #82ff59;
+  background: var(--zelify-brand-green-hover);
 }
 
 .zelify-topbar-button.is-primary:active {
-  background: #69ea3f;
+  background: var(--zelify-brand-green-active);
 }
 
 .zelify-topbar-button.is-secondary {
@@ -302,7 +302,7 @@
 }
 
 .zelify-topbar-search:focus-within {
-  border-color: #6aff00;
+  border-color: var(--zelify-brand-green);
 }
 
 .zelify-dropdown-menu,
@@ -337,7 +337,7 @@
 
 .zelify-dropdown-menu__item:hover,
 .zelify-topbar-search-results__item:hover {
-  background: rgba(106, 255, 0, 0.08);
+  background: rgba(var(--zelify-brand-green-rgb), 0.14);
 }
 
 .zelify-topbar-search-wrap {
@@ -505,7 +505,7 @@
     justify-content: flex-start;
     padding: 0 11px;
     background: #223148;
-    border-color: #6aff00;
+    border-color: var(--zelify-brand-green);
   }
   
   .zelify-topbar-search-wrap:focus-within .zelify-topbar-search-input {

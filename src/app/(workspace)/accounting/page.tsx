@@ -1,5 +1,5 @@
-import { WorkspacePlaceholderScreen } from "@/modules/workspace/screens/workspace-placeholder-screen";
+import { redirect } from "next/navigation";
 
-export default function AccountingPage() {
-  return <WorkspacePlaceholderScreen title="Accounting" />;
+export default function AccountingIndexPage() {
+  redirect("/accounting/journal-entries");
 }

@@ -87,7 +87,7 @@ export function ViewsSettingsScreen() {
                   </span>
                 </td>
                 <td>{row.filter}</td>
-                <td className="zelify-views-settings__owner">{row.owner === "you" ? "You" : "Mambu"}</td>
+                <td className="zelify-views-settings__owner">{row.owner === "you" ? "You" : "Zelify Core"}</td>
                 <td className="is-actions">
                   <FinancialTableRowActions rowLabel={row.id} />
                 </td>
