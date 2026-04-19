@@ -31,6 +31,7 @@ export const zelifyAdminSubNavItems: ZelifyAdminSubNavItem[] = [
   { label: "Organization", href: "/settings/organization" },
   { label: "Access", href: "/settings/access" },
   { label: "Products", href: "/settings/products" },
+  { label: "Views", href: "/settings/views" },
   { label: "Forms", href: "/settings/forms" },
   { label: "Data", href: "/settings/data" },
   { label: "Tasks", href: "/settings/tasks" },

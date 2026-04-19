@@ -91,6 +91,7 @@ const ROUTE_LINKS: { href: string; label: string }[] = [
   { href: "/settings/financial/transaction-channels", label: "Financial Setup → Transaction Channels" },
   { href: "/settings/financial/eod-processing", label: "Financial Setup → EOD Processing" },
   { href: "/settings/products", label: "Administration → Products" },
+  { href: "/settings/views", label: "Administration → Views" },
 ];
 
 export default function AtomicDesignScreen() {

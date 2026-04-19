@@ -1,0 +1,86 @@
+.zelify-views-settings {
+  flex: 1;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 20px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.zelify-views-settings__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.zelify-views-settings__parent-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: min(100%, 280px);
+  max-width: 320px;
+}
+
+.zelify-views-settings__parent-field .zelify-select {
+  width: 100%;
+}
+
+.zelify-views-settings__toolbar-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.zelify-views-settings__table-wrap {
+  min-width: 0;
+}
+
+.zelify-views-settings__data-table.zelify-settings-data-table--clients tbody tr:nth-child(even) td {
+  background: rgba(248, 250, 252, 0.85);
+}
+
+.zelify-views-settings__data-table.zelify-settings-data-table--clients tbody tr:hover td {
+  background: rgba(106, 255, 0, 0.04);
+}
+
+.zelify-views-settings__name-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zelify-views-settings__star {
+  flex-shrink: 0;
+  color: #cbd5e1;
+}
+
+.zelify-views-settings__star.is-favorite {
+  color: #eab308;
+}
+
+.zelify-views-settings__name-link {
+  color: #2563eb;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.zelify-views-settings__name-link:hover {
+  text-decoration: underline;
+}
+
+.zelify-views-settings__owner {
+  color: #334155;
+  font-size: 14px;
+}
+
+.zelify-views-settings__footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 4px;
+}
