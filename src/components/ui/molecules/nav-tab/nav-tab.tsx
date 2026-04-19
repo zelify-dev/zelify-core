@@ -6,13 +6,21 @@ type NavTabProps = {
   href?: string;
   isActive?: boolean;
   trailingIcon?: ReactNode;
+  variant?: "default" | "adminSub";
 };
 
-export function NavTab({ label, href = "#", isActive = false, trailingIcon }: NavTabProps) {
+export function NavTab({
+  label,
+  href = "#",
+  isActive = false,
+  trailingIcon,
+  variant = "default",
+}: NavTabProps) {
+  const variantClass = variant === "adminSub" ? "zelify-nav-tab--admin-sub" : "";
   return (
     <Link
       href={href}
-      className={`zelify-nav-tab ${isActive ? "is-active" : ""}`}
+      className={`zelify-nav-tab ${variantClass} ${isActive ? "is-active" : ""}`}
     >
       <span>{label}</span>
       {trailingIcon}

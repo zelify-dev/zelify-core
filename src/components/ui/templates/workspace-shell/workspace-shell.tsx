@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
-import { zelifyTopNavItems } from "@/config/navigation";
+import { resolveActiveTopNavLabel, zelifyTopNavItems } from "@/config/navigation";
 
 type WorkspaceShellProps = {
   children: React.ReactNode;
@@ -11,10 +11,7 @@ type WorkspaceShellProps = {
 export function WorkspaceShell({ children }: WorkspaceShellProps) {
   const pathname = usePathname();
   
-  // Encontrar el item activo basado en el href
-  const activeItem = zelifyTopNavItems.find(item => 
-    pathname === item.href || pathname.startsWith(`${item.href}/`)
-  )?.label || "Dashboard";
+  const activeItem = resolveActiveTopNavLabel(pathname, zelifyTopNavItems);
 
   return (
     <div className="zelify-workspace-shell">

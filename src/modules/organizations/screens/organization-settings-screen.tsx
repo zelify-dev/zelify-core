@@ -5,7 +5,6 @@ import { YStack, XStack, Text, Button, Switch, ScrollView, Spinner } from 'tamag
 import { Plus } from 'lucide-react';
 import { ZelifyTopNavbar } from '@/components/ui/organisms/topbar/zelify-top-navbar';
 import { SandboxBanner } from '@/modules/customers/components/sandbox-banner';
-import { OrganizationSettingsHeader } from '../components/organization-settings-header';
 import { UnitTable } from '../components/unit-table';
 import { organizationsService } from '../services/organizations.service';
 import { OrganizationUnit, UnitType } from '../types/organization.types';
@@ -37,8 +36,7 @@ export const OrganizationSettingsScreen: React.FC = () => {
 
   return (
     <YStack flex={1} background="$background" minHeight="100vh">
-      <ZelifyTopNavbar activeItem="Administration" />
-      <OrganizationSettingsHeader />
+      <ZelifyTopNavbar />
 
       <ScrollView>
         <YStack padding="$6" gap="$6" maxWidth={1400} marginHorizontal="auto" width="100%">

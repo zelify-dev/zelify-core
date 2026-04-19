@@ -6,6 +6,7 @@ import { RecentActivityList } from '../components/recent-activity-list';
 import { TaskList } from '../components/task-list';
 import { FavoriteViews } from '../components/favorite-views';
 import { CompanyIndicators } from '../components/company-indicators';
+import { ZelifyTopNavbar } from '@/components/ui/organisms/topbar/zelify-top-navbar';
 import { dashboardService } from '../services/dashboard.service';
 import { DashboardData } from '../types/dashboard.types';
 
@@ -30,9 +31,12 @@ export default function DashboardScreen() {
 
   if (loading) {
     return (
-      <YStack flex={1} alignItems="center" justifyContent="center" minHeight="100vh" backgroundColor="$background">
-        <Spinner size="large" color="$blue10" />
-        <Text marginTop="$4" color="$gray10">Updating your dashboard...</Text>
+      <YStack flex={1} backgroundColor="$background" minHeight="100vh">
+        <ZelifyTopNavbar />
+        <YStack flex={1} alignItems="center" justifyContent="center">
+          <Spinner size="large" color="$blue10" />
+          <Text marginTop="$4" color="$gray10">Updating your dashboard...</Text>
+        </YStack>
       </YStack>
     );
   }
@@ -40,6 +44,8 @@ export default function DashboardScreen() {
   if (!data) return null;
 
   return (
+    <YStack flex={1} backgroundColor="$background" minHeight="100vh">
+      <ZelifyTopNavbar />
     <ScrollView backgroundColor="$background">
       <YStack padding="$6" gap="$8" maxWidth={1400} marginHorizontal="auto" width="100%">
         <YStack gap="$2" marginTop="$4">
@@ -62,5 +68,6 @@ export default function DashboardScreen() {
         </XStack>
       </YStack>
     </ScrollView>
+    </YStack>
   );
 }

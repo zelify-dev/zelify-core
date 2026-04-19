@@ -31,7 +31,7 @@ export const CustomersListScreen: React.FC = () => {
 
   return (
     <YStack flex={1} backgroundColor="$background" minHeight="100vh">
-      <ZelifyTopNavbar activeItem="Clients" />
+      <ZelifyTopNavbar />
       <SandboxBanner />
       
       <ScrollView>

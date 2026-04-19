@@ -36,6 +36,51 @@
   border-bottom: 1px solid rgba(26, 39, 64, 0.08);
 }
 
+.zelify-topbar-tertiary {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0 20px;
+  background: #eef1f5;
+  border-bottom: 1px solid rgba(26, 39, 64, 0.08);
+}
+
+.zelify-topbar-tertiary .zelify-topbar__nav {
+  gap: 22px;
+}
+
+.zelify-nav-tab--admin-sub {
+  font-size: 12px;
+  font-weight: 600;
+  padding-top: 13px;
+  padding-bottom: 12px;
+  color: #4a5568;
+}
+
+.zelify-nav-tab--admin-sub:hover {
+  color: #1a202c;
+}
+
+.zelify-nav-tab--admin-sub.is-active {
+  color: #1a202c;
+  font-weight: 700;
+}
+
+.zelify-nav-tab--admin-sub.is-active::after {
+  display: none;
+}
+
+.zelify-nav-tab--admin-sub.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 3px;
+  border-radius: 0 0 4px 4px;
+  background: #6aff00;
+}
+
 .zelify-topbar__brand-wrap,
 .zelify-topbar__brand,
 .zelify-topbar__actions,

@@ -2,9 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 
 import {
   type ZelifyTopNavItem,
+  isAdministrationPath,
+  resolveActiveAdminSubNavLabel,
+  resolveActiveTopNavLabel,
+  zelifyAdminSubNavItems,
   zelifyTopNavItems,
 } from "@/config/navigation";
 import { AppButton } from "@/components/ui/atoms/button/app-button";
@@ -18,6 +23,7 @@ import { TopbarSearchBox } from "@/components/ui/molecules/search-box/topbar-sea
 import "./zelify-top-navbar.css";
 
 type ZelifyTopNavbarProps = {
+  /** Si se omite, se infiere desde la ruta actual. */
   activeItem?: string;
   organizationLabel?: string;
   userName?: string;
@@ -26,12 +32,18 @@ type ZelifyTopNavbarProps = {
 };
 
 export function ZelifyTopNavbar({
-  activeItem = "Dashboard",
+  activeItem: activeItemProp,
   organizationLabel = "ALL ORGANIZATIONS",
   userName = "Juan Carlos",
   userInitials = "JC",
   items = zelifyTopNavItems,
 }: ZelifyTopNavbarProps) {
+  const pathname = usePathname();
+  const activeItem =
+    activeItemProp ?? resolveActiveTopNavLabel(pathname, items);
+  const adminSubActiveLabel = resolveActiveAdminSubNavLabel(pathname);
+  const showAdminSubBar = isAdministrationPath(pathname);
+
   const [isCondensed, setIsCondensed] = useState(false);
   const [openMenu, setOpenMenu] = useState<null | "create" | "view">(null);
   const lastScrollY = useRef(0);
@@ -181,6 +193,22 @@ export function ZelifyTopNavbar({
           ))}
         </nav>
       </div>
+
+      {showAdminSubBar ? (
+        <div className="zelify-topbar-tertiary">
+          <nav className="zelify-topbar__nav" aria-label="Administration">
+            {zelifyAdminSubNavItems.map((item) => (
+              <NavTab
+                key={item.href}
+                label={item.label}
+                href={item.href}
+                variant="adminSub"
+                isActive={item.label === adminSubActiveLabel}
+              />
+            ))}
+          </nav>
+        </div>
+      ) : null}
     </header>
   );
 }
