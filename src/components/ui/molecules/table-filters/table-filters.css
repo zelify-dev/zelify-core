@@ -1,0 +1,71 @@
+.zelify-table-filters {
+  margin-top: 20px;
+  padding: 16px;
+  background: #f8fafc;
+  border: 1px solid rgba(26, 39, 64, 0.08);
+  border-radius: 12px;
+}
+
+.zelify-table-filters__grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.zelify-table-filters__item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+  flex: 1;
+}
+
+.zelify-table-filters__item label {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.zelify-select {
+  height: 38px;
+  padding: 0 12px;
+  background: #ffffff;
+  border: 1px solid rgba(13, 27, 61, 0.08);
+  border-radius: 8px;
+  color: #0d1b3d;
+  font-size: 14px;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2364748B' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
+.zelify-select:focus {
+  outline: none;
+  border-color: #6aff00;
+}
+
+.zelify-table-filters__actions {
+  display: flex;
+  align-items: center;
+  padding-bottom: 2px;
+}
+
+.zelify-button--sm {
+    min-height: 34px !important;
+    padding: 0 12px !important;
+    font-size: 12px !important;
+}
+
+.animate-in-fade {
+  animation: fadeIn 200ms ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}

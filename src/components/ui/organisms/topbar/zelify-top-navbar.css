@@ -1,26 +1,39 @@
-.zelify-topbar {
+.zelify-topbar-wrapper {
   width: 100%;
-  min-height: 68px;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  transition: min-height 180ms ease;
+  box-shadow: 0 4px 24px rgba(6, 14, 28, 0.04);
+}
+
+.zelify-topbar-primary {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 10px 20px;
-  position: sticky;
-  top: 0;
-  z-index: 40;
+  padding: 8px 20px;
   background: #1a2740;
-  border-bottom: 1px solid rgba(214, 219, 226, 0.12);
+  min-height: 52px;
   transition:
     min-height 180ms ease,
-    padding 180ms ease,
-    background-color 180ms ease,
-    border-color 180ms ease;
+    padding 180ms ease;
 }
 
-.zelify-topbar.is-condensed {
-  min-height: 58px;
-  padding: 7px 18px;
+.zelify-topbar-wrapper.is-condensed .zelify-topbar-primary {
+  min-height: 48px;
+  padding: 6px 18px;
+}
+
+.zelify-topbar-secondary {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0 20px;
+  background: #ffffff;
+  border-bottom: 1px solid rgba(26, 39, 64, 0.08);
 }
 
 .zelify-topbar__brand-wrap,
@@ -71,58 +84,61 @@
   flex-shrink: 0;
 }
 
-.zelify-topbar__divider {
-  width: 1px;
-  height: 24px;
-  background: rgba(214, 219, 226, 0.14);
-}
-
-.zelify-topbar.is-condensed .zelify-topbar__divider {
-  height: 20px;
-}
-
 .zelify-topbar__nav {
   flex: 1;
-  justify-content: center;
-  gap: 2px;
+  justify-content: flex-start;
+  gap: 24px;
   min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.zelify-topbar__nav::-webkit-scrollbar {
+  display: none;
 }
 
 .zelify-nav-tab {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
   gap: 6px;
-  padding: 8px 11px 10px;
+  padding: 16px 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: 0;
   background: transparent;
-  color: rgba(214, 219, 226, 0.82);
+  color: #56657c;
   font: inherit;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   position: relative;
+  white-space: nowrap;
 }
 
-.zelify-topbar.is-condensed .zelify-nav-tab {
-  padding-top: 7px;
-  padding-bottom: 8px;
+.zelify-topbar-wrapper.is-condensed .zelify-nav-tab {
+  padding-top: 12px;
+  padding-bottom: 12px;
 }
 
 .zelify-nav-tab:hover {
-  background: rgba(255, 255, 255, 0.035);
+  background: transparent;
+  color: #0d1b3d;
 }
 
 .zelify-nav-tab.is-active {
-  color: #f8fafc;
+  color: #0d1b3d;
+  font-weight: 700;
 }
 
 .zelify-nav-tab.is-active::after {
   content: "";
   position: absolute;
-  left: 16%;
-  right: 16%;
-  bottom: 4px;
-  height: 2px;
-  border-radius: 999px;
+  left: 0;
+  right: 0;
+  bottom: 0px;
+  height: 3px;
+  border-radius: 4px 4px 0 0;
   background: #6aff00;
 }
 
@@ -397,34 +413,7 @@
   }
 }
 
-@media (max-width: 1100px) {
-  .zelify-topbar {
-    flex-wrap: wrap;
-    row-gap: 12px;
-    padding-bottom: 12px;
-  }
 
-  .zelify-topbar.is-condensed {
-    padding-bottom: 10px;
-  }
-
-  .zelify-topbar__nav {
-    order: 3;
-    flex: 0 0 100%;
-  }
-
-  .zelify-topbar__actions {
-    margin-left: auto;
-  }
-
-  .zelify-topbar__divider {
-    display: none;
-  }
-
-  .zelify-topbar-search {
-    width: 168px;
-  }
-}
 
 @media (max-width: 768px) {
   .zelify-profile-trigger__meta {

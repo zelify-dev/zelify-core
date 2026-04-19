@@ -2,9 +2,11 @@
 
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
+export type AppButtonTone = "primary" | "secondary" | "neutral";
+
 type AppButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   children: ReactNode;
-  tone?: "neutral";
+  tone?: AppButtonTone;
   size?: "md";
   fullWidth?: boolean;
 };

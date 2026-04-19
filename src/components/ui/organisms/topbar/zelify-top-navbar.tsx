@@ -88,22 +88,12 @@ export function ZelifyTopNavbar({
   }, []);
 
   return (
-    <header className={`zelify-topbar ${isCondensed ? "is-condensed" : ""}`}>
-      <div className="zelify-topbar__brand-wrap">
-        <BrandBlock organizationLabel={organizationLabel} />
-        <div className="zelify-topbar__divider" />
-      </div>
-
-      <nav className="zelify-topbar__nav" aria-label="Primary">
-        {items.map((item) => (
-          <NavTab
-            key={item.label}
-            label={item.label}
-            isActive={item.label === activeItem}
-            trailingIcon={item.hasDropdown ? <ChevronDownIcon /> : null}
-          />
-        ))}
-      </nav>
+    <header className={`zelify-topbar-wrapper ${isCondensed ? "is-condensed" : ""}`}>
+      {/* Nivel Superior: Marca y Acciones */}
+      <div className="zelify-topbar-primary">
+        <div className="zelify-topbar__brand-wrap">
+          <BrandBlock organizationLabel={organizationLabel} />
+        </div>
 
       <div className="zelify-topbar__actions">
         <div className="zelify-topbar__menu-anchor" ref={createMenuRef}>
@@ -174,6 +164,22 @@ export function ZelifyTopNavbar({
           initials={userInitials}
           trailingIcon={<ChevronDownIcon />}
         />
+      </div>{/* Fin Nivel Superior Actions */}
+      </div>{/* Fin Nivel Superior Primary */}
+
+      {/* Nivel Inferior: Navegación de rutas */}
+      <div className="zelify-topbar-secondary">
+        <nav className="zelify-topbar__nav" aria-label="Primary">
+          {items.map((item) => (
+            <NavTab
+              key={item.label}
+              label={item.label}
+              href={item.href}
+              isActive={item.label === activeItem}
+              trailingIcon={item.hasDropdown ? <ChevronDownIcon /> : null}
+            />
+          ))}
+        </nav>
       </div>
     </header>
   );
