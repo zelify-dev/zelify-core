@@ -1,78 +1,110 @@
 "use client";
 
-import React from 'react';
-import { YStack, XStack, Text, Button, Separator, Square } from 'tamagui';
-import { ChevronLeft, ChevronRight, MoreHorizontal, GripVertical } from 'lucide-react';
-import { OrganizationUnit, UnitState } from '../types/organization.types';
+import React from "react";
+import { ChevronLeft, ChevronRight, GripVertical, MoreHorizontal } from "lucide-react";
+import { SettingsDataTable } from "@/components/ui/organisms/settings-data-table/settings-data-table";
+import { AppBadge } from "@/components/ui/atoms/badge/app-badge";
+import { AppIconButton } from "@/components/ui/atoms/icon-button/app-icon-button";
+import { OrganizationUnit, UnitState } from "../types/organization.types";
+
+import "./unit-table.css";
 
 interface UnitTableProps {
   units: OrganizationUnit[];
-  type: 'Branch' | 'Centre';
+  type: "Branch" | "Centre";
 }
 
 export const UnitTable: React.FC<UnitTableProps> = ({ units, type }) => {
+  const colCount = 7;
+
   return (
-    <YStack borderWidth={1} borderColor="$borderColor" borderRadius="$4" overflow="hidden" background="$background">
-      {/* Table Header */}
-      <XStack background="$gray2" padding="$4" borderBottomWidth={1} borderBottomColor="$borderColor">
-        <Text flex={2} fontWeight="700" fontSize="$3" color="$gray11">NAME</Text><Text flex={1} fontWeight="700" fontSize="$3" color="$gray11">ID</Text><Text flex={1} fontWeight="700" fontSize="$3" color="$gray11">STATE</Text><Text flex={2} fontWeight="700" fontSize="$3" color="$gray11">ADDRESS</Text><Text flex={1} fontWeight="700" fontSize="$3" color="$gray11">CREATED</Text><Text flex={1} fontWeight="700" fontSize="$3" color="$gray11" textAlign="right">LAST MODIFIED</Text><Text width={40}></Text>
-      </XStack>
+    <div className="zelify-unit-table">
+      <SettingsDataTable variant="clients">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>ID</th>
+            <th>State</th>
+            <th>Address</th>
+            <th>Created</th>
+            <th className="is-numeric-header">Last modified</th>
+            <th className="zelify-settings-data-table__actions-col" aria-label="Actions" />
+          </tr>
+        </thead>
+        <tbody>
+          {units.length === 0 ? (
+            <tr>
+              <td colSpan={colCount} className="zelify-unit-table__empty">
+                No {type.toLowerCase()}s found.
+              </td>
+            </tr>
+          ) : (
+            units.map((unit) => (
+              <tr key={unit.id}>
+                <td>
+                  <span className="zelify-unit-table__name-cell">
+                    <GripVertical size={16} className="zelify-unit-table__grip" aria-hidden />
+                    <button type="button" className="zelify-unit-table__name-btn">
+                      {unit.name}
+                    </button>
+                  </span>
+                </td>
+                <td>
+                  <span className="zelify-mono">{unit.id}</span>
+                </td>
+                <td>
+                  <AppBadge tone={unitStateToTone(unit.state)} size="sm">
+                    {formatUnitStateLabel(unit.state)}
+                  </AppBadge>
+                </td>
+                <td>{unit.address}</td>
+                <td>{unit.created}</td>
+                <td className="is-numeric">{unit.lastModified}</td>
+                <td className="is-actions">
+                  <AppIconButton ariaLabel={`More actions for ${unit.name}`}>
+                    <MoreHorizontal size={18} strokeWidth={2} />
+                  </AppIconButton>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </SettingsDataTable>
 
-      {/* Table Body */}
-      <YStack separator={<Separator />}>
-        {units.length === 0 ? (
-          <YStack padding="$10" alignItems="center">
-            <Text color="$gray10">No {type.toLowerCase()}s found.</Text>
-          </YStack>
-        ) : (
-          units.map((unit) => (
-            <XStack key={unit.id} padding="$4" alignItems="center" hoverStyle={{ background: '$gray1' }}>
-              <XStack flex={2} alignItems="center" gap="$3">
-                <GripVertical size={16} color="var(--gray8)" />
-                <Text color="#006064" fontWeight="600" fontSize="$4" cursor="pointer" hoverStyle={{ textDecorationLine: 'underline' }}>
-                  {unit.name}
-                </Text>
-              </XStack>
-              <Text flex={1} color="$color" fontSize="$3">{unit.id}</Text>
-              <XStack flex={1} alignItems="center" gap="$2">
-                <Square size={10} borderRadius={2} background={unit.state === UnitState.ACTIVE ? '$green10' : '$gray8'} />
-                <Text fontSize="$3" color="$color">
-                  {unit.state.charAt(0) + unit.state.slice(1).toLowerCase()}
-                </Text>
-              </XStack>
-              <Text flex={2} color="$color" fontSize="$3">{unit.address}</Text>
-              <Text flex={1} color="$gray11" fontSize="$3">{unit.created}</Text>
-              <Text flex={1} textAlign="right" color="$gray11" fontSize="$3">{unit.lastModified}</Text>
-              <XStack width={40} justifyContent="center">
-                <Button 
-                  icon={<MoreHorizontal size={18} />} 
-                  chromeless 
-                  size="$2" 
-                  circular 
-                />
-              </XStack>
-            </XStack>
-          ))
-        )}
-      </YStack>
-
-      {/* Table Footer / Pagination */}
-      <XStack padding="$4" background="$gray1" justifyContent="space-between" alignItems="center">
-        <XStack alignItems="center" gap="$3">
-          <Text fontSize="$3" color="$gray11">Show</Text>
-          <XStack borderWidth={1} borderColor="$borderColor" borderRadius="$3" paddingHorizontal="$3" paddingVertical="$1" background="white">
-            <Text fontSize="$3" fontWeight="600">10</Text>
-          </XStack>
-        </XStack>
-
-        <XStack alignItems="center" gap="$4">
-          <Text fontSize="$3" color="$gray10">Total: {units.length}</Text>
-          <XStack gap="$2">
-            <Button icon={<ChevronLeft size={16} />} circular size="$3" disabled chromeless />
-            <Button icon={<ChevronRight size={16} />} circular size="$3" disabled chromeless />
-          </XStack>
-        </XStack>
-      </XStack>
-    </YStack>
+      <div className="zelify-data-table-footer">
+        <div className="zelify-data-table-footer__page-size">
+          <span className="zelify-data-table-footer__info">Show</span>
+          <span className="zelify-data-table-footer__page-size-value">10</span>
+        </div>
+        <div className="zelify-data-table-footer__controls">
+          <span className="zelify-data-table-footer__info">Total: {units.length}</span>
+          <div className="zelify-data-table-footer__pages">
+            <button type="button" className="zelify-pagination-btn" disabled aria-label="Previous page">
+              <ChevronLeft size={16} strokeWidth={2} />
+            </button>
+            <button type="button" className="zelify-pagination-btn" disabled aria-label="Next page">
+              <ChevronRight size={16} strokeWidth={2} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
+
+function formatUnitStateLabel(state: UnitState): string {
+  return state.charAt(0) + state.slice(1).toLowerCase();
+}
+
+function unitStateToTone(state: UnitState): "success" | "error" | "warning" | "neutral" {
+  switch (state) {
+    case UnitState.ACTIVE:
+      return "success";
+    case UnitState.INACTIVE:
+      return "warning";
+    case UnitState.DEACTIVATED:
+      return "neutral";
+    default:
+      return "neutral";
+  }
+}

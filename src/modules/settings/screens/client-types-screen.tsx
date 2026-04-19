@@ -2,6 +2,13 @@
 
 import { useState } from "react";
 
+import { AppBadge } from "@/components/ui/atoms/badge/app-badge";
+import { AppButton } from "@/components/ui/atoms/button/app-button";
+import { FieldLabel } from "@/components/ui/atoms/field-label/field-label";
+import { AppSelect } from "@/components/ui/atoms/select/app-select";
+import { FormField } from "@/components/ui/molecules/form-field/form-field";
+import { SettingsDataTable } from "@/components/ui/organisms/settings-data-table/settings-data-table";
+
 import "./client-types-screen.css";
 
 type ClientTypeRow = {
@@ -25,62 +32,66 @@ export function ClientTypesScreen() {
     <div className="zelify-client-types">
       <div className="zelify-client-types__main">
         <div className="zelify-client-types__toolbar">
-          <label className="zelify-client-types__field">
-            <span className="zelify-client-types__field-label">Type</span>
-            <select
-              className="zelify-client-types__select"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              aria-label="Filter by type"
-            >
-              <option value="client">Client</option>
-              <option value="group">Group</option>
-            </select>
-          </label>
+          <FormField
+            className="zelify-client-types__filter-field"
+            label={<FieldLabel htmlFor="client-type-filter">Type</FieldLabel>}
+            control={
+              <AppSelect
+                id="client-type-filter"
+                size="md"
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                aria-label="Filter by type"
+              >
+                <option value="client">Client</option>
+                <option value="group">Group</option>
+              </AppSelect>
+            }
+          />
         </div>
 
-        <div className="zelify-client-types__table-wrap">
-          <table className="zelify-client-types__table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Created</th>
-                <th>Created By</th>
-                <th className="zelify-client-types__col-actions" />
+        <SettingsDataTable>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Created</th>
+              <th>Created By</th>
+              <th className="zelify-settings-data-table__actions-col" />
+            </tr>
+          </thead>
+          <tbody>
+            {MOCK_ROWS.map((row) => (
+              <tr key={row.id}>
+                <td>
+                  <span className="zelify-client-types__name">
+                    {row.name}
+                    {row.isDefault ? (
+                      <AppBadge tone="neutral" size="sm" className="zelify-client-types__default-badge">
+                        DEFAULT
+                      </AppBadge>
+                    ) : null}
+                  </span>
+                </td>
+                <td>{row.created}</td>
+                <td>{row.createdBy}</td>
+                <td className="is-actions">
+                  <AppButton type="button" tone="primary" className="zelify-button--compact">
+                    Actions
+                    <ChevronDownSmall />
+                  </AppButton>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {MOCK_ROWS.map((row) => (
-                <tr key={row.id}>
-                  <td>
-                    <span className="zelify-client-types__name">
-                      {row.name}
-                      {row.isDefault ? (
-                        <span className="zelify-client-types__default-badge">DEFAULT</span>
-                      ) : null}
-                    </span>
-                  </td>
-                  <td>{row.created}</td>
-                  <td>{row.createdBy}</td>
-                  <td className="zelify-client-types__col-actions">
-                    <button type="button" className="zelify-client-types__actions-btn">
-                      Actions
-                      <ChevronDownSmall />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </SettingsDataTable>
 
         <div className="zelify-client-types__footer-actions">
-          <button type="button" className="zelify-client-types__btn zelify-client-types__btn--muted">
+          <AppButton type="button" tone="secondary">
             Rearrange
-          </button>
-          <button type="button" className="zelify-client-types__btn zelify-client-types__btn--primary">
+          </AppButton>
+          <AppButton type="button" tone="primary">
             Add Type
-          </button>
+          </AppButton>
         </div>
       </div>
     </div>

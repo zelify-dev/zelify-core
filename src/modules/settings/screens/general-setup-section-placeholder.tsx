@@ -1,5 +1,8 @@
 "use client";
 
+import { SectionTitle } from "@/components/ui/atoms/section-title/section-title";
+import { AppText } from "@/components/ui/atoms/text/app-text";
+
 import "./general-setup-section-placeholder.css";
 
 type GeneralSetupSectionPlaceholderProps = {
@@ -11,8 +14,8 @@ export function GeneralSetupSectionPlaceholder({
 }: GeneralSetupSectionPlaceholderProps) {
   return (
     <div className="zelify-general-setup-placeholder">
-      <h1 className="zelify-general-setup-placeholder__title">{title}</h1>
-      <p className="zelify-general-setup-placeholder__hint">Contenido próximamente.</p>
+      <SectionTitle>{title}</SectionTitle>
+      <AppText tone="muted">Contenido próximamente.</AppText>
     </div>
   );
 }

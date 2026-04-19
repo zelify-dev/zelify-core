@@ -1,25 +1,37 @@
 "use client";
 
+import Link from "next/link";
+import { useState } from "react";
+
 import { AppAvatar } from "@/components/ui/atoms/avatar/app-avatar";
 import { AppBadge } from "@/components/ui/atoms/badge/app-badge";
 import { AppButton } from "@/components/ui/atoms/button/app-button";
+import { AppCheckbox } from "@/components/ui/atoms/checkbox/app-checkbox";
+import { FieldLabel } from "@/components/ui/atoms/field-label/field-label";
 import { AppIconButton } from "@/components/ui/atoms/icon-button/app-icon-button";
 import { AppInput } from "@/components/ui/atoms/input/app-input";
+import { AppSelect } from "@/components/ui/atoms/select/app-select";
+import { SectionTitle } from "@/components/ui/atoms/section-title/section-title";
 import { AppText } from "@/components/ui/atoms/text/app-text";
 import { ContextSelector } from "@/components/ui/molecules/context-selector/context-selector";
 import { DropdownMenu } from "@/components/ui/molecules/dropdown-menu/dropdown-menu";
-import { IndicatorTile } from "@/components/ui/molecules/indicator-tile/indicator-tile";
+import { FormField } from "@/components/ui/molecules/form-field/form-field";
 import { NavTab } from "@/components/ui/molecules/nav-tab/nav-tab";
 import { PanelHeader } from "@/components/ui/molecules/panel-header/panel-header";
 import { ProfileTrigger } from "@/components/ui/molecules/profile-trigger/profile-trigger";
+import { TableFilters } from "@/components/ui/molecules/table-filters/table-filters";
 import { TopbarSearchBox } from "@/components/ui/molecules/search-box/topbar-search-box";
 import { StatCard } from "@/components/ui/molecules/stat-card/stat-card";
 import { ActivityFeed } from "@/components/ui/organisms/activity-feed/activity-feed";
+import { GeneralSetupSubNav } from "@/components/ui/organisms/settings-general-subnav/settings-general-subnav";
 import { QuickViewList } from "@/components/ui/organisms/quick-view-list/quick-view-list";
+import { SettingsDataTable } from "@/components/ui/organisms/settings-data-table/settings-data-table";
 import { StatusList } from "@/components/ui/organisms/status-list/status-list";
 import { SummaryGrid } from "@/components/ui/organisms/summary-grid/summary-grid";
 import { TaskQueue } from "@/components/ui/organisms/task-queue/task-queue";
 import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
+import { SandboxBanner } from "@/modules/customers/components/sandbox-banner";
+import { IndicatorTile } from "@/components/ui/molecules/indicator-tile/indicator-tile";
 
 import "./home-screen.css";
 import "./atomic-design-screen.css";
@@ -68,7 +80,18 @@ const summaryItems = [
   },
 ];
 
+const ROUTE_LINKS: { href: string; label: string }[] = [
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/customers", label: "Clients" },
+  { href: "/settings/general/organization-details", label: "General Setup → Organization" },
+  { href: "/settings/general/holidays", label: "General Setup → Holidays" },
+  { href: "/settings/general/client-types", label: "General Setup → Client Types" },
+  { href: "/settings/organization", label: "Admin → Organization (branches)" },
+];
+
 export default function AtomicDesignScreen() {
+  const [filtersOpen, setFiltersOpen] = useState(true);
+
   return (
     <div className="atomic-design-page">
       <ZelifyTopNavbar activeItem="Dashboard" />
@@ -79,46 +102,71 @@ export default function AtomicDesignScreen() {
             <span className="atomic-design-page__eyebrow">Component Library</span>
             <h1 className="atomic-design-page__title">Atomic design catalog</h1>
             <AppText className="atomic-design-page__lead" tone="muted">
-              Internal reference for the components already built in Zelify. This
-              page lets the team review the current atoms, molecules and organisms
-              from one route.
+              Catálogo interno de átomos, moléculas y organismos reutilizables. Las pantallas de
+              producto combinan estos bloques con Tamagui donde aplica.
             </AppText>
           </div>
 
           <div className="atomic-design-page__status">
             <div className="atomic-design-page__status-card">
-              <span className="atomic-design-page__status-label">Atomic design</span>
-              <strong>Active</strong>
+              <span className="atomic-design-page__status-label">Design system</span>
+              <strong>Tokens + CSS</strong>
               <AppText tone="muted">
-                Reusable UI pieces grouped by atom, molecule and organism.
+                Botones, inputs y tablas de settings comparten clases `zelify-*` importadas desde
+                cada átomo.
               </AppText>
             </div>
             <div className="atomic-design-page__status-card">
-              <span className="atomic-design-page__status-label">Tamagui</span>
-              <strong>Foundation active</strong>
-              <AppText tone="muted">
-                Provider and generated CSS are active globally. Current showcase
-                components use that foundation, but not every visual primitive is
-                yet implemented as a pure Tamagui component.
-              </AppText>
+              <span className="atomic-design-page__status-label">Rutas de ejemplo</span>
+              <ul className="atomic-design-page__route-list">
+                {ROUTE_LINKS.map((r) => (
+                  <li key={r.href}>
+                    <Link href={r.href}>{r.label}</Link>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         </section>
 
         <CatalogSection
           title="Atoms"
-          description="Smallest reusable primitives currently available."
+          description="Primitivos: botón, input (surface / ghost), select, etiquetas, checkbox, badge, texto."
         >
           <PreviewCard label="AppButton">
-            <AppButton className="atomic-design-demo__button">Neutral action</AppButton>
+            <div className="atomic-design-demo__button-row">
+              <AppButton tone="primary">Primary</AppButton>
+              <AppButton tone="secondary">Secondary</AppButton>
+              <AppButton tone="neutral">Neutral</AppButton>
+              <AppButton tone="primary" className="zelify-button--compact">
+                Compact
+              </AppButton>
+            </div>
           </PreviewCard>
           <PreviewCard label="AppInput">
-            <div className="atomic-design-demo__input-shell">
-              <AppInput
-                className="atomic-design-demo__input"
-                placeholder="Search account or client"
-              />
+            <div className="atomic-design-demo__stack">
+              <AppText tone="muted">surface (formularios)</AppText>
+              <AppInput placeholder="Texto en fondo claro" />
+              <AppText tone="muted">ghost (topbar)</AppText>
+              <div className="atomic-design-demo__dark-input-shell">
+                <AppInput variant="ghost" placeholder="Búsqueda…" />
+              </div>
             </div>
+          </PreviewCard>
+          <PreviewCard label="AppSelect">
+            <AppSelect defaultValue="eur" size="md">
+              <option value="eur">Euro (EUR)</option>
+              <option value="usd">US Dollar (USD)</option>
+            </AppSelect>
+          </PreviewCard>
+          <PreviewCard label="FieldLabel">
+            <FieldLabel htmlFor="demo-fl">Etiqueta de campo</FieldLabel>
+          </PreviewCard>
+          <PreviewCard label="SectionTitle">
+            <SectionTitle>Título de sección</SectionTitle>
+          </PreviewCard>
+          <PreviewCard label="AppCheckbox">
+            <AppCheckbox id="demo-cb" label="Saturday" defaultChecked />
           </PreviewCard>
           <PreviewCard label="AppIconButton">
             <AppIconButton ariaLabel="Notifications">
@@ -129,7 +177,14 @@ export default function AtomicDesignScreen() {
             <AppAvatar initials="JC" />
           </PreviewCard>
           <PreviewCard label="AppBadge">
-            <AppBadge className="atomic-design-demo__badge">3 monitored areas</AppBadge>
+            <div className="atomic-design-demo__badge-row">
+              <AppBadge tone="success" size="sm">
+                Active
+              </AppBadge>
+              <AppBadge tone="neutral" size="sm">
+                Default
+              </AppBadge>
+            </div>
           </PreviewCard>
           <PreviewCard label="AppText">
             <div className="atomic-design-demo__text-group">
@@ -141,8 +196,14 @@ export default function AtomicDesignScreen() {
 
         <CatalogSection
           title="Molecules"
-          description="Compositions of small primitives used repeatedly across product surfaces."
+          description="Bloques compuestos: campo con label, navegación, filtros de tabla, etc."
         >
+          <PreviewCard label="FormField">
+            <FormField
+              label={<FieldLabel htmlFor="atomic-ff">Nombre</FieldLabel>}
+              control={<AppInput id="atomic-ff" placeholder="Valor" />}
+            />
+          </PreviewCard>
           <PreviewCard label="ContextSelector">
             <ContextSelector label="ALL ORGANIZATIONS" icon={<ChevronDownIcon />} />
           </PreviewCard>
@@ -193,11 +254,19 @@ export default function AtomicDesignScreen() {
               meta="9 submitted in the last hour"
             />
           </PreviewCard>
+          <PreviewCard label="TableFilters" wide>
+            <div className="atomic-design-demo__table-filters">
+              <AppButton tone="secondary" type="button" onClick={() => setFiltersOpen((v) => !v)}>
+                {filtersOpen ? "Ocultar filtros" : "Mostrar filtros"}
+              </AppButton>
+              <TableFilters isVisible={filtersOpen} onClear={() => setFiltersOpen(false)} />
+            </div>
+          </PreviewCard>
         </CatalogSection>
 
         <CatalogSection
           title="Organisms"
-          description="Larger operational blocks already available for dashboard assembly."
+          description="Bloques de producto: feeds, tablas de settings, topbar completo."
         >
           <PreviewCard label="ActivityFeed" wide>
             <ActivityFeed items={activityItems} />
@@ -228,6 +297,30 @@ export default function AtomicDesignScreen() {
           <PreviewCard label="SummaryGrid" wide>
             <SummaryGrid items={summaryItems} />
           </PreviewCard>
+          <PreviewCard label="SettingsDataTable">
+            <SettingsDataTable>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Example</td>
+                  <td>123</td>
+                </tr>
+              </tbody>
+            </SettingsDataTable>
+          </PreviewCard>
+          <PreviewCard label="GeneralSetupSubNav" wide>
+            <div className="atomic-design-demo__general-subnav">
+              <GeneralSetupSubNav />
+            </div>
+          </PreviewCard>
+          <PreviewCard label="SandboxBanner" wide>
+            <SandboxBanner />
+          </PreviewCard>
           <PreviewCard label="ZelifyTopNavbar" full>
             <div className="atomic-design-demo__navbar-shell">
               <ZelifyTopNavbar activeItem="Dashboard" />
@@ -236,12 +329,21 @@ export default function AtomicDesignScreen() {
         </CatalogSection>
 
         <CatalogSection
-          title="Templates"
-          description="No template components have been implemented yet. Only the folder structure exists for future shells."
+          title="Templates / shells"
+          description="Layouts de página que componen organismos; enlazan rutas reales del workspace."
         >
-          <PreviewCard label="Template status">
+          <PreviewCard label="WorkspaceShell" wide>
             <AppText tone="muted">
-              `auth-shell`, `dashboard-shell` and `detail-shell` are still pending implementation.
+              Envuelve contenido con <code className="atomic-design-page__code">ZelifyTopNavbar</code>{" "}
+              activo por ruta. Usado en{" "}
+              <Link href="/customers/CL-882914">/customers/[customerId]</Link>.
+            </AppText>
+          </PreviewCard>
+          <PreviewCard label="GeneralSetupShell" wide>
+            <AppText tone="muted">
+              Navbar + barra Administration + pestañas General Setup + cuerpo +{" "}
+              <strong>Sandbox</strong>. Ver{" "}
+              <Link href="/settings/general/organization-details">/settings/general/*</Link>.
             </AppText>
           </PreviewCard>
         </CatalogSection>

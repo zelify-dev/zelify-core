@@ -1,14 +1,14 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { YStack, XStack, ScrollView, Spinner, Text } from 'tamagui';
-import { RecentActivityList } from '../components/recent-activity-list';
-import { TaskList } from '../components/task-list';
-import { FavoriteViews } from '../components/favorite-views';
-import { CompanyIndicators } from '../components/company-indicators';
-import { ZelifyTopNavbar } from '@/components/ui/organisms/topbar/zelify-top-navbar';
-import { dashboardService } from '../services/dashboard.service';
-import { DashboardData } from '../types/dashboard.types';
+import React, { useEffect, useState } from "react";
+import { RecentActivityList } from "../components/recent-activity-list";
+import { TaskList } from "../components/task-list";
+import { FavoriteViews } from "../components/favorite-views";
+import { CompanyIndicators } from "../components/company-indicators";
+import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
+import "@/components/ui/templates/workspace-page.css";
+import { dashboardService } from "../services/dashboard.service";
+import { DashboardData } from "../types/dashboard.types";
 
 export default function DashboardScreen() {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -20,7 +20,7 @@ export default function DashboardScreen() {
         const result = await dashboardService.getDashboardData();
         setData(result);
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+        console.error("Error fetching dashboard data:", error);
       } finally {
         setLoading(false);
       }
@@ -31,43 +31,41 @@ export default function DashboardScreen() {
 
   if (loading) {
     return (
-      <YStack flex={1} backgroundColor="$background" minHeight="100vh">
+      <div className="zelify-workspace-page">
         <ZelifyTopNavbar />
-        <YStack flex={1} alignItems="center" justifyContent="center">
-          <Spinner size="large" color="$blue10" />
-          <Text marginTop="$4" color="$gray10">Updating your dashboard...</Text>
-        </YStack>
-      </YStack>
+        <div className="zelify-workspace-page__loading">
+          <div className="zelify-workspace-page__spinner" aria-hidden />
+          <span>Updating your dashboard...</span>
+        </div>
+      </div>
     );
   }
 
   if (!data) return null;
 
   return (
-    <YStack flex={1} backgroundColor="$background" minHeight="100vh">
+    <div className="zelify-workspace-page">
       <ZelifyTopNavbar />
-    <ScrollView backgroundColor="$background">
-      <YStack padding="$6" gap="$8" maxWidth={1400} marginHorizontal="auto" width="100%">
-        <YStack gap="$2" marginTop="$4">
-          <Text fontSize="$9" fontWeight="800" color="$color">Operational Dashboard</Text>
-          <Text fontSize="$4" color="$gray11">Welcome back. Here's a summary of the system activity.</Text>
-        </YStack>
+      <div className="zelify-workspace-page__scroll">
+        <div className="zelify-workspace-page__inner">
+          <h1 className="zelify-workspace-page__title">Operational Dashboard</h1>
+          <p className="zelify-workspace-page__subtitle">
+            Welcome back. Here&apos;s a summary of the system activity.
+          </p>
 
-        <XStack gap="$8" flexWrap="wrap">
-          {/* Left Column - Recent Activity */}
-          <YStack flex={1.5} minWidth={400}>
-            <RecentActivityList activities={data.activities} />
-          </YStack>
+          <div className="zelify-workspace-page__grid-2">
+            <div className="zelify-workspace-page__col-main">
+              <RecentActivityList activities={data.activities} />
+            </div>
 
-          {/* Right Column - Tasks, Favorites, Indicators */}
-          <YStack flex={1} minWidth={350} gap="$8">
-            <TaskList tasks={data.tasks} />
-            <FavoriteViews favorites={data.favorites} />
-            <CompanyIndicators indicators={data.indicators} />
-          </YStack>
-        </XStack>
-      </YStack>
-    </ScrollView>
-    </YStack>
+            <div className="zelify-workspace-page__col-side">
+              <TaskList tasks={data.tasks} />
+              <FavoriteViews favorites={data.favorites} />
+              <CompanyIndicators indicators={data.indicators} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { AppInput } from "@/components/ui/atoms/input/app-input";
 import { AppButton } from "@/components/ui/atoms/button/app-button";
+import { AppSelect } from "@/components/ui/atoms/select/app-select";
 
 import "./table-filters.css";
 
@@ -23,21 +24,21 @@ export function TableFilters({ isVisible, onClear }: TableFiltersProps) {
         
         <div className="zelify-table-filters__item">
           <label>Branch</label>
-          <select className="zelify-select">
+          <AppSelect defaultValue="">
             <option value="">All Branches</option>
             <option value="milan">Milan Main</option>
             <option value="madrid">Madrid Central</option>
-          </select>
+          </AppSelect>
         </div>
 
         <div className="zelify-table-filters__item">
           <label>State</label>
-          <select className="zelify-select">
+          <AppSelect defaultValue="">
             <option value="">All States</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
             <option value="arrears">In Arrears</option>
-          </select>
+          </AppSelect>
         </div>
 
         <div className="zelify-table-filters__actions">

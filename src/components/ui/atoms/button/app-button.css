@@ -68,3 +68,9 @@
 .zelify-button.is-full-width {
   width: 100%;
 }
+
+.zelify-button--compact {
+  min-height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
+}

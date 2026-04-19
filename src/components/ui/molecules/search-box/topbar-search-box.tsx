@@ -61,6 +61,7 @@ export function TopbarSearchBox({
       <div className="zelify-topbar-search">
         <SearchIcon />
         <AppInput
+          variant="ghost"
           className="zelify-topbar-search-input"
           placeholder={placeholder}
           value={query}

@@ -95,50 +95,29 @@
   gap: 20px;
 }
 
-.zelify-accounts-table-wrapper {
-  overflow-x: auto;
+.zelify-customer-overview__accounts .zelify-settings-data-table-wrap {
+  border-radius: 10px;
 }
 
-.zelify-accounts-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-}
-
-.zelify-accounts-table th {
-  padding: 10px 0;
-  color: #64748b;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border-bottom: 1px solid rgba(26, 39, 64, 0.06);
-}
-
-.zelify-accounts-table td {
-  padding: 12px 0;
-  border-bottom: 1px solid rgba(26, 39, 64, 0.04);
-}
-
-.zelify-accounts-table__name {
+.zelify-customer-overview__account-name {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.zelify-accounts-table__name strong {
+.zelify-customer-overview__account-name strong {
   font-size: 14px;
   color: #0a1538;
 }
 
-.zelify-accounts-table__name span {
+.zelify-customer-overview__account-name .zelify-mono {
   font-size: 11px;
   color: #64748b;
 }
 
-.zelify-accounts-table__total td {
-  padding-top: 16px;
-  border-bottom: 0;
+.zelify-customer-overview__accounts .zelify-settings-data-table th.is-numeric-header,
+.zelify-customer-overview__accounts .zelify-settings-data-table td.is-numeric {
+  text-align: right;
 }
 
 /* Info Lists */

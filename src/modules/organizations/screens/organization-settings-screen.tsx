@@ -1,16 +1,18 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { YStack, XStack, Text, Button, Switch, ScrollView, Spinner } from 'tamagui';
-import { Plus } from 'lucide-react';
-import { ZelifyTopNavbar } from '@/components/ui/organisms/topbar/zelify-top-navbar';
-import { SandboxBanner } from '@/modules/customers/components/sandbox-banner';
-import { UnitTable } from '../components/unit-table';
-import { organizationsService } from '../services/organizations.service';
-import { OrganizationUnit, UnitType } from '../types/organization.types';
+import React, { useEffect, useState } from "react";
+import { Plus } from "lucide-react";
+import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
+import "@/components/ui/templates/workspace-page.css";
+import { SandboxBanner } from "@/modules/customers/components/sandbox-banner";
+import { UnitTable } from "../components/unit-table";
+import { organizationsService } from "../services/organizations.service";
+import { OrganizationUnit, UnitType } from "../types/organization.types";
+import { AppButton } from "@/components/ui/atoms/button/app-button";
+import { AppCheckbox } from "@/components/ui/atoms/checkbox/app-checkbox";
 
 export const OrganizationSettingsScreen: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<UnitType>('branch');
+  const [activeTab, setActiveTab] = useState<UnitType>("branch");
   const [data, setData] = useState<OrganizationUnit[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDeactivated, setShowDeactivated] = useState(false);
@@ -19,13 +21,14 @@ export const OrganizationSettingsScreen: React.FC = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const result = activeTab === 'branch' 
-          ? await organizationsService.getBranches() 
-          : await organizationsService.getCentres();
-        
-        setData(showDeactivated ? result : result.filter(u => u.state !== 'DEACTIVATED'));
+        const result =
+          activeTab === "branch"
+            ? await organizationsService.getBranches()
+            : await organizationsService.getCentres();
+
+        setData(showDeactivated ? result : result.filter((u) => u.state !== "DEACTIVATED"));
       } catch (error) {
-        console.error('Error fetching organization data:', error);
+        console.error("Error fetching organization data:", error);
       } finally {
         setLoading(false);
       }
@@ -34,88 +37,69 @@ export const OrganizationSettingsScreen: React.FC = () => {
     fetchData();
   }, [activeTab, showDeactivated]);
 
+  const unitLabel = activeTab === "branch" ? "Branch" : "Centre";
+  const deactivatedLabel = activeTab === "branch" ? "branches" : "centres";
+
   return (
-    <YStack flex={1} background="$background" minHeight="100vh">
+    <div className="zelify-workspace-page">
       <ZelifyTopNavbar />
 
-      <ScrollView>
-        <YStack padding="$6" gap="$6" maxWidth={1400} marginHorizontal="auto" width="100%">
-          {/* Sub-navigation and Actions */}
-          <XStack 
-            justifyContent="space-between" 
-            alignItems="flex-end" 
-            borderBottomWidth={1} 
-            borderBottomColor="$borderColor" 
-            paddingBottom="$2"
-          >
-            <XStack gap="$6">
-              <PressableTab 
-                label="Branches" 
-                isActive={activeTab === 'branch'} 
-                onPress={() => setActiveTab('branch')} 
-              /><PressableTab 
-                label="Centres" 
-                isActive={activeTab === 'centre'} 
-                onPress={() => setActiveTab('centre')} 
-              />
-            </XStack>
+      <div className="zelify-workspace-page__scroll">
+        <div className="zelify-workspace-page__inner">
+          <div className="zelify-org-tabs">
+            <div className="zelify-org-tabs__list" role="tablist" aria-label="Organization units">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "branch"}
+                className={["zelify-org-tab", activeTab === "branch" ? "is-active" : ""].filter(Boolean).join(" ")}
+                onClick={() => setActiveTab("branch")}
+              >
+                Branches
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "centre"}
+                className={["zelify-org-tab", activeTab === "centre" ? "is-active" : ""].filter(Boolean).join(" ")}
+                onClick={() => setActiveTab("centre")}
+              >
+                Centres
+              </button>
+            </div>
 
-            <Button 
-              background="#006064" 
-              color="white" 
-              icon={<Plus size={16} />}
-              borderRadius="$4"
-              onPress={() => console.log(`New ${activeTab}`)}
+            <AppButton
+              tone="primary"
+              type="button"
+              onClick={() => console.log(`New ${activeTab}`)}
             >
-              New {activeTab === 'branch' ? 'Branch' : 'Centre'}
-            </Button>
-          </XStack>
+              <Plus size={16} strokeWidth={2} aria-hidden />
+              New {unitLabel}
+            </AppButton>
+          </div>
 
-          {/* Filters Bar */}
-          <XStack alignItems="center" gap="$3">
-            <Switch 
-              size="$2" 
-              checked={showDeactivated} 
-              onCheckedChange={setShowDeactivated}
-              background={showDeactivated ? '#006064' : '$gray5'}
-            >
-              <Switch.Thumb />
-            </Switch>
-            <Text fontSize="$3" color="$gray11">Show deactivated {activeTab === 'branch' ? 'branches' : 'centres'}</Text>
-          </XStack>
+          <div className="zelify-org-toolbar">
+            <AppCheckbox
+              id="org-show-deactivated"
+              checked={showDeactivated}
+              onChange={(e) => setShowDeactivated(e.target.checked)}
+              label={`Show deactivated ${deactivatedLabel}`}
+            />
+          </div>
 
-          {/* Table Section */}
           {loading ? (
-            <YStack padding="$10" alignItems="center" justifyContent="center" minHeight={400}>
-              <Spinner size="large" color="#006064" />
-            </YStack>
+            <div className="zelify-workspace-page__loading">
+              <div className="zelify-workspace-page__spinner" aria-hidden />
+              <span>Loading…</span>
+            </div>
           ) : (
-            <YStack gap="$4">
-              <UnitTable units={data} type={activeTab === 'branch' ? 'Branch' : 'Centre'} />
+            <div className="zelify-workspace-page__stack">
+              <UnitTable units={data} type={unitLabel} />
               <SandboxBanner />
-            </YStack>
+            </div>
           )}
-        </YStack>
-      </ScrollView>
-    </YStack>
+        </div>
+      </div>
+    </div>
   );
 };
-
-const PressableTab: React.FC<{ label: string; isActive: boolean; onPress: () => void }> = ({ label, isActive, onPress }) => (
-  <YStack 
-    onPress={onPress} 
-    cursor="pointer" 
-    paddingBottom="$2" 
-    borderBottomWidth={isActive ? 2 : 0} 
-    borderBottomColor="#006064"
-    marginBottom={-8}
-  >
-    <Text 
-      fontSize="$4" 
-      fontWeight={isActive ? "700" : "500"} 
-      color={isActive ? "#006064" : "$gray10"}
-    >
-      {label}
-    </Text>
-  </YStack>
-);

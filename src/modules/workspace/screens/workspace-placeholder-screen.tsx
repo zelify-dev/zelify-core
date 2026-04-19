@@ -1,7 +1,8 @@
 "use client";
 
-import { YStack, Text } from "tamagui";
 import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
+import "@/components/ui/templates/workspace-page.css";
+import { AppText } from "@/components/ui/atoms/text/app-text";
 
 type WorkspacePlaceholderScreenProps = {
   title: string;
@@ -9,14 +10,14 @@ type WorkspacePlaceholderScreenProps = {
 
 export function WorkspacePlaceholderScreen({ title }: WorkspacePlaceholderScreenProps) {
   return (
-    <YStack flex={1} backgroundColor="$background" minHeight="100vh">
+    <div className="zelify-workspace-page">
       <ZelifyTopNavbar />
-      <YStack padding="$6" gap="$2" maxWidth={1400} marginHorizontal="auto" width="100%">
-        <Text fontSize="$9" fontWeight="800" color="$color">
-          {title}
-        </Text>
-        <Text color="$gray10">Contenido próximamente.</Text>
-      </YStack>
-    </YStack>
+      <div className="zelify-workspace-page__scroll">
+        <div className="zelify-workspace-page__inner">
+          <h1 className="zelify-workspace-page__title">{title}</h1>
+          <AppText tone="muted">Contenido próximamente.</AppText>
+        </div>
+      </div>
+    </div>
   );
 }

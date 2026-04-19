@@ -1,14 +1,14 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { YStack, XStack, ScrollView, Spinner, Text } from 'tamagui';
-import { ZelifyTopNavbar } from '@/components/ui/organisms/topbar/zelify-top-navbar';
-import { SandboxBanner } from '../components/sandbox-banner';
-import { CustomerFilters } from '../components/customer-filters';
-import { CustomerTable } from '../components/customer-table';
-import { ColumnPresets } from '../components/column-presets';
-import { customersService } from '../services/customers.service';
-import { Customer } from '../types/customer.types';
+import React, { useEffect, useState } from "react";
+import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
+import "@/components/ui/templates/workspace-page.css";
+import { SandboxBanner } from "../components/sandbox-banner";
+import { CustomerFilters } from "../components/customer-filters";
+import { CustomerTable } from "../components/customer-table";
+import { ColumnPresets } from "../components/column-presets";
+import { customersService } from "../services/customers.service";
+import { Customer } from "../types/customer.types";
 
 export const CustomersListScreen: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -20,7 +20,7 @@ export const CustomersListScreen: React.FC = () => {
         const data = await customersService.getCustomers();
         setCustomers(data);
       } catch (error) {
-        console.error('Error fetching customers:', error);
+        console.error("Error fetching customers:", error);
       } finally {
         setLoading(false);
       }
@@ -30,34 +30,30 @@ export const CustomersListScreen: React.FC = () => {
   }, []);
 
   return (
-    <YStack flex={1} backgroundColor="$background" minHeight="100vh">
+    <div className="zelify-workspace-page">
       <ZelifyTopNavbar />
       <SandboxBanner />
-      
-      <ScrollView>
-        <YStack padding="$6" gap="$6" maxWidth={1400} marginHorizontal="auto" width="100%">
-          {/* Page Header */}
-          <YStack gap="$2" marginTop="$2">
-            <Text fontSize="$9" fontWeight="800" color="$color">Clients</Text>
-          </YStack>
 
-          {/* Filters Section */}
-          <CustomerFilters />
+      <div className="zelify-workspace-page__scroll">
+        <div className="zelify-workspace-page__inner">
+          <h1 className="zelify-workspace-page__title">Clients</h1>
 
-          {/* Table Section */}
-          {loading ? (
-            <YStack padding="$10" alignItems="center" justifyContent="center">
-              <Spinner size="large" color="#006064" />
-              <Text marginTop="$4" color="$gray10">Loading clients...</Text>
-            </YStack>
-          ) : (
-            <CustomerTable customers={customers} />
-          )}
+          <div className="zelify-workspace-page__stack">
+            <CustomerFilters />
 
-          {/* Column Presets Section */}
-          <ColumnPresets />
-        </YStack>
-      </ScrollView>
-    </YStack>
+            {loading ? (
+              <div className="zelify-workspace-page__loading">
+                <div className="zelify-workspace-page__spinner" aria-hidden />
+                <span>Loading clients...</span>
+              </div>
+            ) : (
+              <CustomerTable customers={customers} />
+            )}
+
+            <ColumnPresets />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };

@@ -3,6 +3,9 @@
 import { useState } from "react";
 
 import { AppButton } from "@/components/ui/atoms/button/app-button";
+import { AppCheckbox } from "@/components/ui/atoms/checkbox/app-checkbox";
+import { SectionTitle } from "@/components/ui/atoms/section-title/section-title";
+import { SettingsDataTable } from "@/components/ui/organisms/settings-data-table/settings-data-table";
 
 import "./holidays-screen.css";
 
@@ -53,57 +56,47 @@ export function HolidaysScreen() {
     <div className="zelify-holidays">
       <div className="zelify-holidays__main">
         <section className="zelify-holidays__section" aria-labelledby="holidays-nwd-heading">
-          <h2 id="holidays-nwd-heading" className="zelify-holidays__section-title">
-            Non Working Days
-          </h2>
+          <SectionTitle id="holidays-nwd-heading">Non Working Days</SectionTitle>
           <ul className="zelify-holidays__day-list">
             {DAYS.map((day) => (
               <li key={day.id} className="zelify-holidays__day-item">
-                <label className="zelify-holidays__check-label">
-                  <input
-                    type="checkbox"
-                    className="zelify-holidays__checkbox"
-                    checked={nonWorking[day.id]}
-                    onChange={() => toggleDay(day.id)}
-                  />
-                  <span className="zelify-holidays__check-ui" aria-hidden />
-                  <span>{day.label}</span>
-                </label>
+                <AppCheckbox
+                  id={`nwd-${day.id}`}
+                  label={day.label}
+                  checked={nonWorking[day.id]}
+                  onChange={() => toggleDay(day.id)}
+                />
               </li>
             ))}
           </ul>
         </section>
 
         <section className="zelify-holidays__section" aria-labelledby="holidays-gh-heading">
-          <h2 id="holidays-gh-heading" className="zelify-holidays__section-title">
-            General Holidays
-          </h2>
-          <div className="zelify-holidays__table-wrap">
-            <table className="zelify-holidays__table">
-              <thead>
-                <tr>
-                  <th>Description</th>
-                  <th>Date</th>
-                  <th>Recurring</th>
-                  <th>Id</th>
+          <SectionTitle id="holidays-gh-heading">General Holidays</SectionTitle>
+          <SettingsDataTable>
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th className="is-lower">Date</th>
+                <th className="is-lower">Recurring</th>
+                <th className="is-lower">Id</th>
+              </tr>
+            </thead>
+            <tbody>
+              {INITIAL_HOLIDAYS.map((row) => (
+                <tr key={row.id}>
+                  <td>{row.description}</td>
+                  <td>{row.date}</td>
+                  <td>{row.recurring}</td>
+                  <td className="is-numeric">{row.numericId}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {INITIAL_HOLIDAYS.map((row) => (
-                  <tr key={row.id}>
-                    <td>{row.description}</td>
-                    <td>{row.date}</td>
-                    <td>{row.recurring}</td>
-                    <td className="zelify-holidays__mono">{row.numericId}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </SettingsDataTable>
           <div className="zelify-holidays__add-row">
-            <button type="button" className="zelify-holidays__add-btn">
+            <AppButton type="button" tone="secondary" className="zelify-holidays__add-btn">
               Add holiday
-            </button>
+            </AppButton>
           </div>
         </section>
 

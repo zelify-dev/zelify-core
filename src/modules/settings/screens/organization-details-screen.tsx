@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 
+import { AppInput } from "@/components/ui/atoms/input/app-input";
+import { FieldLabel } from "@/components/ui/atoms/field-label/field-label";
+import { AppSelect } from "@/components/ui/atoms/select/app-select";
+import { FormField } from "@/components/ui/molecules/form-field/form-field";
+
 import "./organization-details-screen.css";
 
 export function OrganizationDetailsScreen() {
@@ -21,182 +26,168 @@ export function OrganizationDetailsScreen() {
   return (
     <div className="zelify-org-details">
       <form className="zelify-org-details__form" onSubmit={(e) => e.preventDefault()}>
-        <div className="zelify-org-details__field zelify-org-details__field--full">
-          <label className="zelify-org-details__label" htmlFor="org-institution">
-            Institution Name
-          </label>
-          <input
-            id="org-institution"
-            className="zelify-org-details__input"
-            value={institutionName}
-            onChange={(e) => setInstitutionName(e.target.value)}
-            autoComplete="organization"
-          />
-        </div>
+        <FormField
+          className="zelify-org-details__field--full"
+          label={<FieldLabel htmlFor="org-institution">Institution Name</FieldLabel>}
+          control={
+            <AppInput
+              id="org-institution"
+              value={institutionName}
+              onChange={(e) => setInstitutionName(e.target.value)}
+              autoComplete="organization"
+            />
+          }
+        />
 
-        <div className="zelify-org-details__field zelify-org-details__field--full">
-          <label className="zelify-org-details__label" htmlFor="org-street1">
-            Street Address - Line 1
-          </label>
-          <input
-            id="org-street1"
-            className="zelify-org-details__input"
-            value={street1}
-            onChange={(e) => setStreet1(e.target.value)}
-            autoComplete="street-address"
-          />
-        </div>
+        <FormField
+          className="zelify-org-details__field--full"
+          label={<FieldLabel htmlFor="org-street1">Street Address - Line 1</FieldLabel>}
+          control={
+            <AppInput
+              id="org-street1"
+              value={street1}
+              onChange={(e) => setStreet1(e.target.value)}
+              autoComplete="street-address"
+            />
+          }
+        />
 
         <div className="zelify-org-details__grid">
-          <div className="zelify-org-details__field">
-            <label className="zelify-org-details__label" htmlFor="org-city">
-              City
-            </label>
-            <input
-              id="org-city"
-              className="zelify-org-details__input"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              autoComplete="address-level2"
-            />
-          </div>
-          <div className="zelify-org-details__field">
-            <label className="zelify-org-details__label" htmlFor="org-region">
-              State/Province/Region
-            </label>
-            <input
-              id="org-region"
-              className="zelify-org-details__input"
-              value={stateRegion}
-              onChange={(e) => setStateRegion(e.target.value)}
-              autoComplete="address-level1"
-            />
-          </div>
+          <FormField
+            label={<FieldLabel htmlFor="org-city">City</FieldLabel>}
+            control={
+              <AppInput
+                id="org-city"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                autoComplete="address-level2"
+              />
+            }
+          />
+          <FormField
+            label={<FieldLabel htmlFor="org-region">State/Province/Region</FieldLabel>}
+            control={
+              <AppInput
+                id="org-region"
+                value={stateRegion}
+                onChange={(e) => setStateRegion(e.target.value)}
+                autoComplete="address-level1"
+              />
+            }
+          />
 
-          <div className="zelify-org-details__field">
-            <label className="zelify-org-details__label" htmlFor="org-zip">
-              Zip Postal Code
-            </label>
-            <input
-              id="org-zip"
-              className="zelify-org-details__input"
-              value={zip}
-              onChange={(e) => setZip(e.target.value)}
-              autoComplete="postal-code"
-            />
-          </div>
-          <div className="zelify-org-details__field">
-            <label className="zelify-org-details__label" htmlFor="org-country">
-              Country
-            </label>
-            <input
-              id="org-country"
-              className="zelify-org-details__input"
-              value={country}
-              onChange={(e) => setCountry(e.target.value)}
-              autoComplete="country-name"
-            />
-          </div>
+          <FormField
+            label={<FieldLabel htmlFor="org-zip">Zip Postal Code</FieldLabel>}
+            control={
+              <AppInput
+                id="org-zip"
+                value={zip}
+                onChange={(e) => setZip(e.target.value)}
+                autoComplete="postal-code"
+              />
+            }
+          />
+          <FormField
+            label={<FieldLabel htmlFor="org-country">Country</FieldLabel>}
+            control={
+              <AppInput
+                id="org-country"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                autoComplete="country-name"
+              />
+            }
+          />
 
-          <div className="zelify-org-details__field">
-            <label className="zelify-org-details__label" htmlFor="org-mobile">
-              Mobile Phone
-            </label>
-            <input
-              id="org-mobile"
-              className="zelify-org-details__input"
-              value={mobile}
-              onChange={(e) => setMobile(e.target.value)}
-              autoComplete="tel"
-            />
-          </div>
-          <div className="zelify-org-details__field">
-            <label className="zelify-org-details__label" htmlFor="org-email">
-              Email
-            </label>
-            <input
-              id="org-email"
-              type="email"
-              className="zelify-org-details__input"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-            />
-          </div>
+          <FormField
+            label={<FieldLabel htmlFor="org-mobile">Mobile Phone</FieldLabel>}
+            control={
+              <AppInput
+                id="org-mobile"
+                value={mobile}
+                onChange={(e) => setMobile(e.target.value)}
+                autoComplete="tel"
+              />
+            }
+          />
+          <FormField
+            label={<FieldLabel htmlFor="org-email">Email</FieldLabel>}
+            control={
+              <AppInput
+                id="org-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+              />
+            }
+          />
 
-          <div className="zelify-org-details__field">
-            <label className="zelify-org-details__label" htmlFor="org-currency">
-              Currency
-            </label>
-            <select
-              id="org-currency"
-              className="zelify-org-details__select"
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
-            >
-              <option value="EUR">Euro (EUR)</option>
-              <option value="USD">US Dollar (USD)</option>
-              <option value="GBP">British Pound (GBP)</option>
-            </select>
-          </div>
-          <div className="zelify-org-details__field">
-            <label className="zelify-org-details__label" htmlFor="org-tz">
-              Time Zone
-            </label>
-            <select
-              id="org-tz"
-              className="zelify-org-details__select"
-              value={timeZone}
-              onChange={(e) => setTimeZone(e.target.value)}
-            >
-              <option value="Europe/Madrid">Europe/Madrid</option>
-              <option value="Europe/London">Europe/London</option>
-              <option value="America/New_York">America/New_York</option>
-            </select>
-          </div>
+          <FormField
+            label={<FieldLabel htmlFor="org-currency">Currency</FieldLabel>}
+            control={
+              <AppSelect id="org-currency" size="md" value={currency} onChange={(e) => setCurrency(e.target.value)}>
+                <option value="EUR">Euro (EUR)</option>
+                <option value="USD">US Dollar (USD)</option>
+                <option value="GBP">British Pound (GBP)</option>
+              </AppSelect>
+            }
+          />
+          <FormField
+            label={<FieldLabel htmlFor="org-tz">Time Zone</FieldLabel>}
+            control={
+              <AppSelect id="org-tz" size="md" value={timeZone} onChange={(e) => setTimeZone(e.target.value)}>
+                <option value="Europe/Madrid">Europe/Madrid</option>
+                <option value="Europe/London">Europe/London</option>
+                <option value="America/New_York">America/New_York</option>
+              </AppSelect>
+            }
+          />
 
-          <div className="zelify-org-details__field">
-            <span className="zelify-org-details__label-row">
-              <label className="zelify-org-details__label" htmlFor="org-date-fmt">
-                Local Date Format
-              </label>
-              <button
-                type="button"
-                className="zelify-org-details__help"
-                aria-label="Ayuda sobre formato de fecha"
-                title="Formato local de fecha"
-              >
-                <HelpIcon />
-              </button>
-            </span>
-            <input
-              id="org-date-fmt"
-              className="zelify-org-details__input"
-              value={dateFormat}
-              onChange={(e) => setDateFormat(e.target.value)}
-            />
-          </div>
-          <div className="zelify-org-details__field">
-            <span className="zelify-org-details__label-row">
-              <label className="zelify-org-details__label" htmlFor="org-dt-fmt">
-                Local Date/Time Format
-              </label>
-              <button
-                type="button"
-                className="zelify-org-details__help"
-                aria-label="Ayuda sobre formato de fecha y hora"
-                title="Formato local de fecha y hora"
-              >
-                <HelpIcon />
-              </button>
-            </span>
-            <input
-              id="org-dt-fmt"
-              className="zelify-org-details__input"
-              value={dateTimeFormat}
-              onChange={(e) => setDateTimeFormat(e.target.value)}
-            />
-          </div>
+          <FormField
+            label={
+              <span className="zelify-form-field__label-row">
+                <FieldLabel htmlFor="org-date-fmt">Local Date Format</FieldLabel>
+                <button
+                  type="button"
+                  className="zelify-org-details__help"
+                  aria-label="Ayuda sobre formato de fecha"
+                  title="Formato local de fecha"
+                >
+                  <HelpIcon />
+                </button>
+              </span>
+            }
+            control={
+              <AppInput
+                id="org-date-fmt"
+                value={dateFormat}
+                onChange={(e) => setDateFormat(e.target.value)}
+              />
+            }
+          />
+          <FormField
+            label={
+              <span className="zelify-form-field__label-row">
+                <FieldLabel htmlFor="org-dt-fmt">Local Date/Time Format</FieldLabel>
+                <button
+                  type="button"
+                  className="zelify-org-details__help"
+                  aria-label="Ayuda sobre formato de fecha y hora"
+                  title="Formato local de fecha y hora"
+                >
+                  <HelpIcon />
+                </button>
+              </span>
+            }
+            control={
+              <AppInput
+                id="org-dt-fmt"
+                value={dateTimeFormat}
+                onChange={(e) => setDateTimeFormat(e.target.value)}
+              />
+            }
+          />
         </div>
       </form>
     </div>

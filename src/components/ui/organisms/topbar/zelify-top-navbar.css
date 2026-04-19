@@ -370,15 +370,8 @@
   flex-shrink: 0;
 }
 
-.zelify-input {
-  border: 0;
-  outline: 0;
-  background: transparent;
-  box-shadow: none;
-  font-family: inherit;
-  appearance: none;
-  -webkit-appearance: none;
-}
+/* No usar `.zelify-input` suelto aquí: choca con `.zelify-input--surface` (misma especificidad).
+   El átomo AppInput carga app-input.css; el ghost del topbar usa .zelify-input--ghost + .zelify-topbar-search-input */
 
 .zelify-topbar-search-input {
   width: 100%;

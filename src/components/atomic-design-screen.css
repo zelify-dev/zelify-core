@@ -173,6 +173,62 @@
   gap: 8px;
 }
 
+.atomic-design-page__route-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: #0d1b3d;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.atomic-design-page__route-list a {
+  color: #0d47a1;
+  text-decoration: underline;
+}
+
+.atomic-design-page__code {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(26, 39, 64, 0.06);
+  font-size: 12px;
+}
+
+.atomic-design-demo__button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.atomic-design-demo__stack {
+  display: grid;
+  gap: 8px;
+}
+
+.atomic-design-demo__dark-input-shell {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #223148;
+}
+
+.atomic-design-demo__badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.atomic-design-demo__table-filters {
+  display: grid;
+  gap: 12px;
+}
+
+.atomic-design-demo__general-subnav {
+  border: 1px solid rgba(26, 39, 64, 0.1);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 0 -4px;
+}
+
 .atomic-design-demo__nav-tabs {
   display: flex;
   gap: 8px;

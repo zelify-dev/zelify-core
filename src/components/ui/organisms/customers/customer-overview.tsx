@@ -2,61 +2,58 @@
 
 import { type Customer } from "@/mocks/customers";
 import { AppBadge } from "@/components/ui/atoms/badge/app-badge";
+import { SettingsDataTable } from "@/components/ui/organisms/settings-data-table/settings-data-table";
 
 type CustomerOverviewProps = {
   customer: Customer;
 };
 
 export function CustomerOverview({ customer }: CustomerOverviewProps) {
+  const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "EUR" });
+
   return (
     <div className="zelify-customer-overview">
       <section className="zelify-panel zelify-customer-overview__accounts">
         <div className="zelify-panel__header">
           <h2 className="zelify-panel__title">Accounts Summary</h2>
         </div>
-        <div className="zelify-accounts-table-wrapper">
-          <table className="zelify-accounts-table">
-            <thead>
-              <tr>
-                <th>Account Name</th>
-                <th>Type</th>
-                <th>State</th>
-                <th>Balance</th>
+        <SettingsDataTable variant="accounts">
+          <thead>
+            <tr>
+              <th>Account name</th>
+              <th>Type</th>
+              <th>State</th>
+              <th className="is-numeric-header">Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {customer.accounts.map((acc) => (
+              <tr key={acc.id}>
+                <td>
+                  <div className="zelify-customer-overview__account-name">
+                    <strong>{acc.name}</strong>
+                    <span className="zelify-mono">{acc.id}</span>
+                  </div>
+                </td>
+                <td>{acc.type}</td>
+                <td>
+                  <AppBadge tone={acc.state === "In Arrears" ? "error" : "success"} size="sm">
+                    {acc.state.toUpperCase()}
+                  </AppBadge>
+                </td>
+                <td className="is-numeric">{currency.format(acc.balance)}</td>
               </tr>
-            </thead>
-            <tbody>
-              {customer.accounts.map((acc) => (
-                <tr key={acc.id}>
-                  <td>
-                    <div className="zelify-accounts-table__name">
-                      <strong>{acc.name}</strong>
-                      <span className="zelify-mono">{acc.id}</span>
-                    </div>
-                  </td>
-                  <td>{acc.type}</td>
-                  <td>
-                    <AppBadge tone={acc.state === "In Arrears" ? "error" : "success"} size="sm">
-                      {acc.state.toUpperCase()}
-                    </AppBadge>
-                  </td>
-                  <td>
-                    <span className="zelify-mono">
-                      {new Intl.NumberFormat("en-US", { style: "currency", currency: "EUR" }).format(acc.balance)}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-              <tr className="zelify-accounts-table__total">
-                 <td colSpan={3}><strong>Total</strong></td>
-                 <td>
-                    <strong className="zelify-mono">
-                      {new Intl.NumberFormat("en-US", { style: "currency", currency: "EUR" }).format(customer.totalBalance)}
-                    </strong>
-                 </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+            ))}
+            <tr className="is-total">
+              <td colSpan={3}>
+                <strong>Total</strong>
+              </td>
+              <td className="is-numeric">
+                <strong>{currency.format(customer.totalBalance)}</strong>
+              </td>
+            </tr>
+          </tbody>
+        </SettingsDataTable>
       </section>
 
       <div className="zelify-customer-overview__info-grid">
@@ -81,7 +78,7 @@ export function CustomerOverview({ customer }: CustomerOverviewProps) {
               <dt>Centre</dt>
               <dd>{customer.assignedCentre}</dd>
             </div>
-             <div className="zelify-info-list__item">
+            <div className="zelify-info-list__item">
               <dt>Credit Officer</dt>
               <dd>{customer.creditOfficer}</dd>
             </div>
