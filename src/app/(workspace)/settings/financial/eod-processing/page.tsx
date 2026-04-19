@@ -1,5 +1,5 @@
-import { FinancialSetupPlaceholderScreen } from "@/modules/settings/screens/financial-setup-placeholder-screen";
+import { FinancialEodProcessingScreen } from "@/modules/settings/screens/financial-eod-processing-screen";
 
 export default function FinancialEodProcessingPage() {
-  return <FinancialSetupPlaceholderScreen title="EOD Processing" />;
+  return <FinancialEodProcessingScreen />;
 }

@@ -88,6 +88,9 @@ const ROUTE_LINKS: { href: string; label: string }[] = [
   { href: "/settings/general/client-types", label: "General Setup → Client Types" },
   { href: "/settings/organization", label: "Admin → Organization (branches)" },
   { href: "/settings/financial/currency", label: "Financial Setup → Currency" },
+  { href: "/settings/financial/transaction-channels", label: "Financial Setup → Transaction Channels" },
+  { href: "/settings/financial/eod-processing", label: "Financial Setup → EOD Processing" },
+  { href: "/settings/products", label: "Administration → Products" },
 ];
 
 export default function AtomicDesignScreen() {

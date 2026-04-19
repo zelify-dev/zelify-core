@@ -1,5 +1,5 @@
-import { WorkspacePlaceholderScreen } from "@/modules/workspace/screens/workspace-placeholder-screen";
+import { ProductsSettingsScreen } from "@/modules/settings/screens/products-settings-screen";
 
 export default function AdminProductsSettingsPage() {
-  return <WorkspacePlaceholderScreen title="Products (Administration)" />;
+  return <ProductsSettingsScreen />;
 }

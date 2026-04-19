@@ -1,0 +1,32 @@
+.zelify-eod-processing {
+  flex: 1;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 20px 40px;
+}
+
+.zelify-eod-processing__form {
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.zelify-eod-processing__field .zelify-form-field__control {
+  max-width: 320px;
+}
+
+.zelify-eod-processing__rule {
+  margin: 20px 0 0;
+  border: 0;
+  border-top: 1px solid rgba(26, 39, 64, 0.12);
+}
+
+.zelify-eod-processing__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+}

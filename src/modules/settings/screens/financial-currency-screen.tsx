@@ -5,7 +5,7 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { AppBadge } from "@/components/ui/atoms/badge/app-badge";
 import { AppButton } from "@/components/ui/atoms/button/app-button";
-import { DropdownMenu } from "@/components/ui/molecules/dropdown-menu/dropdown-menu";
+import { FinancialTableRowActions } from "@/modules/settings/components/financial-table-row-actions/financial-table-row-actions";
 import { SettingsDataTable } from "@/components/ui/organisms/settings-data-table/settings-data-table";
 import { mockAccountingRates } from "../data/financial-accounting-rates.mock";
 import { mockConversions } from "../data/financial-conversions.mock";
@@ -20,8 +20,6 @@ const KIND_LABEL: Record<CurrencyKind, string> = {
   CRYPTO: "Cryptocurrency",
   NON_TRADITIONAL: "Non-Traditional Currency",
 };
-
-const ROW_ACTION_ITEMS = ["View details", "Edit", "Deactivate"];
 
 export function FinancialCurrencyScreen() {
   return (
@@ -61,7 +59,7 @@ export function FinancialCurrencyScreen() {
                   <td>{row.symbol}</td>
                   <td>{KIND_LABEL[row.kind]}</td>
                   <td className="is-actions">
-                    <CurrencyRowActions rowLabel={row.code} />
+                    <FinancialTableRowActions rowLabel={row.code} />
                   </td>
                 </tr>
               ))}
@@ -111,7 +109,7 @@ export function FinancialCurrencyScreen() {
                     <NotSetOrDate dateSet={row.dateSet} />
                   </td>
                   <td className="is-actions">
-                    <CurrencyRowActions rowLabel={`${row.code}-accounting`} />
+                    <FinancialTableRowActions rowLabel={`${row.code}-accounting`} />
                   </td>
                 </tr>
               ))}
@@ -150,7 +148,7 @@ export function FinancialCurrencyScreen() {
                     <NotSetOrDate dateSet={row.dateSet} />
                   </td>
                   <td className="is-actions">
-                    <CurrencyRowActions rowLabel={`${row.code}-exchange`} />
+                    <FinancialTableRowActions rowLabel={`${row.code}-exchange`} />
                   </td>
                 </tr>
               ))}
@@ -194,7 +192,7 @@ export function FinancialCurrencyScreen() {
                       <NotSetOrDate dateSet={row.dateSet} />
                     </td>
                     <td className="is-actions">
-                      <CurrencyRowActions rowLabel={`${row.id}-conversion`} />
+                      <FinancialTableRowActions rowLabel={`${row.id}-conversion`} />
                     </td>
                   </tr>
                 ))
@@ -274,16 +272,3 @@ function formatExchangeRate(n: number): string {
   return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
 }
 
-function CurrencyRowActions({ rowLabel }: { rowLabel: string }) {
-  return (
-    <details className="zelify-currency-row-actions">
-      <summary className="zelify-currency-row-actions__summary" aria-label={`Actions for ${rowLabel}`}>
-        Actions
-        <ChevronDown size={14} strokeWidth={2} aria-hidden />
-      </summary>
-      <div className="zelify-currency-row-actions__menu">
-        <DropdownMenu items={ROW_ACTION_ITEMS} />
-      </div>
-    </details>
-  );
-}

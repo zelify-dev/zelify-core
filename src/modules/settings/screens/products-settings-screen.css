@@ -1,0 +1,104 @@
+.zelify-products-settings {
+  flex: 1;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 20px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.zelify-products-settings__tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(26, 39, 64, 0.1);
+}
+
+.zelify-products-settings__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.zelify-products-settings__branch-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: min(100%, 280px);
+  max-width: 320px;
+  flex: 1;
+}
+
+.zelify-products-settings__branch-field .zelify-select {
+  width: 100%;
+  padding-right: 40px;
+}
+
+.zelify-products-settings__branch-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  pointer-events: none;
+}
+
+.zelify-products-settings__checkbox {
+  display: flex;
+  align-items: center;
+}
+
+.zelify-products-settings__table-wrap {
+  min-width: 0;
+}
+
+/* Cebra suave (referencia Figma Deposits) */
+.zelify-products-settings__data-table.zelify-settings-data-table--clients tbody tr:nth-child(even) td {
+  background: rgba(248, 250, 252, 0.85);
+}
+
+.zelify-products-settings__data-table.zelify-settings-data-table--clients tbody tr:hover td {
+  background: rgba(106, 255, 0, 0.04);
+}
+
+.zelify-products-settings__product-link {
+  color: #2563eb;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.zelify-products-settings__product-link:hover {
+  text-decoration: underline;
+}
+
+.zelify-products-settings__active {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.zelify-products-settings__active.is-off {
+  color: #64748b;
+}
+
+.zelify-products-settings__active-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  background: #22c55e;
+}
+
+.zelify-products-settings__active.is-off .zelify-products-settings__active-dot {
+  background: #94a3b8;
+}
