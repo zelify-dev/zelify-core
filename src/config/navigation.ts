@@ -5,9 +5,9 @@ export type ZelifyTopNavItem = {
 };
 
 export const zelifyTopNavItems: ZelifyTopNavItem[] = [
-  { label: "Dashboard", href: "/dashboard" },
+  { label: "Dashboard", href: "/" },
   { label: "Clients", href: "/customers" },
-  { label: "Organizations", href: "/organizations" },
+  { label: "Organizations", href: "/settings/organization" },
   { label: "Accounts", href: "/accounts" },
   { label: "Transactions", href: "/transactions" },
   { label: "Products", href: "/products", hasDropdown: true },

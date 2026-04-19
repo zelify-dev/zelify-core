@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
     "react-native-svg",
     "@tamagui/react-native-svg",
     "tamagui",
+    "lucide-react",
+    "@tamagui/lucide-icons",
   ],
   turbopack: {
     resolveAlias: {

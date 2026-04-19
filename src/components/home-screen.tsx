@@ -1,4 +1,5 @@
 "use client";
+import "./_home-screen.css"
 
 import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
 import { PanelHeader } from "@/components/ui/molecules/panel-header/panel-header";
