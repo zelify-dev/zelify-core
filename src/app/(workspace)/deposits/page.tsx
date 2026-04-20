@@ -1,5 +1,5 @@
-import { WorkspacePlaceholderScreen } from "@/modules/workspace/screens/workspace-placeholder-screen";
+import { DepositsScreen } from "@/modules/deposits/screens/deposits-screen";
 
 export default function DepositsPage() {
-  return <WorkspacePlaceholderScreen title="Deposits" />;
+  return <DepositsScreen />;
 }
