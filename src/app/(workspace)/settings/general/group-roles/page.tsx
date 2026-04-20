@@ -1,5 +1,5 @@
-import { GeneralSetupSectionPlaceholder } from "@/modules/settings/screens/general-setup-section-placeholder";
+import { GroupRolesScreen } from "@/modules/settings/screens/group-roles-screen";
 
 export default function GroupRolesPage() {
-  return <GeneralSetupSectionPlaceholder title="Group Roles" />;
+  return <GroupRolesScreen />;
 }

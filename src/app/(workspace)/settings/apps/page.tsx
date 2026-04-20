@@ -1,5 +1,5 @@
-import { AdminSettingsPlaceholderScreen } from "@/modules/settings/screens/admin-settings-placeholder-screen";
+import { AppsSettingsScreen } from "@/modules/settings/screens/apps-settings-screen";
 
 export default function AppsSettingsPage() {
-  return <AdminSettingsPlaceholderScreen title="Apps" />;
+  return <AppsSettingsScreen />;
 }

@@ -1,5 +1,5 @@
-import { GeneralSetupSectionPlaceholder } from "@/modules/settings/screens/general-setup-section-placeholder";
+import { InternalControlsScreen } from "@/modules/settings/screens/internal-controls-screen";
 
 export default function InternalControlsPage() {
-  return <GeneralSetupSectionPlaceholder title="Internal Controls" />;
+  return <InternalControlsScreen />;
 }

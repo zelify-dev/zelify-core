@@ -1,9 +1,5 @@
-import { ApiRouteInsightsScreen } from "@/modules/workspace/screens/api-route-insights-screen";
+import { GroupsListScreen } from "@/modules/groups/screens/groups-list-screen";
 
-type GroupsPageProps = {
-  searchParams?: { view?: string };
-};
-
-export default function GroupsPage({ searchParams }: GroupsPageProps) {
-  return <ApiRouteInsightsScreen pathKey="groups" view={searchParams?.view} />;
+export default function GroupsPage() {
+  return <GroupsListScreen />;
 }
