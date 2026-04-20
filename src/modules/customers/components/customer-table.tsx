@@ -9,23 +9,26 @@ import { SettingsDataTable } from "@/components/ui/organisms/settings-data-table
 import { AppAvatar } from "@/components/ui/atoms/avatar/app-avatar";
 import { AppBadge } from "@/components/ui/atoms/badge/app-badge";
 import { Customer, ClientState } from "../types/customer.types";
+import { useI18n } from "@/providers/i18n-provider";
 
 interface CustomerTableProps {
   customers: Customer[];
 }
 
 export const CustomerTable: React.FC<CustomerTableProps> = ({ customers }) => {
+  const { t } = useI18n();
+
   return (
     <div className="zelify-customer-table">
       <SettingsDataTable variant="clients">
         <thead>
           <tr>
-            <th>Full name</th>
-            <th>ID</th>
-            <th>Client state</th>
-            <th>Credit officer</th>
-            <th className="is-numeric-header">Total balance</th>
-            <th className="is-numeric-header">Last modified</th>
+            <th>{t("customers.list.columns.fullName")}</th>
+            <th>{t("customers.list.columns.id")}</th>
+            <th>{t("customers.list.columns.clientState")}</th>
+            <th>{t("customers.list.columns.creditOfficer")}</th>
+            <th className="is-numeric-header">{t("customers.list.columns.totalBalance")}</th>
+            <th className="is-numeric-header">{t("customers.list.columns.lastModified")}</th>
           </tr>
         </thead>
         <tbody>
@@ -45,7 +48,7 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({ customers }) => {
               </td>
               <td>
                 <AppBadge tone={clientStateToTone(customer.state)} size="sm">
-                  {formatStateLabel(customer.state)}
+                  {clientStateLabel(customer.state, t)}
                 </AppBadge>
               </td>
               <td>{customer.creditOfficer || "—"}</td>
@@ -66,16 +69,28 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({ customers }) => {
 
       <div className="zelify-data-table-footer">
         <div className="zelify-data-table-footer__page-size">
-          <span className="zelify-data-table-footer__info">Show</span>
+          <span className="zelify-data-table-footer__info">{t("customers.common.show")}</span>
           <span className="zelify-data-table-footer__page-size-value">25</span>
         </div>
         <div className="zelify-data-table-footer__controls">
-          <span className="zelify-data-table-footer__info">All {customers.length}</span>
+          <span className="zelify-data-table-footer__info">
+            {t("customers.common.allCount").replace("{count}", String(customers.length))}
+          </span>
           <div className="zelify-data-table-footer__pages">
-            <button type="button" className="zelify-pagination-btn" disabled aria-label="Previous page">
+            <button
+              type="button"
+              className="zelify-pagination-btn"
+              disabled
+              aria-label={t("customers.common.prevPageAria")}
+            >
               <ChevronLeft size={16} strokeWidth={2} />
             </button>
-            <button type="button" className="zelify-pagination-btn" disabled aria-label="Next page">
+            <button
+              type="button"
+              className="zelify-pagination-btn"
+              disabled
+              aria-label={t("customers.common.nextPageAria")}
+            >
               <ChevronRight size={16} strokeWidth={2} />
             </button>
           </div>
@@ -92,9 +107,21 @@ function initialsFromName(fullName: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-function formatStateLabel(state: ClientState): string {
-  const words = state.split("_").map((w) => w.charAt(0) + w.slice(1).toLowerCase());
-  return words.join(" ");
+type TFn = (key: string) => string;
+
+function clientStateLabel(state: ClientState, t: TFn): string {
+  switch (state) {
+    case ClientState.ACTIVE:
+      return t("customers.list.clientStates.active");
+    case ClientState.INACTIVE:
+      return t("customers.list.clientStates.inactive");
+    case ClientState.BLACKLISTED:
+      return t("customers.list.clientStates.blacklisted");
+    case ClientState.PENDING:
+      return t("customers.list.clientStates.pending");
+    default:
+      return state;
+  }
 }
 
 function clientStateToTone(state: ClientState): "success" | "error" | "warning" | "neutral" {

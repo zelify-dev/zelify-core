@@ -1,0 +1,81 @@
+.zelify-deposit-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.zelify-deposit-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 100;
+  width: min(100%, 420px);
+  height: 100%;
+  background: #fff;
+  box-shadow: -8px 0 32px rgba(15, 23, 42, 0.15);
+  display: flex;
+  flex-direction: column;
+  animation: zelify-drawer-in 0.2s ease-out;
+}
+
+@keyframes zelify-drawer-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.zelify-deposit-drawer__header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid rgba(26, 39, 64, 0.1);
+  background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+}
+
+.zelify-deposit-drawer__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0a1538;
+}
+
+.zelify-deposit-drawer__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.zelify-deposit-drawer__row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.zelify-deposit-drawer__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.zelify-deposit-drawer__value {
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.zelify-deposit-drawer__mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+}

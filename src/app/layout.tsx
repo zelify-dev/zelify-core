@@ -44,7 +44,7 @@ export default async function RootLayout({
   const messages = getMessages(locale);
 
   return (
-    <html lang={locale} className={nataSans.variable}>
+    <html lang={locale} className={nataSans.variable} suppressHydrationWarning>
       <body>
         <TamaguiProvider>
           <I18nProvider initialLocale={locale} initialMessages={messages}>

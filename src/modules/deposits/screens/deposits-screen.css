@@ -1,0 +1,12 @@
+.zelify-deposits-page__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.zelify-deposits-page__inner {
+  padding-bottom: 120px;
+}
