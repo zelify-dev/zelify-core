@@ -1,0 +1,54 @@
+.zelify-webhook-settings-tab__lead {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: #475569;
+  max-width: 720px;
+}
+
+.zelify-webhook-settings-tab__form h2 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.zelify-webhook-settings-tab__grid {
+  display: grid;
+  grid-template-columns: 2fr 1.2fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 900px) {
+  .zelify-webhook-settings-tab__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.zelify-webhook-settings-tab__grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.zelify-webhook-settings-tab__url {
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.zelify-webhook-settings-tab .zelify-settings-workspace__subtitle {
+  margin-top: 20px;
+}
+
+.zelify-webhook-settings-tab__btn {
+  border: 1px solid rgba(26, 39, 64, 0.15);
+  background: #fff;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  margin-right: 6px;
+}
+
+.zelify-webhook-settings-tab__btn:hover {
+  border-color: rgba(26, 39, 64, 0.28);
+}

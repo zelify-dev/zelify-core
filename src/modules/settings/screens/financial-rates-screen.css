@@ -1,0 +1,53 @@
+.zelify-fin-rates__lead {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: #475569;
+  max-width: 720px;
+}
+
+.zelify-fin-rates__manual h2 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.zelify-fin-rates__manual-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 720px) {
+  .zelify-fin-rates__manual-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.zelify-fin-rates__manual-grid label,
+.zelify-fin-rates__note {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.zelify-fin-rates__manual select {
+  border: 1px solid rgba(26, 39, 64, 0.14);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  background: #fff;
+}
+
+.zelify-fin-rates__note {
+  margin-bottom: 12px;
+}
+
+.zelify-fin-rates .zelify-settings-workspace__subtitle {
+  margin-top: 20px;
+}
+
+.zelify-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+}

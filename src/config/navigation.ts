@@ -6,12 +6,6 @@ export type ZelifyTopNavItem = {
   hasDropdown?: boolean;
 };
 
-export type ZelifyAdminSubNavItem = {
-  id: string;
-  labelKey: string;
-  href: string;
-};
-
 export type ZelifyAccountingSubNavItem = {
   id: string;
   labelKey: string;
@@ -32,15 +26,6 @@ export const zelifyTopNavItems: ZelifyTopNavItem[] = [
   { id: "reporting", labelKey: "nav.top.reporting", href: "/reports" },
   { id: "accounting", labelKey: "nav.top.accounting", href: "/accounting" },
   { id: "administration", labelKey: "nav.top.administration", href: "/settings" },
-];
-
-export const zelifyAdminSubNavItems: ZelifyAdminSubNavItem[] = [
-  { id: "access", labelKey: "nav.admin.access", href: "/settings/access" },
-  { id: "tasks", labelKey: "nav.admin.tasks", href: "/settings/tasks" },
-  { id: "generalLabels", labelKey: "nav.admin.generalLabels", href: "/settings/general/labels" },
-  { id: "generalBranding", labelKey: "nav.admin.generalBranding", href: "/settings/general/branding" },
-  { id: "financialRates", labelKey: "nav.admin.financialRates", href: "/settings/financial/rates" },
-  { id: "financialAccounting", labelKey: "nav.admin.financialAccounting", href: "/settings/financial/accounting" },
 ];
 
 const ADMIN_PREFIX = "/settings";
@@ -84,23 +69,6 @@ export function resolveActiveTopNavId(
     return "dashboard";
   }
   return "dashboard";
-}
-
-/**
- * Resuelve la sub-sección activa bajo Administración, o null si no aplica.
- */
-export function resolveActiveAdminSubNavId(
-  pathname: string,
-  items: ZelifyAdminSubNavItem[] = zelifyAdminSubNavItems
-): string | null {
-  if (!isAdministrationPath(pathname)) return null;
-  const sorted = [...items].sort((a, b) => b.href.length - a.href.length);
-  for (const item of sorted) {
-    if (pathname === item.href || pathname.startsWith(`${item.href}/`)) {
-      return item.id;
-    }
-  }
-  return "access";
 }
 
 export function resolveActiveAccountingSubNavId(

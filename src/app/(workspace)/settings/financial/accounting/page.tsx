@@ -1,5 +1,5 @@
-import { FinancialSetupPlaceholderScreen } from "@/modules/settings/screens/financial-setup-placeholder-screen";
+import { FinancialAccountingSettingsScreen } from "@/modules/settings/screens/financial-accounting-settings-screen";
 
 export default function FinancialAccountingPage() {
-  return <FinancialSetupPlaceholderScreen title="Accounting" />;
+  return <FinancialAccountingSettingsScreen />;
 }

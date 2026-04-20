@@ -1,5 +1,5 @@
-import { GeneralSetupSectionPlaceholder } from "@/modules/settings/screens/general-setup-section-placeholder";
+import { OrganizationalLabelsScreen } from "@/modules/settings/screens/organizational-labels-screen";
 
 export default function LabelsPage() {
-  return <GeneralSetupSectionPlaceholder title="Labels" />;
+  return <OrganizationalLabelsScreen />;
 }

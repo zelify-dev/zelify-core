@@ -1,5 +1,5 @@
-import { GeneralSetupSectionPlaceholder } from "@/modules/settings/screens/general-setup-section-placeholder";
+import { BrandingScreen } from "@/modules/settings/screens/branding-screen";
 
 export default function BrandingPage() {
-  return <GeneralSetupSectionPlaceholder title="Branding" />;
+  return <BrandingScreen />;
 }

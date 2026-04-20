@@ -1,5 +1,5 @@
-import { FinancialSetupPlaceholderScreen } from "@/modules/settings/screens/financial-setup-placeholder-screen";
+import { FinancialRatesScreen } from "@/modules/settings/screens/financial-rates-screen";
 
 export default function FinancialRatesPage() {
-  return <FinancialSetupPlaceholderScreen title="Rates" />;
+  return <FinancialRatesScreen />;
 }

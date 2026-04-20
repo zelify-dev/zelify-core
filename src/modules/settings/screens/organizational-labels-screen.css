@@ -1,0 +1,69 @@
+.zelify-org-labels__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.zelify-org-labels__chip {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.zelify-org-labels__lead {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: #475569;
+  max-width: 800px;
+}
+
+.zelify-org-labels__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+  align-items: center;
+}
+
+.zelify-org-labels__toolbar > :first-child {
+  flex: 1;
+  min-width: 200px;
+}
+
+.zelify-org-labels__value {
+  max-width: 360px;
+  font-size: 13px;
+  color: #1e293b;
+}
+
+.zelify-org-labels__empty {
+  margin-top: 12px;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.zelify-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+}
+
+.zelify-icon-btn {
+  border: 1px solid rgba(26, 39, 64, 0.15);
+  background: #fff;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  margin-right: 6px;
+}
+
+.zelify-icon-btn:hover {
+  border-color: rgba(26, 39, 64, 0.28);
+}

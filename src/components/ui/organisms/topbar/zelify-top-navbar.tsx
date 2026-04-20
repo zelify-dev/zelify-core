@@ -8,12 +8,9 @@ import { LanguageSwitcher } from "@/components/common/language-switcher/language
 import {
   type ZelifyTopNavItem,
   isAccountingPath,
-  isAdministrationPath,
   resolveActiveAccountingSubNavId,
-  resolveActiveAdminSubNavId,
   zelifyAccountingSubNavItems,
   resolveActiveTopNavId,
-  zelifyAdminSubNavItems,
   zelifyTopNavItems,
 } from "@/config/navigation";
 import { getTopNavDropdown, resolveTopNavDropdown } from "@/config/top-nav-dropdowns";
@@ -89,9 +86,7 @@ export function ZelifyTopNavbar({
   const { t } = useI18n();
   const pathname = usePathname();
   const activeNavId = activeNavIdProp ?? resolveActiveTopNavId(pathname, items);
-  const adminSubActiveId = resolveActiveAdminSubNavId(pathname);
   const accountingSubActiveId = resolveActiveAccountingSubNavId(pathname);
-  const showAdminSubBar = isAdministrationPath(pathname);
   const showAccountingSubBar = isAccountingPath(pathname);
   const organizationLabel = organizationLabelProp ?? t("org.allOrganizations");
   const createMenuItems: DropdownMenuItem[] = CREATE_MENU_KEYS.map((key, index) => ({
@@ -281,22 +276,6 @@ export function ZelifyTopNavbar({
                 href={item.href}
                 variant="adminSub"
                 isActive={item.id === accountingSubActiveId}
-              />
-            ))}
-          </nav>
-        </div>
-      ) : null}
-
-      {showAdminSubBar ? (
-        <div className="zelify-topbar-tertiary">
-          <nav className="zelify-topbar__nav" aria-label={t("topbar.navAdministration")}>
-            {zelifyAdminSubNavItems.map((item) => (
-              <NavTab
-                key={item.href}
-                label={t(item.labelKey)}
-                href={item.href}
-                variant="adminSub"
-                isActive={item.id === adminSubActiveId}
               />
             ))}
           </nav>
