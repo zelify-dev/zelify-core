@@ -1,5 +1,5 @@
-import { ApiRouteInsightsScreen } from "@/modules/workspace/screens/api-route-insights-screen";
+import { ProductsScreen } from "@/modules/products/screens/products-screen";
 
 export default function ProductsPage() {
-  return <ApiRouteInsightsScreen screenKey="products" />;
+  return <ProductsScreen />;
 }
