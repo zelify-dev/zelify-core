@@ -22,12 +22,3 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
-.is-numeric-cell.is-positive {
-  color: #10b981;
-  font-weight: 600;
-}
-
-.is-numeric-cell.is-negative {
-  color: #ef4444;
-  font-weight: 600;
-}
