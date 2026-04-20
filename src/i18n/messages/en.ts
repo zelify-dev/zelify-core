@@ -508,6 +508,38 @@ export const en = {
       cancel: "Cancel",
     },
   },
+  groups: {
+    list: {
+      loading: "Loading groups...",
+      allGroups: "All Groups",
+      activeLoans: "Active Loans",
+      activeDeposits: "Active Deposits",
+      noActiveAccounts: "No active accounts",
+      noMembers: "No members",
+      columns: {
+        groupName: "Group name",
+        id: "ID",
+        state: "State",
+        branch: "Branch",
+        membersCount: "Members",
+        lastModified: "Last modified",
+      },
+      states: {
+        active: "Active",
+        inactive: "Inactive",
+        blacklisted: "Blacklisted",
+        pending: "Pending",
+      },
+    },
+    common: {
+      actions: "Actions",
+      actionsAria: "Actions for {name}",
+      show: "Show",
+      allCount: "All {count}",
+      prevPageAria: "Previous page",
+      nextPageAria: "Next page",
+    },
+  },
 } as const;
 
 type DeepStringify<T> = T extends string
@@ -516,5 +548,5 @@ type DeepStringify<T> = T extends string
     ? { [K in keyof T]: DeepStringify<T[K]> }
     : T;
 
-/** Misma forma que `en`, con hojas como `string` para el catálogo en español u otros idiomas. */
+/** Same shape as `en`, with leaves as `string` for Spanish catalog or other languages. */
 export type Messages = DeepStringify<typeof en>;
