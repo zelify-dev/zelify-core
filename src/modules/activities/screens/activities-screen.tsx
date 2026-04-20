@@ -139,11 +139,10 @@ export function ActivitiesScreen() {
             </div>
             <div className="zelify-activities__pagination">
               <span className="zelify-activities__range">
-                {t("activities.range", {
-                  start: String(rangeStart),
-                  end: String(rangeEnd),
-                  total: String(SYSTEM_ACTIVITIES_TOTAL),
-                })}
+                {t("activities.range")
+                  .replace("{start}", String(rangeStart))
+                  .replace("{end}", String(rangeEnd))
+                  .replace("{total}", String(SYSTEM_ACTIVITIES_TOTAL))}
               </span>
               <div className="zelify-data-table-footer__pages">
                 <button
@@ -186,24 +185,24 @@ export function ActivitiesScreen() {
                     <td>{row.creationDate}</td>
                     <td>
                       <Link href="#" className="zelify-activities__cell-link" onClick={(e) => e.preventDefault()}>
-                        {row.user}
+                        {t(`activities.mock.users.${row.userKey}`)}
                       </Link>
                     </td>
                     <td>
-                      <span className="zelify-activities__action">{row.action}</span>
+                      <span className="zelify-activities__action">{t(`activities.mock.actions.${row.actionKey}`)}</span>
                     </td>
                     <td>
                       <Link href="#" className="zelify-activities__cell-link" onClick={(e) => e.preventDefault()}>
-                        {row.affectedItemName}
+                        {t(`activities.mock.items.${row.itemKey}`)}
                       </Link>
                     </td>
                     <td className="zelify-activities__cell-mono">{row.affectedItemId}</td>
                     <td>
-                      {row.affectedClientName === "—" ? (
-                        <span className="zelify-activities__cell-dash">—</span>
+                      {row.clientKey === "none" ? (
+                        <span className="zelify-activities__cell-dash">{t("activities.mock.noClient")}</span>
                       ) : (
                         <Link href="#" className="zelify-activities__cell-link" onClick={(e) => e.preventDefault()}>
-                          {row.affectedClientName}
+                          {t(`activities.mock.clients.${row.clientKey}`)}
                         </Link>
                       )}
                     </td>

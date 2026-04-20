@@ -822,6 +822,34 @@ export const es: Messages = {
       affectedItemId: "ID del elemento afectado",
       affectedClientName: "Nombre del cliente afectado",
     },
+    mock: {
+      users: {
+        valerioFerrari: "Valerio Ferrari",
+        andreaMolina: "Andrea Molina",
+        juanCarlos: "Juan Carlos",
+        system: "Sistema",
+      },
+      actions: {
+        depositAccountEdited: "Cuenta de depósito editada",
+        userLoggedIn: "Inicio de sesión de usuario",
+        taskCompleted: "Tarea completada",
+        loanTermsUpdated: "Condiciones de préstamo actualizadas",
+        scheduledJobCompleted: "Trabajo programado completado",
+      },
+      items: {
+        testFixDeposit: "Depósito de prueba — corrección",
+        verifyBalance: "Verificación de saldo",
+        monthlyReconciliation: "Conciliación mensual",
+        operatingLoan: "Préstamo operativo",
+        eodPosting: "Contabilización fin de día",
+      },
+      clients: {
+        rogerFederer: "Roger Federer",
+        lewisHamilton: "Lewis Hamilton",
+        andeanTreasury: "Grupo Tesorería Andina",
+      },
+      noClient: "—",
+    },
   },
   loans: {
     common: {

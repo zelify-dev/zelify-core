@@ -822,6 +822,34 @@ export const en = {
       affectedItemId: "Affected Item ID",
       affectedClientName: "Affected Client Name",
     },
+    mock: {
+      users: {
+        valerioFerrari: "Valerio Ferrari",
+        andreaMolina: "Andrea Molina",
+        juanCarlos: "Juan Carlos",
+        system: "System",
+      },
+      actions: {
+        depositAccountEdited: "Deposit account edited",
+        userLoggedIn: "User signed in",
+        taskCompleted: "Task completed",
+        loanTermsUpdated: "Loan terms updated",
+        scheduledJobCompleted: "Scheduled job completed",
+      },
+      items: {
+        testFixDeposit: "Test fix — deposit account",
+        verifyBalance: "Balance verification",
+        monthlyReconciliation: "Monthly reconciliation",
+        operatingLoan: "Operating loan",
+        eodPosting: "End-of-day posting",
+      },
+      clients: {
+        rogerFederer: "Roger Federer",
+        lewisHamilton: "Lewis Hamilton",
+        andeanTreasury: "Andean Treasury Group",
+      },
+      noClient: "—",
+    },
   },
   loans: {
     common: {

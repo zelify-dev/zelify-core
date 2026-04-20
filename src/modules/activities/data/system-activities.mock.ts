@@ -3,46 +3,46 @@ import type { SystemActivityRow } from "../types/system-activity.types";
 /** Total según referencia Figma (paginación “1 – 50 of 865”). */
 export const SYSTEM_ACTIVITIES_TOTAL = 865;
 
-const SAMPLE_ROWS: Omit<SystemActivityRow, "id">[] = [
+const SAMPLE_ROWS: Omit<SystemActivityRow, "id" | "affectedItemId">[] = [
   {
     creationDate: "30-07-2025",
-    user: "Valerio Ferrari",
-    action: "Deposit Account Edited",
-    affectedItemName: "Test Fix Deposit",
-    affectedItemId: "TEST_FIX",
-    affectedClientName: "Roger Federer",
+    userKey: "valerioFerrari",
+    actionKey: "depositAccountEdited",
+    itemKey: "testFixDeposit",
+    itemIdPrefix: "TEST_FIX",
+    clientKey: "rogerFederer",
   },
   {
     creationDate: "29-07-2025",
-    user: "Valerio Ferrari",
-    action: "User Logged In",
-    affectedItemName: "Verify Balance",
-    affectedItemId: "MRHX261",
-    affectedClientName: "Lewis Hamilton",
+    userKey: "valerioFerrari",
+    actionKey: "userLoggedIn",
+    itemKey: "verifyBalance",
+    itemIdPrefix: "MRHX261",
+    clientKey: "lewisHamilton",
   },
   {
     creationDate: "28-07-2025",
-    user: "Andrea Molina",
-    action: "Task Completed",
-    affectedItemName: "Monthly reconciliation",
-    affectedItemId: "TASK-8821",
-    affectedClientName: "Andean Treasury Group",
+    userKey: "andreaMolina",
+    actionKey: "taskCompleted",
+    itemKey: "monthlyReconciliation",
+    itemIdPrefix: "TASK-8821",
+    clientKey: "andeanTreasury",
   },
   {
     creationDate: "27-07-2025",
-    user: "Juan Carlos",
-    action: "Loan Terms Updated",
-    affectedItemName: "Operating Loan",
-    affectedItemId: "LN-449210",
-    affectedClientName: "Roger Federer",
+    userKey: "juanCarlos",
+    actionKey: "loanTermsUpdated",
+    itemKey: "operatingLoan",
+    itemIdPrefix: "LN-449210",
+    clientKey: "rogerFederer",
   },
   {
     creationDate: "26-07-2025",
-    user: "System",
-    action: "Scheduled Job Completed",
-    affectedItemName: "EOD Posting",
-    affectedItemId: "EOD-20250726",
-    affectedClientName: "—",
+    userKey: "system",
+    actionKey: "scheduledJobCompleted",
+    itemKey: "eodPosting",
+    itemIdPrefix: "EOD-20250726",
+    clientKey: "none",
   },
 ];
 
@@ -58,7 +58,7 @@ export function getSystemActivitiesSlice(
     out.push({
       ...base,
       id: `activity-${idx + 1}`,
-      affectedItemId: `${base.affectedItemId}-${idx + 1}`,
+      affectedItemId: `${base.itemIdPrefix}-${idx + 1}`,
     });
   }
   return out;
