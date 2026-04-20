@@ -7,6 +7,7 @@ import { AppInput } from "@/components/ui/atoms/input/app-input";
 import { SettingsDataTable } from "@/components/ui/organisms/settings-data-table/settings-data-table";
 import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
 import { SandboxBanner } from "@/modules/customers/components/sandbox-banner";
+import { useI18n } from "@/providers/i18n-provider";
 
 import "@/components/ui/templates/workspace-page.css";
 import "./branches-screen.css";
@@ -68,8 +69,10 @@ const BRANCHES: BranchRow[] = [
 ];
 
 export function BranchesScreen() {
+  const { t, locale } = useI18n();
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<BranchRow | null>(BRANCHES[0]);
+  const nLocale = locale === "es" ? "es-EC" : "en-US";
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -96,31 +99,29 @@ export function BranchesScreen() {
         <div className="zelify-workspace-page__inner zelify-branches">
           <header className="zelify-branches__head">
             <div>
-              <h1 className="zelify-workspace-page__title">Branches</h1>
-              <p className="zelify-workspace-page__subtitle">
-                Unidades organizativas para segmentacion operativa, control de acceso y contabilidad por sucursal.
-              </p>
+              <h1 className="zelify-workspace-page__title">{t("branches.title")}</h1>
+              <p className="zelify-workspace-page__subtitle">{t("branches.subtitle")}</p>
             </div>
             <AppButton type="button" tone="primary">
-              Nueva Sucursal
+              {t("branches.newBranch")}
             </AppButton>
           </header>
 
           <section className="zelify-branches__kpis">
             <article>
-              <span>Total Branches</span>
+              <span>{t("branches.kpis.totalBranches")}</span>
               <strong>{summary.totalBranches}</strong>
             </article>
             <article>
-              <span>Total Clients</span>
-              <strong>{summary.totalClients.toLocaleString()}</strong>
+              <span>{t("branches.kpis.totalClients")}</span>
+              <strong>{summary.totalClients.toLocaleString(nLocale)}</strong>
             </article>
             <article>
-              <span>Accounting Enabled</span>
+              <span>{t("branches.kpis.accountingEnabled")}</span>
               <strong>{summary.accountingBranches}</strong>
             </article>
             <article>
-              <span>Assigned Users</span>
+              <span>{t("branches.kpis.assignedUsers")}</span>
               <strong>{summary.totalUsers}</strong>
             </article>
           </section>
@@ -129,7 +130,7 @@ export function BranchesScreen() {
             <AppInput
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar sucursal por nombre, ID o region..."
+              placeholder={t("branches.searchPlaceholder")}
             />
           </section>
 
@@ -138,14 +139,14 @@ export function BranchesScreen() {
               <SettingsDataTable variant="clients">
                 <thead>
                   <tr>
-                    <th>ID</th>
-                    <th>Sucursal</th>
-                    <th>Tipo</th>
-                    <th>Region</th>
-                    <th className="is-numeric-header">Clientes</th>
-                    <th className="is-numeric-header">Grupos</th>
-                    <th className="is-numeric-header">Usuarios</th>
-                    <th>Estado</th>
+                    <th>{t("branches.table.id")}</th>
+                    <th>{t("branches.table.name")}</th>
+                    <th>{t("branches.table.type")}</th>
+                    <th>{t("branches.table.region")}</th>
+                    <th className="is-numeric-header">{t("branches.table.clients")}</th>
+                    <th className="is-numeric-header">{t("branches.table.groups")}</th>
+                    <th className="is-numeric-header">{t("branches.table.users")}</th>
+                    <th>{t("branches.table.status")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -159,16 +160,16 @@ export function BranchesScreen() {
                       <td>{row.name}</td>
                       <td>
                         <AppBadge tone={row.kind === "PHYSICAL" ? "success" : "neutral"} size="sm">
-                          {row.kind}
+                          {t(`branches.kind.${row.kind}`)}
                         </AppBadge>
                       </td>
                       <td>{row.region}</td>
-                      <td className="is-numeric">{row.clients.toLocaleString()}</td>
-                      <td className="is-numeric">{row.groups.toLocaleString()}</td>
+                      <td className="is-numeric">{row.clients.toLocaleString(nLocale)}</td>
+                      <td className="is-numeric">{row.groups.toLocaleString(nLocale)}</td>
                       <td className="is-numeric">{row.users}</td>
                       <td>
                         <AppBadge tone={row.status === "ACTIVE" ? "success" : "neutral"} size="sm">
-                          {row.status}
+                          {t(`branches.status.${row.status}`)}
                         </AppBadge>
                       </td>
                     </tr>
@@ -184,35 +185,42 @@ export function BranchesScreen() {
                   <p className="zelify-branches__detail-id">{selected.id}</p>
                   <ul>
                     <li>
-                      <span>Scope de visibilidad</span>
+                      <span>{t("branches.detail.visibilityScope")}</span>
                       <strong>{selected.visibilityScope}</strong>
                     </li>
                     <li>
-                      <span>Calendario de feriados</span>
+                      <span>{t("branches.detail.holidayCalendar")}</span>
                       <strong>{selected.holidayCalendar}</strong>
                     </li>
                     <li>
-                      <span>Contabilidad segmentada</span>
-                      <strong>{selected.accountingEnabled ? "Habilitada" : "No habilitada"}</strong>
+                      <span>{t("branches.detail.segmentedAccounting")}</span>
+                      <strong>
+                        {selected.accountingEnabled
+                          ? t("branches.detail.accountingYes")
+                          : t("branches.detail.accountingNo")}
+                      </strong>
                     </li>
                     <li>
-                      <span>Asignaciones</span>
+                      <span>{t("branches.detail.assignments")}</span>
                       <strong>
-                        {selected.clients.toLocaleString()} clientes, {selected.groups.toLocaleString()} grupos, {selected.users} usuarios
+                        {t("branches.assignmentsSummary")
+                          .replace("{clients}", selected.clients.toLocaleString(nLocale))
+                          .replace("{groups}", selected.groups.toLocaleString(nLocale))
+                          .replace("{users}", String(selected.users))}
                       </strong>
                     </li>
                   </ul>
                   <div className="zelify-branches__detail-actions">
                     <AppButton type="button" tone="neutral">
-                      Gestionar Calendario
+                      {t("branches.detail.manageCalendar")}
                     </AppButton>
                     <AppButton type="button" tone="primary">
-                      Editar Sucursal
+                      {t("branches.detail.editBranch")}
                     </AppButton>
                   </div>
                 </>
               ) : (
-                <p>Selecciona una sucursal para ver detalle.</p>
+                <p>{t("branches.emptySelect")}</p>
               )}
             </aside>
           </section>

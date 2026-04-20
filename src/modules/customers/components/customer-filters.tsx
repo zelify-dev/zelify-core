@@ -1,10 +1,16 @@
 "use client";
 
-import React from 'react';
-import { XStack, YStack, Text, Button, Select, Adapt, Sheet } from 'tamagui';
-import { Home, Filter as FilterIcon, Pencil, X, ChevronDown } from 'lucide-react';
+import React from "react";
+import { XStack, YStack, Text, Button } from "tamagui";
+import { Home, Filter as FilterIcon, Pencil, X, ChevronDown } from "lucide-react";
+
+import { useI18n } from "@/providers/i18n-provider";
+
+const DEMO_BIRTH_DATE = "01-08-2000";
 
 export const CustomerFilters: React.FC = () => {
+  const { t } = useI18n();
+
   return (
     <YStack gap="$4" width="100%">
       {/* Primary Filters Bar */}
@@ -21,8 +27,12 @@ export const CustomerFilters: React.FC = () => {
           minWidth={200}
         >
           <Home size={16} color="var(--gray10)" />
-          <Text fontSize="$3" color="$gray11">Branch</Text>
-          <Text fontSize="$3" fontWeight="600" color="$color" flex={1}>All Branches</Text>
+          <Text fontSize="$3" color="$gray11">
+            {t("customers.list.filters.branch")}
+          </Text>
+          <Text fontSize="$3" fontWeight="600" color="$color" flex={1}>
+            {t("customers.list.filters.allBranches")}
+          </Text>
           <ChevronDown size={16} color="var(--gray10)" />
         </XStack>
 
@@ -33,13 +43,15 @@ export const CustomerFilters: React.FC = () => {
           borderRadius="$4"
           hoverStyle={{ backgroundColor: '#98e84a' }}
         >
-          Filter
+          {t("customers.list.filters.filter")}
         </Button>
       </XStack>
 
       {/* Active Filters Display */}
       <XStack gap="$3" alignItems="center">
-        <Text fontSize="$3" color="$gray10">Where</Text>
+        <Text fontSize="$3" color="$gray10">
+          {t("customers.list.filters.where")}
+        </Text>
         <XStack 
           backgroundColor="$blue3" 
           paddingHorizontal="$3" 
@@ -49,7 +61,8 @@ export const CustomerFilters: React.FC = () => {
           gap="$3"
         >
           <Text fontSize="$3" color="$blue10">
-            Birth Date is after <Text fontWeight="700">01-08-2000</Text>
+            {t("customers.list.filters.birthDateAfterPrefix")}{" "}
+            <Text fontWeight="700">{DEMO_BIRTH_DATE}</Text>
           </Text>
           <XStack gap="$2">
             <Button size="$1" icon={<Pencil size={12} />} chromeless padding={0} />
