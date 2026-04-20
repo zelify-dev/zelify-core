@@ -633,9 +633,11 @@ function resolveViewKey(pathKey: "customers" | "groups" | "loans" | "reports", v
   return "loans";
 }
 
-type ApiRouteInsightsScreenProps =
-  | { screenKey: Exclude<ScreenKey, "customers-active-clients" | "customers-set-aside" | "groups-active-loans" | "groups-sin-miembros" | "loans-pending-approval" | "loans-close" | "reports-portfolio" | "reports-cashflow"> }
-  | { pathKey: "customers" | "groups" | "loans" | "reports"; view?: string };
+type ApiRouteInsightsBase = { /** Dentro de un layout que ya renderiza el topbar (p. ej. General/Financial setup). */ omitTopNavbar?: boolean };
+
+export type ApiRouteInsightsScreenProps =
+  | ({ screenKey: Exclude<ScreenKey, "customers-active-clients" | "customers-set-aside" | "groups-active-loans" | "groups-sin-miembros" | "loans-pending-approval" | "loans-close" | "reports-portfolio" | "reports-cashflow"> } & ApiRouteInsightsBase)
+  | ({ pathKey: "customers" | "groups" | "loans" | "reports"; view?: string } & ApiRouteInsightsBase);
 
 function getRowActions(key: ScreenKey): string[] {
   switch (key) {
@@ -674,14 +676,16 @@ function localizeText(text: string, locale: "en" | "es"): string {
 
 export function ApiRouteInsightsScreen(props: ApiRouteInsightsScreenProps) {
   const { locale } = useI18n();
+  const omitTopNavbar = Boolean(props.omitTopNavbar);
   const key = "screenKey" in props ? props.screenKey : resolveViewKey(props.pathKey, props.view);
   const section = DATA_BY_KEY[key];
   const rowActions = getRowActions(key);
-  const shouldRenderTopNav = !key.startsWith("accounting-");
+  const shouldRenderTopNav = !key.startsWith("accounting-") && !omitTopNavbar;
   const operationsHeader = localizeText("Operations / Operaciones", locale);
+  const rootClassName = omitTopNavbar ? "api-insights-embedded" : "zelify-workspace-page";
 
   return (
-    <div className="zelify-workspace-page">
+    <div className={rootClassName}>
       {shouldRenderTopNav ? <ZelifyTopNavbar /> : null}
       <div className="zelify-workspace-page__scroll">
         <div className="zelify-workspace-page__inner">

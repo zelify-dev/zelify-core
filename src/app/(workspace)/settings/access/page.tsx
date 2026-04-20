@@ -1,5 +1,5 @@
-import { WorkspacePlaceholderScreen } from "@/modules/workspace/screens/workspace-placeholder-screen";
+import { AccessSettingsScreen } from "@/modules/settings/screens/access-settings-screen";
 
 export default function AccessSettingsPage() {
-  return <WorkspacePlaceholderScreen title="Access" />;
+  return <AccessSettingsScreen />;
 }

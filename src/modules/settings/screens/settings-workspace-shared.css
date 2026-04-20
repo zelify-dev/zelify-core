@@ -12,6 +12,12 @@
   font-size: 1.25rem;
 }
 
+.zelify-settings-workspace__subtitle {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
 .zelify-risk-pill {
   display: inline-flex;
   align-items: center;

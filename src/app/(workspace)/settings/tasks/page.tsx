@@ -1,5 +1,5 @@
-import { WorkspacePlaceholderScreen } from "@/modules/workspace/screens/workspace-placeholder-screen";
+import { TasksSettingsScreen } from "@/modules/settings/screens/tasks-settings-screen";
 
 export default function TasksSettingsPage() {
-  return <WorkspacePlaceholderScreen title="Tasks" />;
+  return <TasksSettingsScreen />;
 }

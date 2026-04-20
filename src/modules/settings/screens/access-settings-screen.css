@@ -1,0 +1,41 @@
+.zelify-access-settings {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.zelify-access-settings__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.zelify-access-settings__sub {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.zelify-access-settings__toolbar {
+  margin-bottom: 12px;
+}
+
+.zelify-access-settings__toolbar input {
+  max-width: 360px;
+}
+
+.zelify-access-settings__link {
+  border: 0;
+  background: none;
+  color: #2563eb;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 8px;
+  margin-right: 4px;
+}
+
+.zelify-access-settings__link:hover {
+  text-decoration: underline;
+}
