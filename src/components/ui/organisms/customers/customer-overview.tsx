@@ -9,7 +9,7 @@ type CustomerOverviewProps = {
 };
 
 export function CustomerOverview({ customer }: CustomerOverviewProps) {
-  const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "EUR" });
+  const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 
   return (
     <div className="zelify-customer-overview">

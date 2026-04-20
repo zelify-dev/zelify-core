@@ -4,8 +4,8 @@ export type JournalEntryRow = {
   bookingDate: string;
   transactionId: number;
   glAccountName: string;
-  /** Importe en la columna débito (EUR); null si no aplica. */
+  /** Importe en la columna débito (USD); null si no aplica. */
   debit: number | null;
-  /** Importe en la columna crédito (EUR); null si no aplica. */
+  /** Importe en la columna crédito (USD); null si no aplica. */
   credit: number | null;
 };

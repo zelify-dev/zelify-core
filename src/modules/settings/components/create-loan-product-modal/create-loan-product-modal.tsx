@@ -144,7 +144,7 @@ const INITIAL: LoanProductDraft = {
   idType: "random",
   idTemplate: "@@@@###",
   initialAccountState: "pending",
-  currency: "EUR",
+  currency: "USD",
   loanAmountDefault: "",
   loanAmountMin: "1000",
   loanAmountMax: "20000",
@@ -534,7 +534,6 @@ export function CreateLoanProductModal({ open, onClose, onSave }: CreateLoanProd
                     value={form.currency}
                     onChange={(e) => patch("currency", e.target.value)}
                   >
-                    <option value="EUR">Euro (EUR)</option>
                     <option value="USD">US Dollar (USD)</option>
                     <option value="GBP">British Pound (GBP)</option>
                   </AppSelect>
@@ -546,7 +545,7 @@ export function CreateLoanProductModal({ open, onClose, onSave }: CreateLoanProd
           <details className="zelify-loan-product-modal__details">
             <summary>
               <ChevronDown size={18} className="zelify-loan-product-modal__chev" aria-hidden />
-              Loan amount constraints (€)
+              Loan amount constraints ($)
             </summary>
             <div className="zelify-loan-product-modal__details-body">
               <div className="zelify-loan-product-modal__grid3">
@@ -714,7 +713,7 @@ export function CreateLoanProductModal({ open, onClose, onSave }: CreateLoanProd
                         onChange={(e) => patch("indexSource", e.target.value)}
                       >
                         <option value="dbc">DBC interest rate</option>
-                        <option value="euribor">EURIBOR</option>
+                        <option value="sofr">SOFR</option>
                       </AppSelect>
                     }
                   />
@@ -1125,7 +1124,7 @@ export function CreateLoanProductModal({ open, onClose, onSave }: CreateLoanProd
                 />
               </div>
               <FormField
-                label={<FieldLabel htmlFor="arr-floor">With a floor (minimum) (€)</FieldLabel>}
+                label={<FieldLabel htmlFor="arr-floor">With a floor (minimum) ($)</FieldLabel>}
                 control={<AppInput id="arr-floor" value={form.arrearsFloor} onChange={(e) => patch("arrearsFloor", e.target.value)} />}
               />
             </div>
@@ -1281,7 +1280,7 @@ export function CreateLoanProductModal({ open, onClose, onSave }: CreateLoanProd
                       }
                     />
                     <FormField
-                      label={<FieldLabel htmlFor="fee-amt">Amount (€)</FieldLabel>}
+                      label={<FieldLabel htmlFor="fee-amt">Amount ($)</FieldLabel>}
                       control={<AppInput id="fee-amt" value={form.feeAmount} onChange={(e) => patch("feeAmount", e.target.value)} />}
                     />
                   </div>

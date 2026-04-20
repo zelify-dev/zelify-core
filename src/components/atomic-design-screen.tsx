@@ -183,9 +183,9 @@ export default function AtomicDesignScreen() {
             </div>
           </PreviewCard>
           <PreviewCard label="AppSelect">
-            <AppSelect defaultValue="eur" size="md">
-              <option value="eur">Euro (EUR)</option>
+            <AppSelect defaultValue="usd" size="md">
               <option value="usd">US Dollar (USD)</option>
+              <option value="gbp">British Pound (GBP)</option>
             </AppSelect>
           </PreviewCard>
           <PreviewCard label="FieldLabel">

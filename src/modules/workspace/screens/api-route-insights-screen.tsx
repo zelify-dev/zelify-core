@@ -98,7 +98,7 @@ const DATA_BY_KEY: Record<ScreenKey, SectionData> = {
     rows: [
       ["PR-ML-01", "Micro Loan Plus / Microcrédito Plus", "Loan / Préstamo", "USD", "Active / Activo"],
       ["PR-SV-04", "Smart Saver / Ahorro Inteligente", "Deposit / Depósito", "USD", "Active / Activo"],
-      ["PR-GR-02", "Group Flex / Grupo Flexible", "Loan / Préstamo", "EUR", "Draft / Borrador"],
+      ["PR-GR-02", "Group Flex / Grupo Flexible", "Loan / Préstamo", "USD", "Draft / Borrador"],
     ],
   },
   "accounting-profit-loss": {

@@ -72,7 +72,7 @@ export const mockCustomers: Customer[] = [
         type: "Loan",
         state: "In Arrears",
         balance: 28500.0,
-        currency: "EUR",
+        currency: "USD",
       },
       {
         id: "ACC-YJXQ048",
@@ -80,7 +80,7 @@ export const mockCustomers: Customer[] = [
         type: "Loan",
         state: "Active",
         balance: 16500.0,
-        currency: "EUR",
+        currency: "USD",
       },
     ],
     activity: [
@@ -108,7 +108,7 @@ export const mockCustomers: Customer[] = [
       {
         id: "EV-004",
         type: "Product Event",
-        description: "Loan disbursement of €16,500.00 for ACC-YJXQ048",
+        description: "Loan disbursement of $16,500.00 for ACC-YJXQ048",
         timestamp: "2026-04-10 11:00",
         category: "Product",
       },

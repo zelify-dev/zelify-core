@@ -49,12 +49,12 @@ const ACCOUNTING_PREFIX = "/accounting";
 export const zelifyAccountingSubNavItems: ZelifyAccountingSubNavItem[] = [
   {
     id: "balanceSheet",
-    labelKey: "nav.accountingSub.balanceSheet",
+    labelKey: "nav.dropdowns.accounting.balanceSheet",
     href: "/accounting/balance-sheet",
   },
   {
     id: "interestAccrualBreakdown",
-    labelKey: "nav.accountingSub.interestAccrualBreakdown",
+    labelKey: "nav.dropdowns.accounting.interestAccrualBreakdown",
     href: "/accounting/interest-accrual-breakdown",
   },
 ];

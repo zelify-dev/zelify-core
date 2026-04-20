@@ -13,7 +13,7 @@ export const mockAdminWebhooksNotifications: AdminWebhooksNotificationRow[] = [
     id: "wh-1",
     name: "Loan disburse",
     eventTitle: "Loan Disbursement",
-    eventDescription: "Your loan of {LOAN_AMOUNT} EUR has been disbursed.",
+    eventDescription: "Your loan of {LOAN_AMOUNT} USD has been disbursed.",
     state: "In Use",
     status: "Active",
     options: "Opt-Out",

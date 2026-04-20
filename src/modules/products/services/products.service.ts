@@ -176,8 +176,15 @@ export const productsService = {
   },
 };
 
-export const mockMambuEndpoints = {
-  listEndpoint: (kind: ProductKind) => (kind === "DEPOSIT" ? "GET /depositproducts" : "GET /loanproducts"),
-  detailEndpoint: (kind: ProductKind, id: string) =>
-    kind === "DEPOSIT" ? `GET /depositproducts/${id}` : `GET /loanproducts/${id}`,
+/** Textos de detalle para la UI (sin método HTTP ni rutas de API en crudo). */
+export const productUiCopy = {
+  selectedSubtitle: (kind: ProductKind, id: string) =>
+    kind === "DEPOSIT"
+      ? `Plantilla de captación · Identificador ${id}`
+      : `Plantilla de crédito · Identificador ${id}`,
+  emptySubtitle: "Selecciona un producto para ver su configuración.",
+  modalRulesHint: (kind: ProductKind) =>
+    kind === "DEPOSIT"
+      ? "Reglas maestras de productos de depósito (demostración, sin llamadas a API)."
+      : "Reglas maestras de productos de préstamo (demostración, sin llamadas a API).",
 };
