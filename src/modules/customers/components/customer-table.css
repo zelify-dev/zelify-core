@@ -20,3 +20,8 @@
 .zelify-customer-table .zelify-settings-data-table td.is-numeric {
   text-align: right;
 }
+
+.zelify-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+}
