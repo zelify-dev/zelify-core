@@ -1,5 +1,5 @@
-import { AdminSettingsPlaceholderScreen } from "@/modules/settings/screens/admin-settings-placeholder-screen";
+import { ApiRouteInsightsScreen } from "@/modules/workspace/screens/api-route-insights-screen";
 
 export default function TemplatesSettingsPage() {
-  return <AdminSettingsPlaceholderScreen title="Templates" />;
+  return <ApiRouteInsightsScreen screenKey="settings-templates" />;
 }

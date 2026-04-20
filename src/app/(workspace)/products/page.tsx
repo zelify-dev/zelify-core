@@ -1,5 +1,5 @@
-import { WorkspacePlaceholderScreen } from "@/modules/workspace/screens/workspace-placeholder-screen";
+import { ApiRouteInsightsScreen } from "@/modules/workspace/screens/api-route-insights-screen";
 
 export default function ProductsPage() {
-  return <WorkspacePlaceholderScreen title="Products" />;
+  return <ApiRouteInsightsScreen screenKey="products" />;
 }

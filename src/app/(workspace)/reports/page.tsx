@@ -1,5 +1,9 @@
-import { WorkspacePlaceholderScreen } from "@/modules/workspace/screens/workspace-placeholder-screen";
+import { ApiRouteInsightsScreen } from "@/modules/workspace/screens/api-route-insights-screen";
 
-export default function ReportsPage() {
-  return <WorkspacePlaceholderScreen title="Reporting" />;
+type ReportsPageProps = {
+  searchParams?: { view?: string };
+};
+
+export default function ReportsPage({ searchParams }: ReportsPageProps) {
+  return <ApiRouteInsightsScreen pathKey="reports" view={searchParams?.view} />;
 }

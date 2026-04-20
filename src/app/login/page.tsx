@@ -44,7 +44,7 @@ const TRANSLATIONS = {
     sessionExpiredInfo: "Your session has expired. Please sign in again.",
   },
   es: {
-    welcome: "Bienvenido de nuevo",
+    welcome: "Zelify Core",
     subWelcome: "Inicia sesión en tu cuenta para acceder al panel.",
     email: "Correo electrónico",
     password: "Contraseña",
@@ -385,12 +385,12 @@ export default function LoginPage() {
         return;
       }
 
-        try {
-          const result = await login({
-            email: data.email,
-            password: data.password,
-            organization_id: data.organization_id.trim() || undefined,
-          });
+      try {
+        const result = await login({
+          email: data.email,
+          password: data.password,
+          organization_id: data.organization_id.trim() || undefined,
+        });
 
         // Caso bypass de OTP ( tokens directos )
         if ("access_token" in result || "accessToken" in result) {
@@ -415,19 +415,19 @@ export default function LoginPage() {
           return;
         }
 
-          setLoading(false);
-          const loginResult = result as { message?: string; organizations?: Array<{ id: string; name: string }> };
-          if (Array.isArray(loginResult.organizations) || loginResult.message?.includes("organization_id")) {
-            setRequiresOrganizationId(true);
-            setFormErrors((prev) => ({
-              ...prev,
-              organization_id: !data.organization_id.trim() ? t.reqOrganizationId : "",
-            }));
-          }
-          setError(loginResult.message || t.incCreds);
-        } catch (err) {
-          handleAuthError(err);
+        setLoading(false);
+        const loginResult = result as { message?: string; organizations?: Array<{ id: string; name: string }> };
+        if (Array.isArray(loginResult.organizations) || loginResult.message?.includes("organization_id")) {
+          setRequiresOrganizationId(true);
+          setFormErrors((prev) => ({
+            ...prev,
+            organization_id: !data.organization_id.trim() ? t.reqOrganizationId : "",
+          }));
         }
+        setError(loginResult.message || t.incCreds);
+      } catch (err) {
+        handleAuthError(err);
+      }
     } else {
       // Step 2: Verify OTP
       if (!otp) {
@@ -556,215 +556,212 @@ export default function LoginPage() {
             </div>
           ) : null}
           <div className="w-full p-4 sm:p-10">
-                {sessionExpiredInfo ? (
-                  <div
-                    className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100"
-                    role="status"
-                  >
-                    {t.sessionExpiredInfo}
-                  </div>
-                ) : null}
-                {/* Logo + título centrados */}
-                <div className="mb-10 flex justify-center">
-                  <Link href="/" className="inline-block">
-                    <Image
-                      className="hidden dark:block"
-                      src={LOGO_URLS.dark}
-                      alt="Zelify Logo"
-                      width={176}
-                      height={32}
-                    />
-                    <Image
-                      className="dark:hidden"
-                      src={LOGO_URLS.light}
-                      alt="Zelify Logo"
-                      width={176}
-                      height={32}
-                    />
-                  </Link>
+            {sessionExpiredInfo ? (
+              <div
+                className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100"
+                role="status"
+              >
+                {t.sessionExpiredInfo}
+              </div>
+            ) : null}
+            {/* Logo + título centrados */}
+            <div className="mb-10 flex justify-center">
+              <Link href="/" className="inline-block">
+                <Image
+                  className="hidden dark:block"
+                  src={LOGO_URLS.dark}
+                  alt="Zelify Logo"
+                  width={176}
+                  height={32}
+                />
+                <Image
+                  className="dark:hidden"
+                  src={LOGO_URLS.light}
+                  alt="Zelify Logo"
+                  width={176}
+                  height={32}
+                />
+              </Link>
+            </div>
+
+            <h1 className="mb-2 text-center text-2xl font-bold text-dark dark:text-white sm:text-heading-3">
+              {step === 1 ? t.welcome : t.otpTitle}
+            </h1>
+            <p className="mb-8 text-center text-sm text-dark-6 dark:text-dark-6">
+              {step === 1 ? t.subWelcome : t.otpSub}
+            </p>
+
+            <form onSubmit={handleSubmit}>
+              {/* Mensaje de error */}
+              {error && (
+                <div
+                  className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/20"
+                  style={{
+                    borderColor: isDarkMode
+                      ? COLORS.errorBorder
+                      : undefined,
+                    color: isDarkMode ? COLORS.errorBorder : undefined,
+                  }}
+                >
+                  {error}
                 </div>
+              )}
 
-                <h1 className="mb-2 text-center text-2xl font-bold text-dark dark:text-white sm:text-heading-3">
-                  {step === 1 ? t.welcome : t.otpTitle}
-                </h1>
-                <p className="mb-8 text-center text-sm text-dark-6 dark:text-dark-6">
-                  {step === 1 ? t.subWelcome : t.otpSub}
-                </p>
-
-                <form onSubmit={handleSubmit}>
-                  {/* Mensaje de error */}
-                  {error && (
-                    <div
-                      className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/20"
-                      style={{
-                        borderColor: isDarkMode
-                          ? COLORS.errorBorder
-                          : undefined,
-                        color: isDarkMode ? COLORS.errorBorder : undefined,
-                      }}
-                    >
-                      {error}
-                    </div>
+              {step === 1 ? (
+                <>
+                  <InputGroup
+                    type="email"
+                    variant="minimal"
+                    label={t.email}
+                    className={`mb-4 ${formErrors.email
+                      ? "[&_input]:border-red-400/75 [&_input]:focus:border-red-400/90 [&_input]:focus:ring-red-500/12"
+                      : ""
+                      }`}
+                    placeholder={t.placeholderEmail}
+                    name="email"
+                    handleChange={handleChange}
+                    value={data.email}
+                    required
+                  />
+                  {formErrors.email && (
+                    <p className="mb-4 mt-[-10px] text-sm text-red-500">
+                      {formErrors.email}
+                    </p>
                   )}
 
-                  {step === 1 ? (
-                    <>
-                      <InputGroup
-                        type="email"
-                        variant="minimal"
-                        label={t.email}
-                        className={`mb-4 ${
-                          formErrors.email
-                            ? "[&_input]:border-red-400/75 [&_input]:focus:border-red-400/90 [&_input]:focus:ring-red-500/12"
-                            : ""
-                        }`}
-                        placeholder={t.placeholderEmail}
-                        name="email"
-                        handleChange={handleChange}
-                        value={data.email}
-                        required
-                      />
-                      {formErrors.email && (
-                        <p className="mb-4 mt-[-10px] text-sm text-red-500">
-                          {formErrors.email}
-                        </p>
-                      )}
-
-                      <InputGroup
-                        type={showPassword ? "text" : "password"}
-                        variant="minimal"
-                        label={t.password}
-                        className={`mb-5 ${
-                          formErrors.password
-                            ? "[&_input]:border-red-400/75 [&_input]:focus:border-red-400/90 [&_input]:focus:ring-red-500/12"
-                            : ""
-                        }`}
-                        placeholder={t.placeholderPassword}
-                        name="password"
-                        handleChange={handleChange}
-                        value={data.password}
-                        endAdornment={
-                          <button
-                            type="button"
-                            aria-label={showPassword ? t.hidePasswordAria : t.showPasswordAria}
-                            className="group inline-flex cursor-pointer items-center justify-center border-0 bg-transparent p-0 shadow-none outline-none ring-0 focus-visible:rounded focus-visible:ring-1 focus-visible:ring-primary/35"
-                            onClick={() => setShowPassword((v) => !v)}
-                          >
-                            {showPassword ? (
-                              <EyeClosedIcon
-                                strokeWidth={1.5}
-                                className="h-[18px] w-[18px] shrink-0 text-slate-400 transition-colors group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300"
-                              />
-                            ) : (
-                              <EyeOpenIcon
-                                strokeWidth={1.5}
-                                className="h-[18px] w-[18px] shrink-0 text-slate-400 transition-colors group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300"
-                              />
-                            )}
-                          </button>
-                        }
-                        required
-                      />
-                      {formErrors.password && (
-                        <p className="mb-5 mt-[-15px] text-sm text-red-500">
-                          {formErrors.password}
-                        </p>
-                      )}
-
-                      {requiresOrganizationId && (
-                        <>
-                          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
-                            {t.organizationIdHelp}
-                          </div>
-                          <InputGroup
-                            type="text"
-                            variant="minimal"
-                            label={t.organizationId}
-                            className={`mb-4 ${
-                              formErrors.organization_id
-                                ? "[&_input]:border-red-400/75 [&_input]:focus:border-red-400/90 [&_input]:focus:ring-red-500/12"
-                                : ""
-                            }`}
-                            placeholder={t.organizationIdPlaceholder}
-                            name="organization_id"
-                            handleChange={handleChange}
-                            value={data.organization_id}
-                            required
+                  <InputGroup
+                    type={showPassword ? "text" : "password"}
+                    variant="minimal"
+                    label={t.password}
+                    className={`mb-5 ${formErrors.password
+                      ? "[&_input]:border-red-400/75 [&_input]:focus:border-red-400/90 [&_input]:focus:ring-red-500/12"
+                      : ""
+                      }`}
+                    placeholder={t.placeholderPassword}
+                    name="password"
+                    handleChange={handleChange}
+                    value={data.password}
+                    endAdornment={
+                      <button
+                        type="button"
+                        aria-label={showPassword ? t.hidePasswordAria : t.showPasswordAria}
+                        className="group inline-flex cursor-pointer items-center justify-center border-0 bg-transparent p-0 shadow-none outline-none ring-0 focus-visible:rounded focus-visible:ring-1 focus-visible:ring-primary/35"
+                        onClick={() => setShowPassword((v) => !v)}
+                      >
+                        {showPassword ? (
+                          <EyeClosedIcon
+                            strokeWidth={1.5}
+                            className="h-[18px] w-[18px] shrink-0 text-slate-400 transition-colors group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300"
                           />
-                          {formErrors.organization_id && (
-                            <p className="mb-4 mt-[-10px] text-sm text-red-500">
-                              {formErrors.organization_id}
-                            </p>
-                          )}
-                        </>
-                      )}
-                    </>
-                  ) : (
+                        ) : (
+                          <EyeOpenIcon
+                            strokeWidth={1.5}
+                            className="h-[18px] w-[18px] shrink-0 text-slate-400 transition-colors group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300"
+                          />
+                        )}
+                      </button>
+                    }
+                    required
+                  />
+                  {formErrors.password && (
+                    <p className="mb-5 mt-[-15px] text-sm text-red-500">
+                      {formErrors.password}
+                    </p>
+                  )}
+
+                  {requiresOrganizationId && (
                     <>
+                      <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
+                        {t.organizationIdHelp}
+                      </div>
                       <InputGroup
                         type="text"
                         variant="minimal"
-                        label={t.otpLabel}
-                        className="mb-5"
-                        placeholder={t.otpPlaceholder}
-                        name="otp"
-                        handleChange={(e) => setOtp(e.target.value)}
-                        value={otp}
+                        label={t.organizationId}
+                        className={`mb-4 ${formErrors.organization_id
+                          ? "[&_input]:border-red-400/75 [&_input]:focus:border-red-400/90 [&_input]:focus:ring-red-500/12"
+                          : ""
+                          }`}
+                        placeholder={t.organizationIdPlaceholder}
+                        name="organization_id"
+                        handleChange={handleChange}
+                        value={data.organization_id}
                         required
                       />
-                      <button
-                        type="button"
-                        onClick={() => setStep(1)}
-                        className="mb-4 text-sm font-medium text-primary hover:underline"
-                      >
-                        {language === "en" ? "Change email/password" : "Cambiar correo/contraseña"}
-                      </button>
+                      {formErrors.organization_id && (
+                        <p className="mb-4 mt-[-10px] text-sm text-red-500">
+                          {formErrors.organization_id}
+                        </p>
+                      )}
                     </>
                   )}
+                </>
+              ) : (
+                <>
+                  <InputGroup
+                    type="text"
+                    variant="minimal"
+                    label={t.otpLabel}
+                    className="mb-5"
+                    placeholder={t.otpPlaceholder}
+                    name="otp"
+                    handleChange={(e) => setOtp(e.target.value)}
+                    value={otp}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="mb-4 text-sm font-medium text-primary hover:underline"
+                  >
+                    {language === "en" ? "Change email/password" : "Cambiar correo/contraseña"}
+                  </button>
+                </>
+              )}
 
-                  {/* Botón de login */}
-                  <div className="mb-6">
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg p-4 font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
-                      style={{
-                        backgroundColor: isDarkMode
-                          ? COLORS.buttonPrimaryDark
-                          : COLORS.buttonPrimaryLight,
-                        color: isDarkMode ? "#000000" : "#ffffff",
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!loading) {
-                          e.currentTarget.style.backgroundColor = isDarkMode
-                            ? COLORS.buttonPrimaryDarkHover
-                            : COLORS.buttonPrimaryLightHover;
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = isDarkMode
-                          ? COLORS.buttonPrimaryDark
-                          : COLORS.buttonPrimaryLight;
-                      }}
-                    >
-                      {loading ? (
-                        <>
-                          {step === 1 ? t.signingIn : t.verifying}
-                          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-white border-t-transparent" />
-                        </>
-                      ) : (
-                        step === 1 ? t.signIn : t.verify
-                      )}
-                    </button>
-                  </div>
+              {/* Botón de login */}
+              <div className="mb-6">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg p-4 font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: isDarkMode
+                      ? COLORS.buttonPrimaryDark
+                      : COLORS.buttonPrimaryLight,
+                    color: isDarkMode ? "#000000" : "#ffffff",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!loading) {
+                      e.currentTarget.style.backgroundColor = isDarkMode
+                        ? COLORS.buttonPrimaryDarkHover
+                        : COLORS.buttonPrimaryLightHover;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = isDarkMode
+                      ? COLORS.buttonPrimaryDark
+                      : COLORS.buttonPrimaryLight;
+                  }}
+                >
+                  {loading ? (
+                    <>
+                      {step === 1 ? t.signingIn : t.verifying}
+                      <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-white border-t-transparent" />
+                    </>
+                  ) : (
+                    step === 1 ? t.signIn : t.verify
+                  )}
+                </button>
+              </div>
 
-                  <p className="text-center text-sm text-dark-6 dark:text-dark-6">
-                    {t.noAccount}
-                    <Link href="/register" className="font-medium text-primary hover:underline">
-                      {t.createAccount}
-                    </Link>
-                  </p>
-                </form>
+              <p className="text-center text-sm text-dark-6 dark:text-dark-6">
+                {t.noAccount}
+                <Link href="/register" className="font-medium text-primary hover:underline">
+                  {t.createAccount}
+                </Link>
+              </p>
+            </form>
           </div>
         </div>
       </div>

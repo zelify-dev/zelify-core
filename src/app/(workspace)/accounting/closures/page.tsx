@@ -1,5 +1,5 @@
-import { AccountingSectionPlaceholderScreen } from "@/modules/accounting/screens/accounting-section-placeholder-screen";
+import { ApiRouteInsightsScreen } from "@/modules/workspace/screens/api-route-insights-screen";
 
 export default function ClosuresPage() {
-  return <AccountingSectionPlaceholderScreen sectionTitle="Closures" />;
+  return <ApiRouteInsightsScreen screenKey="accounting-closures" />;
 }

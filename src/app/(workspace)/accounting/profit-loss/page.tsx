@@ -1,5 +1,5 @@
-import { AccountingSectionPlaceholderScreen } from "@/modules/accounting/screens/accounting-section-placeholder-screen";
+import { ApiRouteInsightsScreen } from "@/modules/workspace/screens/api-route-insights-screen";
 
 export default function ProfitLossPage() {
-  return <AccountingSectionPlaceholderScreen sectionTitle="Profit & Loss" />;
+  return <ApiRouteInsightsScreen screenKey="accounting-profit-loss" />;
 }

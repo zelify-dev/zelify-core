@@ -1,5 +1,9 @@
-import { WorkspacePlaceholderScreen } from "@/modules/workspace/screens/workspace-placeholder-screen";
+import { ApiRouteInsightsScreen } from "@/modules/workspace/screens/api-route-insights-screen";
 
-export default function GroupsPage() {
-  return <WorkspacePlaceholderScreen title="Groups" />;
+type GroupsPageProps = {
+  searchParams?: { view?: string };
+};
+
+export default function GroupsPage({ searchParams }: GroupsPageProps) {
+  return <ApiRouteInsightsScreen pathKey="groups" view={searchParams?.view} />;
 }

@@ -1,5 +1,9 @@
-import { CustomersListScreen } from '@/modules/customers/screens/customers-list-screen';
+import { ApiRouteInsightsScreen } from "@/modules/workspace/screens/api-route-insights-screen";
 
-export default function CustomersPage() {
-  return <CustomersListScreen />;
+type CustomersPageProps = {
+  searchParams?: { view?: string };
+};
+
+export default function CustomersPage({ searchParams }: CustomersPageProps) {
+  return <ApiRouteInsightsScreen pathKey="customers" view={searchParams?.view} />;
 }

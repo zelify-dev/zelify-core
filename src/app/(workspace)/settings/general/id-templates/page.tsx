@@ -1,5 +1,5 @@
-import { GeneralSetupSectionPlaceholder } from "@/modules/settings/screens/general-setup-section-placeholder";
+import { ApiRouteInsightsScreen } from "@/modules/workspace/screens/api-route-insights-screen";
 
 export default function IdTemplatesPage() {
-  return <GeneralSetupSectionPlaceholder title="ID Templates" />;
+  return <ApiRouteInsightsScreen screenKey="settings-id-templates" />;
 }

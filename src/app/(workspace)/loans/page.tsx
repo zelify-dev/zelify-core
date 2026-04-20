@@ -1,5 +1,9 @@
-import { WorkspacePlaceholderScreen } from "@/modules/workspace/screens/workspace-placeholder-screen";
+import { ApiRouteInsightsScreen } from "@/modules/workspace/screens/api-route-insights-screen";
 
-export default function LoansPage() {
-  return <WorkspacePlaceholderScreen title="Loans" />;
+type LoansPageProps = {
+  searchParams?: { view?: string };
+};
+
+export default function LoansPage({ searchParams }: LoansPageProps) {
+  return <ApiRouteInsightsScreen pathKey="loans" view={searchParams?.view} />;
 }

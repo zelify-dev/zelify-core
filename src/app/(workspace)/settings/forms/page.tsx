@@ -1,5 +1,5 @@
-import { WorkspacePlaceholderScreen } from "@/modules/workspace/screens/workspace-placeholder-screen";
+import { ApiRouteInsightsScreen } from "@/modules/workspace/screens/api-route-insights-screen";
 
 export default function FormsSettingsPage() {
-  return <WorkspacePlaceholderScreen title="Forms" />;
+  return <ApiRouteInsightsScreen screenKey="settings-forms" />;
 }

@@ -1,5 +1,5 @@
-import { FinancialSetupPlaceholderScreen } from "@/modules/settings/screens/financial-setup-placeholder-screen";
+import { ApiRouteInsightsScreen } from "@/modules/workspace/screens/api-route-insights-screen";
 
 export default function FinancialAuthorizationHoldsPage() {
-  return <FinancialSetupPlaceholderScreen title="Authorization Holds" />;
+  return <ApiRouteInsightsScreen screenKey="settings-authorization-holds" />;
 }
