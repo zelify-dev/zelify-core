@@ -1,5 +1,5 @@
-import { AdminSettingsPlaceholderScreen } from "@/modules/settings/screens/admin-settings-placeholder-screen";
+import { FieldsSettingsScreen } from "@/modules/settings/screens/fields-settings-screen";
 
 export default function FieldsSettingsPage() {
-  return <AdminSettingsPlaceholderScreen title="Fields" />;
+  return <FieldsSettingsScreen />;
 }

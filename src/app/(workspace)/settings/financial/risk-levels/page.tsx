@@ -1,5 +1,5 @@
-import { FinancialSetupPlaceholderScreen } from "@/modules/settings/screens/financial-setup-placeholder-screen";
+import { RiskLevelsScreen } from "@/modules/settings/screens/risk-levels-screen";
 
 export default function FinancialRiskLevelsPage() {
-  return <FinancialSetupPlaceholderScreen title="Risk Levels" />;
+  return <RiskLevelsScreen />;
 }

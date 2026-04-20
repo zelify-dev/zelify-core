@@ -1,9 +1,5 @@
-import { ApiRouteInsightsScreen } from "@/modules/workspace/screens/api-route-insights-screen";
+import { LoansScreen } from "@/modules/loans/screens/loans-screen";
 
-type LoansPageProps = {
-  searchParams?: { view?: string };
-};
-
-export default function LoansPage({ searchParams }: LoansPageProps) {
-  return <ApiRouteInsightsScreen pathKey="loans" view={searchParams?.view} />;
+export default function LoansPage() {
+  return <LoansScreen />;
 }

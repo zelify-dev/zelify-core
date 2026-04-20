@@ -48,7 +48,6 @@ export const es: Messages = {
     brandAlt: "Zelify",
     navPrimary: "Principal",
     navAdministration: "Administración",
-    navAccounting: "Contabilidad",
     profileMenu: {
       ariaLabel: "Menú de usuario",
       userSettings: "Configuración de usuario",
@@ -80,10 +79,6 @@ export const es: Messages = {
       financialSetup: "Configuración financiera",
       organization: "Organización",
       access: "Acceso",
-      generalLabels: "Configuración general > Etiquetas",
-      generalBranding: "Configuración general > Branding",
-      financialRates: "Configuración financiera > Tasas",
-      financialAccounting: "Configuración financiera > Contabilidad",
       products: "Productos",
       fields: "Campos",
       views: "Vistas",
@@ -96,10 +91,6 @@ export const es: Messages = {
       apps: "Aplicaciones",
       tasks: "Tareas",
       data: "Datos",
-    },
-    accountingSub: {
-      balanceSheet: "Balance general",
-      interestAccrualBreakdown: "Desglose de devengo de intereses",
     },
     dropdowns: {
       clients: {
@@ -188,10 +179,11 @@ export const es: Messages = {
     },
     descriptions: {
       generalSetup:
-        "Configure Zelify Core con todos los derechos de su organización. Defina sucursal de institución detalles y contacto información, configure su festivos y días laborables así como etiquetas y plantillas. Personalice su interna control ajustes para prevenir errores y fraude y gestione sus personalizados cargos.",
-      financialSetup: "Configure Zelify Core con todos los financieros detalles para su organización.",
+        "Configure Zelify Core con todos los detalles de su organización. Defina los datos de la institución y la información de contacto, configure festivos y días laborables, así como etiquetas y plantillas. Personalice los controles internos para prevenir errores y fraude y gestione sus campos personalizados.",
+      financialSetup:
+        "Configure Zelify Core con todos los detalles financieros de su organización.",
       organization:
-        "Estructure su organización creando y editando sucursales y centros. Luego asigne clientes, grupos y usuarios a las sucursales para capturar cómo opera su organización.",
+        "Estructure su organización creando y editando sucursales y centros. Luego asigne clientes, grupos y usuarios a las sucursales para reflejar cómo opera su organización.",
       access:
         "Abra Zelify Core a toda su organización creando y gestionando usuarios. Cree y edite usuarios o modifique permisos para que cada persona tenga el nivel de acceso y los derechos adecuados en el sistema.",
       products:

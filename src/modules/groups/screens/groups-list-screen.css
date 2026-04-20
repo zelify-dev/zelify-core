@@ -1,0 +1,59 @@
+.zelify-groups-toolbar {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.zelify-groups-toolbar__select {
+  height: 40px;
+  border: 1px solid rgba(26, 39, 64, 0.14);
+  border-radius: 8px;
+  padding: 0 10px;
+}
+
+.zelify-groups-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.zelify-groups-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 90;
+  width: min(420px, 100vw);
+  height: 100vh;
+  background: #fff;
+  border-left: 1px solid rgba(26, 39, 64, 0.12);
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.zelify-groups-drawer h3 {
+  margin: 0 0 8px;
+}
+
+.zelify-groups-drawer p {
+  margin: 0 0 14px;
+  color: #334155;
+}
+
+.zelify-groups-drawer ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.zelify-groups-drawer li {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  border: 1px solid rgba(26, 39, 64, 0.08);
+  border-radius: 8px;
+}

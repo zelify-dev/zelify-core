@@ -1,0 +1,21 @@
+.zelify-loans-bulk {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 20px;
+  z-index: 90;
+  background: #0f172a;
+  color: #fff;
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.35);
+}
+
+.zelify-loans-rate-compare {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}

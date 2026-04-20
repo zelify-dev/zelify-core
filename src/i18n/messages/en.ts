@@ -49,7 +49,6 @@ export const en = {
     brandAlt: "Zelify",
     navPrimary: "Primary",
     navAdministration: "Administration",
-    navAccounting: "Accounting",
     profileMenu: {
       ariaLabel: "User menu",
       userSettings: "User settings",
@@ -81,10 +80,6 @@ export const en = {
       financialSetup: "Financial Setup",
       organization: "Organization",
       access: "Access",
-      generalLabels: "General Setup > Labels",
-      generalBranding: "General Setup > Branding",
-      financialRates: "Financial Setup > Rates",
-      financialAccounting: "Financial Setup > Accounting",
       products: "Products",
       fields: "Fields",
       views: "Views",
@@ -97,10 +92,6 @@ export const en = {
       apps: "Apps",
       tasks: "Tasks",
       data: "Data",
-    },
-    accountingSub: {
-      balanceSheet: "Balance Sheet",
-      interestAccrualBreakdown: "Interest Accrual Breakdown",
     },
     dropdowns: {
       clients: {
@@ -592,5 +583,5 @@ type DeepStringify<T> = T extends string
     ? { [K in keyof T]: DeepStringify<T[K]> }
     : T;
 
-/** Same shape as `en`, with leaves as `string` for Spanish catalog or other languages. */
+/** Misma forma que `en`, con hojas como `string` para el catálogo en español u otros idiomas. */
 export type Messages = DeepStringify<typeof en>;
