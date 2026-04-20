@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppBadge } from "@/components/ui/atoms/badge/app-badge";
 import { AppButton } from "@/components/ui/atoms/button/app-button";
 import { SettingsDataTable } from "@/components/ui/organisms/settings-data-table/settings-data-table";
 import { SandboxBanner } from "@/modules/customers/components/sandbox-banner";
 import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
+import { useI18n } from "@/providers/i18n-provider";
 import type { Product, ProductFormInput, ProductKind } from "../types/product.types";
-import { productUiCopy, productsService } from "../services/products.service";
+import { productsService } from "../services/products.service";
 
 import "@/components/ui/templates/workspace-page.css";
 import "./products-screen.css";
@@ -16,11 +17,21 @@ type EditorState = { mode: "create" | "edit"; product: Product | null } | null;
 
 const toneByKind = (k: ProductKind) => (k === "DEPOSIT" ? "success" : "warning");
 
-function money(n: number): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
-}
-
 export function ProductsScreen() {
+  const { t, locale } = useI18n();
+  const nLocale = locale === "es" ? "es-EC" : "en-US";
+
+  const money = useCallback(
+    (n: number) => new Intl.NumberFormat(nLocale, { style: "currency", currency: "USD" }).format(n),
+    [nLocale]
+  );
+
+  const enumLabel = useCallback(
+    (group: "productType" | "interestRateSettings" | "paymentMethod" | "repaymentFrequency", value: string) =>
+      t(`productsScreen.enums.${group}.${value}`),
+    [t]
+  );
+
   const [rows, setRows] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -117,14 +128,14 @@ export function ProductsScreen() {
   };
 
   const validate = (input: ProductFormInput): string => {
-    if (!input.name.trim()) return "El nombre es obligatorio.";
+    if (!input.name.trim()) return t("productsScreen.validation.nameRequired");
     if (input.minAmount < 0 || input.maxAmount <= 0 || input.maxAmount < input.minAmount) {
-      return "Rango de monto invalido.";
+      return t("productsScreen.validation.amountRange");
     }
-    if (input.maxInterestRate < input.minInterestRate) return "Rango de tasa invalido.";
-    if (input.kind === "LOAN" && (input.maxInstallments ?? 0) <= 0) return "Maximo de cuotas invalido.";
+    if (input.maxInterestRate < input.minInterestRate) return t("productsScreen.validation.rateRange");
+    if (input.kind === "LOAN" && (input.maxInstallments ?? 0) <= 0) return t("productsScreen.validation.maxInstallments");
     if (input.kind === "DEPOSIT" && input.overdraftAllowed && (input.overdraftLimit ?? 0) <= 0) {
-      return "Si hay sobregiro, define limite mayor a 0.";
+      return t("productsScreen.validation.overdraftLimit");
     }
     return "";
   };
@@ -153,9 +164,11 @@ export function ProductsScreen() {
     await load();
   };
 
-  const detailSubtitle = selected
-    ? productUiCopy.selectedSubtitle(selected.kind, selected.id)
-    : productUiCopy.emptySubtitle;
+  const detailSubtitle =
+    selected &&
+    (selected.kind === "DEPOSIT"
+      ? t("productsScreen.detail.subtitleDeposit").replace("{id}", selected.id)
+      : t("productsScreen.detail.subtitleLoan").replace("{id}", selected.id));
 
   return (
     <div className="zelify-workspace-page">
@@ -165,37 +178,37 @@ export function ProductsScreen() {
         <div className="zelify-workspace-page__inner zelify-products-crud">
           <header className="zelify-products-crud__head">
             <div>
-              <h1 className="zelify-workspace-page__title">Products</h1>
+              <h1 className="zelify-workspace-page__title">{t("productsScreen.title")}</h1>
               <p className="zelify-products-crud__meta">
-                Catalogo maestro de reglas (depositproducts / loanproducts) para creacion de cuentas.
-                <span className="zelify-products-crud__mock-chip">MOCK DATA</span>
+                {t("productsScreen.subtitle")}
+                <span className="zelify-products-crud__mock-chip">{t("productsScreen.mockChip")}</span>
               </p>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <AppButton type="button" tone="neutral" onClick={() => openCreate("DEPOSIT")}>
-                Nuevo Deposito
+                {t("productsScreen.newDeposit")}
               </AppButton>
               <AppButton type="button" tone="primary" onClick={() => openCreate("LOAN")}>
-                Nuevo Prestamo
+                {t("productsScreen.newLoan")}
               </AppButton>
             </div>
           </header>
 
           <section className="zelify-products-crud__summary">
             <article>
-              <span>Deposit Products</span>
+              <span>{t("productsScreen.kpis.depositProducts")}</span>
               <strong>{summary.deposits}</strong>
             </article>
             <article>
-              <span>Loan Products</span>
+              <span>{t("productsScreen.kpis.loanProducts")}</span>
               <strong>{summary.loans}</strong>
             </article>
             <article>
-              <span>Active</span>
+              <span>{t("productsScreen.kpis.active")}</span>
               <strong>{summary.active}</strong>
             </article>
             <article>
-              <span>Inactive</span>
+              <span>{t("productsScreen.kpis.inactive")}</span>
               <strong>{summary.inactive}</strong>
             </article>
           </section>
@@ -204,20 +217,20 @@ export function ProductsScreen() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar por ID o nombre de producto..."
+              placeholder={t("productsScreen.searchPlaceholder")}
             />
             <select value={kindFilter} onChange={(e) => setKindFilter(e.target.value as typeof kindFilter)}>
-              <option value="ALL">Todos los tipos</option>
-              <option value="DEPOSIT">Deposito</option>
-              <option value="LOAN">Prestamo</option>
+              <option value="ALL">{t("productsScreen.filters.allKinds")}</option>
+              <option value="DEPOSIT">{t("productsScreen.filters.deposit")}</option>
+              <option value="LOAN">{t("productsScreen.filters.loan")}</option>
             </select>
             <select value={activeFilter} onChange={(e) => setActiveFilter(e.target.value as typeof activeFilter)}>
-              <option value="ALL">Todos los estados</option>
-              <option value="ACTIVE">Activos</option>
-              <option value="INACTIVE">Inactivos</option>
+              <option value="ALL">{t("productsScreen.filters.allStates")}</option>
+              <option value="ACTIVE">{t("productsScreen.filters.active")}</option>
+              <option value="INACTIVE">{t("productsScreen.filters.inactive")}</option>
             </select>
             <AppButton type="button" tone="neutral" onClick={() => load()}>
-              Refrescar
+              {t("productsScreen.refresh")}
             </AppButton>
           </section>
 
@@ -225,20 +238,20 @@ export function ProductsScreen() {
             <SettingsDataTable variant="clients">
               <thead>
                 <tr>
-                  <th>ID</th>
-                  <th>Nombre</th>
-                  <th>Tipo</th>
-                  <th className="is-numeric-header">Rango monto</th>
-                  <th className="is-numeric-header">Rango tasa</th>
-                  <th>Estado</th>
-                  <th>Actualizado</th>
-                  <th>Acciones</th>
+                  <th>{t("productsScreen.table.id")}</th>
+                  <th>{t("productsScreen.table.name")}</th>
+                  <th>{t("productsScreen.table.kind")}</th>
+                  <th className="is-numeric-header">{t("productsScreen.table.amountRange")}</th>
+                  <th className="is-numeric-header">{t("productsScreen.table.rateRange")}</th>
+                  <th>{t("productsScreen.table.state")}</th>
+                  <th>{t("productsScreen.table.updated")}</th>
+                  <th>{t("productsScreen.table.actions")}</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={8}>Cargando productos...</td>
+                    <td colSpan={8}>{t("productsScreen.loading")}</td>
                   </tr>
                 ) : (
                   filtered.map((row) => (
@@ -247,34 +260,34 @@ export function ProductsScreen() {
                       <td>{row.name}</td>
                       <td>
                         <AppBadge tone={toneByKind(row.kind)} size="sm">
-                          {row.kind}
+                          {t(`productsScreen.kind.${row.kind}`)}
                         </AppBadge>
                       </td>
                       <td className="is-numeric">
-                        {money(row.minAmount)} - {money(row.maxAmount)}
+                        {money(row.minAmount)} — {money(row.maxAmount)}
                       </td>
                       <td className="is-numeric">
-                        {row.minInterestRate}% - {row.maxInterestRate}%
+                        {row.minInterestRate}% — {row.maxInterestRate}%
                       </td>
                       <td>
                         <AppBadge tone={row.active ? "success" : "neutral"} size="sm">
-                          {row.active ? "ACTIVE" : "INACTIVE"}
+                          {row.active ? t("productsScreen.state.ACTIVE") : t("productsScreen.state.INACTIVE")}
                         </AppBadge>
                       </td>
                       <td>{row.updatedAt}</td>
                       <td>
                         <div className="zelify-products-crud__ops">
                           <button type="button" onClick={(e) => { e.stopPropagation(); setSelected(row); }}>
-                            Ver
+                            {t("productsScreen.rowActions.view")}
                           </button>
                           <button type="button" onClick={(e) => { e.stopPropagation(); openEdit(row); }}>
-                            Editar
+                            {t("productsScreen.rowActions.edit")}
                           </button>
                           <button type="button" onClick={(e) => { e.stopPropagation(); void toggleActive(row.id); }}>
-                            {row.active ? "Desactivar" : "Activar"}
+                            {row.active ? t("productsScreen.rowActions.deactivate") : t("productsScreen.rowActions.activate")}
                           </button>
                           <button type="button" onClick={(e) => { e.stopPropagation(); void remove(row.id); }}>
-                            Eliminar
+                            {t("productsScreen.rowActions.delete")}
                           </button>
                         </div>
                       </td>
@@ -286,36 +299,65 @@ export function ProductsScreen() {
           </section>
 
           <section className="zelify-products-details">
-            <h3>{selected ? selected.name : "Detalle de producto"}</h3>
-            <p className="zelify-products-details__endpoint">{detailSubtitle}</p>
+            <h3>{selected ? selected.name : t("productsScreen.detail.emptyTitle")}</h3>
+            {selected && detailSubtitle ? (
+              <p className="zelify-products-details__endpoint">{detailSubtitle}</p>
+            ) : null}
             {selected ? (
               <ul>
                 <li>
-                  Reglas de monto: {money(selected.minAmount)} a {money(selected.maxAmount)}
+                  {t("productsScreen.detail.amountRules")
+                    .replace("{min}", money(selected.minAmount))
+                    .replace("{max}", money(selected.maxAmount))}
                 </li>
                 <li>
-                  Rango de tasas: {selected.minInterestRate}% a {selected.maxInterestRate}%
+                  {t("productsScreen.detail.rateRange")
+                    .replace("{min}", String(selected.minInterestRate))
+                    .replace("{max}", String(selected.maxInterestRate))}
                 </li>
                 {selected.kind === "DEPOSIT" ? (
                   <>
-                    <li>productType: {selected.productType}</li>
-                    <li>interestRateSettings: {selected.interestRateSettings}</li>
                     <li>
-                      overdraftSettings: {selected.overdraftAllowed ? `Permitido (limite ${money(selected.overdraftLimit)})` : "No permitido"}
+                      {t("productsScreen.detail.deposit.productType")}: {enumLabel("productType", selected.productType)}
+                    </li>
+                    <li>
+                      {t("productsScreen.detail.deposit.interestSettings")}:{" "}
+                      {enumLabel("interestRateSettings", selected.interestRateSettings)}
+                    </li>
+                    <li>
+                      {t("productsScreen.detail.deposit.overdraft")}:{" "}
+                      {selected.overdraftAllowed
+                        ? t("productsScreen.detail.deposit.overdraftYes").replace("{limit}", money(selected.overdraftLimit))
+                        : t("productsScreen.detail.deposit.overdraftNo")}
                     </li>
                   </>
                 ) : (
                   <>
-                    <li>paymentMethod: {selected.paymentMethod}</li>
-                    <li>gracePeriodSettings: {selected.gracePeriodInstallments} cuotas</li>
-                    <li>scheduleSettings: {selected.repaymentFrequency} / max {selected.maxInstallments} cuotas</li>
-                    <li>collateralSettings: {selected.collateralRequired ? "Requiere garantia" : "No requiere"}</li>
+                    <li>
+                      {t("productsScreen.detail.loan.paymentMethod")}: {enumLabel("paymentMethod", selected.paymentMethod)}
+                    </li>
+                    <li>
+                      {t("productsScreen.detail.loan.grace")}:{" "}
+                      {t("productsScreen.detail.loan.graceValue").replace("{n}", String(selected.gracePeriodInstallments))}
+                    </li>
+                    <li>
+                      {t("productsScreen.detail.loan.schedule")}:{" "}
+                      {t("productsScreen.detail.loan.scheduleValue")
+                        .replace("{frequency}", enumLabel("repaymentFrequency", selected.repaymentFrequency))
+                        .replace("{max}", String(selected.maxInstallments))}
+                    </li>
+                    <li>
+                      {t("productsScreen.detail.loan.collateral")}:{" "}
+                      {selected.collateralRequired
+                        ? t("productsScreen.detail.loan.collateralYes")
+                        : t("productsScreen.detail.loan.collateralNo")}
+                    </li>
                   </>
                 )}
               </ul>
             ) : (
               <ul>
-                <li>Selecciona un producto para ver su configuracion detallada.</li>
+                <li>{t("productsScreen.detail.emptyHint")}</li>
               </ul>
             )}
           </section>
@@ -325,26 +367,28 @@ export function ProductsScreen() {
       {editor ? (
         <div className="zelify-products-modal-backdrop" onMouseDown={() => setEditor(null)}>
           <div className="zelify-products-modal" onMouseDown={(e) => e.stopPropagation()}>
-            <h2>{editor.mode === "create" ? "Crear producto" : "Editar producto"}</h2>
-            <p className="zelify-products-crud__meta">{productUiCopy.modalRulesHint(form.kind)}</p>
+            <h2>{editor.mode === "create" ? t("productsScreen.modal.createTitle") : t("productsScreen.modal.editTitle")}</h2>
+            <p className="zelify-products-crud__meta">
+              {form.kind === "DEPOSIT" ? t("productsScreen.modal.rulesHintDeposit") : t("productsScreen.modal.rulesHintLoan")}
+            </p>
             <div className="zelify-products-modal__grid">
               <label>
-                Nombre
+                {t("productsScreen.modal.name")}
                 <input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
               </label>
               <label>
-                Tipo
+                {t("productsScreen.modal.kind")}
                 <select
                   value={form.kind}
                   disabled={editor.mode === "edit"}
                   onChange={(e) => setForm((p) => ({ ...p, kind: e.target.value as ProductKind }))}
                 >
-                  <option value="DEPOSIT">DEPOSIT</option>
-                  <option value="LOAN">LOAN</option>
+                  <option value="DEPOSIT">{t("productsScreen.kind.DEPOSIT")}</option>
+                  <option value="LOAN">{t("productsScreen.kind.LOAN")}</option>
                 </select>
               </label>
               <label>
-                Monto minimo
+                {t("productsScreen.modal.minAmount")}
                 <input
                   type="number"
                   value={form.minAmount}
@@ -352,7 +396,7 @@ export function ProductsScreen() {
                 />
               </label>
               <label>
-                Monto maximo
+                {t("productsScreen.modal.maxAmount")}
                 <input
                   type="number"
                   value={form.maxAmount}
@@ -360,7 +404,7 @@ export function ProductsScreen() {
                 />
               </label>
               <label>
-                Tasa minima (%)
+                {t("productsScreen.modal.minRate")}
                 <input
                   type="number"
                   step="0.01"
@@ -369,7 +413,7 @@ export function ProductsScreen() {
                 />
               </label>
               <label>
-                Tasa maxima (%)
+                {t("productsScreen.modal.maxRate")}
                 <input
                   type="number"
                   step="0.01"
@@ -381,40 +425,40 @@ export function ProductsScreen() {
               {form.kind === "DEPOSIT" ? (
                 <>
                   <label>
-                    productType
+                    {t("productsScreen.modal.depositProductType")}
                     <select
                       value={form.productType}
                       onChange={(e) => setForm((p) => ({ ...p, productType: e.target.value as ProductFormInput["productType"] }))}
                     >
-                      <option value="CURRENT_ACCOUNT">CURRENT_ACCOUNT</option>
-                      <option value="SAVINGS_PLAN">SAVINGS_PLAN</option>
-                      <option value="FIXED_DEPOSIT">FIXED_DEPOSIT</option>
+                      <option value="CURRENT_ACCOUNT">{enumLabel("productType", "CURRENT_ACCOUNT")}</option>
+                      <option value="SAVINGS_PLAN">{enumLabel("productType", "SAVINGS_PLAN")}</option>
+                      <option value="FIXED_DEPOSIT">{enumLabel("productType", "FIXED_DEPOSIT")}</option>
                     </select>
                   </label>
                   <label>
-                    interestRateSettings
+                    {t("productsScreen.modal.interestRateSettings")}
                     <select
                       value={form.interestRateSettings}
                       onChange={(e) =>
                         setForm((p) => ({ ...p, interestRateSettings: e.target.value as ProductFormInput["interestRateSettings"] }))
                       }
                     >
-                      <option value="FIXED">FIXED</option>
-                      <option value="TIERED">TIERED</option>
+                      <option value="FIXED">{enumLabel("interestRateSettings", "FIXED")}</option>
+                      <option value="TIERED">{enumLabel("interestRateSettings", "TIERED")}</option>
                     </select>
                   </label>
                   <label>
-                    Sobregiro permitido
+                    {t("productsScreen.modal.overdraftAllowed")}
                     <select
                       value={form.overdraftAllowed ? "yes" : "no"}
                       onChange={(e) => setForm((p) => ({ ...p, overdraftAllowed: e.target.value === "yes" }))}
                     >
-                      <option value="no">No</option>
-                      <option value="yes">Si</option>
+                      <option value="no">{t("productsScreen.modal.no")}</option>
+                      <option value="yes">{t("productsScreen.modal.yes")}</option>
                     </select>
                   </label>
                   <label>
-                    Limite sobregiro
+                    {t("productsScreen.modal.overdraftLimit")}
                     <input
                       type="number"
                       value={form.overdraftLimit}
@@ -425,30 +469,30 @@ export function ProductsScreen() {
               ) : (
                 <>
                   <label>
-                    paymentMethod
+                    {t("productsScreen.modal.paymentMethod")}
                     <select
                       value={form.paymentMethod}
                       onChange={(e) => setForm((p) => ({ ...p, paymentMethod: e.target.value as ProductFormInput["paymentMethod"] }))}
                     >
-                      <option value="EQUATED_INSTALLMENTS">EQUATED_INSTALLMENTS</option>
-                      <option value="DECLINING_BALANCE">DECLINING_BALANCE</option>
+                      <option value="EQUATED_INSTALLMENTS">{enumLabel("paymentMethod", "EQUATED_INSTALLMENTS")}</option>
+                      <option value="DECLINING_BALANCE">{enumLabel("paymentMethod", "DECLINING_BALANCE")}</option>
                     </select>
                   </label>
                   <label>
-                    repaymentFrequency
+                    {t("productsScreen.modal.repaymentFrequency")}
                     <select
                       value={form.repaymentFrequency}
                       onChange={(e) =>
                         setForm((p) => ({ ...p, repaymentFrequency: e.target.value as ProductFormInput["repaymentFrequency"] }))
                       }
                     >
-                      <option value="DAILY">DAILY</option>
-                      <option value="WEEKLY">WEEKLY</option>
-                      <option value="MONTHLY">MONTHLY</option>
+                      <option value="DAILY">{enumLabel("repaymentFrequency", "DAILY")}</option>
+                      <option value="WEEKLY">{enumLabel("repaymentFrequency", "WEEKLY")}</option>
+                      <option value="MONTHLY">{enumLabel("repaymentFrequency", "MONTHLY")}</option>
                     </select>
                   </label>
                   <label>
-                    Cuotas de gracia
+                    {t("productsScreen.modal.graceInstallments")}
                     <input
                       type="number"
                       value={form.gracePeriodInstallments}
@@ -456,7 +500,7 @@ export function ProductsScreen() {
                     />
                   </label>
                   <label>
-                    Maximo cuotas
+                    {t("productsScreen.modal.maxInstallments")}
                     <input
                       type="number"
                       value={form.maxInstallments}
@@ -464,13 +508,13 @@ export function ProductsScreen() {
                     />
                   </label>
                   <label>
-                    Requiere garantia
+                    {t("productsScreen.modal.collateralRequired")}
                     <select
                       value={form.collateralRequired ? "yes" : "no"}
                       onChange={(e) => setForm((p) => ({ ...p, collateralRequired: e.target.value === "yes" }))}
                     >
-                      <option value="no">No</option>
-                      <option value="yes">Si</option>
+                      <option value="no">{t("productsScreen.modal.no")}</option>
+                      <option value="yes">{t("productsScreen.modal.yes")}</option>
                     </select>
                   </label>
                 </>
@@ -479,10 +523,10 @@ export function ProductsScreen() {
             {error ? <p style={{ color: "#b91c1c", marginTop: 10 }}>{error}</p> : null}
             <footer className="zelify-products-modal__footer">
               <AppButton type="button" tone="neutral" onClick={() => setEditor(null)}>
-                Cancelar
+                {t("productsScreen.modal.cancel")}
               </AppButton>
               <AppButton type="button" tone="primary" onClick={() => void save()}>
-                {editor.mode === "create" ? "Crear producto" : "Guardar cambios"}
+                {editor.mode === "create" ? t("productsScreen.modal.saveCreate") : t("productsScreen.modal.saveEdit")}
               </AppButton>
             </footer>
           </div>
@@ -491,4 +535,3 @@ export function ProductsScreen() {
     </div>
   );
 }
-

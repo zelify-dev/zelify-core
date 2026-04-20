@@ -11,6 +11,8 @@ type ScreenKey =
   | "deposit-transactions"
   | "products"
   | "accounting-profit-loss"
+  | "accounting-balance-sheet"
+  | "accounting-interest-accrual-breakdown"
   | "accounting-closures"
   | "settings-forms"
   | "settings-templates"
@@ -34,15 +36,147 @@ type SectionData = {
   rows: string[][];
 };
 
-const DATA_BY_KEY: Record<ScreenKey, SectionData> = {
-  loans: {
+type LoanPortfolioSeed = {
+  id: string;
+  client: string;
+  product: string;
+  status: "active" | "arrears";
+  balance: number;
+};
+
+function splitTotalAcrossParts(total: number, count: number): number[] {
+  const weights = Array.from({ length: count }, (_, i) => 42 + (i % 19) * 11 + ((i * 5) % 29));
+  const wsum = weights.reduce((a, b) => a + b, 0);
+  const parts = weights.map((w) => Math.floor((total * w) / wsum));
+  const diff = total - parts.reduce((a, b) => a + b, 0);
+  parts[parts.length - 1] += diff;
+  return parts;
+}
+
+function formatUsdBalance(amount: number): string {
+  return `USD ${amount.toLocaleString("en-US")}`;
+}
+
+function buildLoanPortfolioSection(): SectionData {
+  const productPool = [
+    "Micro Loan / Microcrédito",
+    "SME Capital / Capital PyME",
+    "Education / Educación",
+    "Vehicle Loan / Préstamo vehicular",
+    "Working Capital / Capital de trabajo",
+    "Housing / Vivienda",
+    "Agricultural / Agrícola",
+    "Consumer / Consumo",
+    "Green Energy / Energía verde",
+    "Payroll-Linked / Nómina",
+    "Group Loan / Préstamo grupal",
+    "Emergency Line / Línea emergencia",
+  ] as const;
+
+  const clients = [
+    "Ana Mora",
+    "David Ortiz",
+    "Rosa Vega",
+    "Carlos Mendoza",
+    "Lucía Herrera",
+    "Jorge Castillo",
+    "María Fernández",
+    "Pedro Salinas",
+    "Gabriela Ríos",
+    "Andrés Duarte",
+    "Valentina Soto",
+    "Ricardo Paredes",
+    "Daniela Vargas",
+    "Fernando Aguirre",
+    "Camila Núñez",
+    "Esteban Morales",
+    "Paula Cortés",
+    "Miguel Ángel Lara",
+    "Isabel Campos",
+    "Héctor Peña",
+    "Natalia Ibáñez",
+    "Óscar Delgado",
+    "Adriana Fuentes",
+    "Roberto Silva",
+    "Claudia Mejía",
+    "Javier Orozco",
+    "Mónica Reyes",
+    "Sergio Navarro",
+    "Patricia León",
+    "Diego Ramírez",
+    "Laura Gutiérrez",
+    "Martín Cabrera",
+    "Carmen Espinoza",
+    "Raúl Figueroa",
+    "Elena Guzmán",
+    "Francisco Torres",
+    "Beatriz Molina",
+    "Luis Enrique Sosa",
+    "Teresa Rojas",
+    "Alberto Cárdenas",
+    "Silvia Ponce",
+    "Enrique Valdés",
+    "Ruth Zamora",
+    "Manuel Contreras",
+    "Pilar Escobar",
+    "Víctor Maldonado",
+    "Lucía Beltrán",
+    "Gustavo Acosta",
+    "Mariana Lozano",
+  ] as const;
+
+  const arrearsBalances = [98_000, 112_000, 87_500, 103_200, 99_000];
+  const arrearsTotal = arrearsBalances.reduce((a, b) => a + b, 0);
+  const portfolioTotal = 15_000_000;
+  const activeTarget = portfolioTotal - arrearsTotal;
+  const activeCount = 48;
+  const activeBalances = splitTotalAcrossParts(activeTarget, activeCount);
+
+  const seeds: LoanPortfolioSeed[] = [];
+
+  for (let i = 0; i < activeCount; i += 1) {
+    seeds.push({
+      id: `LN-${10240 + i}`,
+      client: clients[i % clients.length],
+      product: productPool[i % productPool.length],
+      status: "active",
+      balance: activeBalances[i],
+    });
+  }
+
+  arrearsBalances.forEach((balance, j) => {
+    seeds.push({
+      id: `LN-${10880 + j}`,
+      client: clients[(activeCount + j) % clients.length],
+      product: productPool[(j + 3) % productPool.length],
+      status: "arrears",
+      balance,
+    });
+  });
+
+  const rows = seeds.map((row) => {
+    const statusLabel = row.status === "active" ? "Active / Activo" : "In Arrears / En Mora";
+    return [row.id, row.client, row.product, statusLabel, formatUsdBalance(row.balance)];
+  });
+
+  const totalBalance = seeds.reduce((s, r) => s + r.balance, 0);
+  const activeLoans = seeds.filter((r) => r.status === "active").length;
+  const arrearsBalanceSum = seeds.filter((r) => r.status === "arrears").reduce((s, r) => s + r.balance, 0);
+  const parSharePct = totalBalance > 0 ? (arrearsBalanceSum / totalBalance) * 100 : 0;
+
+  const outstandingDisplay =
+    totalBalance >= 1_000_000
+      ? `USD ${(totalBalance / 1_000_000).toFixed(1)}M`
+      : `USD ${totalBalance.toLocaleString("en-US")}`;
+
+  return {
     title: "Loan Portfolio / Cartera de Préstamos",
     subtitle:
       "Overview of loan accounts, balances, delinquency and disbursements. / Resumen de cuentas de préstamo, saldos, mora y desembolsos.",
     cards: [
-      { label: "Active Loans / Préstamos Activos", value: "1,284" },
-      { label: "Outstanding Balance / Saldo Pendiente", value: "USD 12.4M" },
-      { label: "PAR 30 / Mora 30+", value: "3.1%" },
+      { label: "Active Loans / Préstamos Activos", value: activeLoans.toLocaleString("en-US") },
+      { label: "Outstanding Balance / Saldo Pendiente", value: outstandingDisplay },
+      { label: "PAR 30 / Mora 30+", value: `${parSharePct.toFixed(1)}%` },
     ],
     columns: [
       "Loan ID / ID Préstamo",
@@ -51,12 +185,12 @@ const DATA_BY_KEY: Record<ScreenKey, SectionData> = {
       "Status / Estado",
       "Balance / Saldo",
     ],
-    rows: [
-      ["LN-10244", "Ana Mora", "Micro Loan / Microcrédito", "Active / Activo", "USD 4,220"],
-      ["LN-10248", "David Ortiz", "SME Capital / Capital PyME", "Active / Activo", "USD 18,940"],
-      ["LN-10253", "Rosa Vega", "Education / Educación", "In Arrears / En Mora", "USD 1,860"],
-    ],
-  },
+    rows,
+  };
+}
+
+const DATA_BY_KEY: Record<ScreenKey, SectionData> = {
+  loans: buildLoanPortfolioSection(),
   "deposit-transactions": {
     title: "Deposit Transactions / Transacciones de Depósito",
     subtitle:
@@ -101,6 +235,28 @@ const DATA_BY_KEY: Record<ScreenKey, SectionData> = {
       ["PR-GR-02", "Group Flex / Grupo Flexible", "Loan / Préstamo", "USD", "Draft / Borrador"],
     ],
   },
+  "accounting-balance-sheet": {
+    title: "Balance Sheet / Balance General",
+    subtitle:
+      "Assets, liabilities and equity snapshot by period. / Instantánea de activos, pasivos y patrimonio por período.",
+    cards: [
+      { label: "Total Assets / Activos Totales", value: "USD 18.2M" },
+      { label: "Total Liabilities / Pasivos Totales", value: "USD 12.1M" },
+      { label: "Equity / Patrimonio", value: "USD 6.1M" },
+    ],
+    columns: [
+      "Line / Rubro",
+      "Category / Categoría",
+      "Current / Actual",
+      "Prior / Anterior",
+      "Variance / Variación",
+    ],
+    rows: [
+      ["Cash and equivalents / Efectivo y equivalentes", "Asset / Activo", "USD 2.4M", "USD 2.1M", "+14.3% / +14.3%"],
+      ["Loans receivable / Cartera por cobrar", "Asset / Activo", "USD 12.4M", "USD 11.9M", "+4.2% / +4.2%"],
+      ["Deposits payable / Depósitos por pagar", "Liability / Pasivo", "USD 8.9M", "USD 8.4M", "+6.0% / +6.0%"],
+    ],
+  },
   "accounting-profit-loss": {
     title: "Profit and Loss / Ganancias y Pérdidas",
     subtitle:
@@ -121,6 +277,28 @@ const DATA_BY_KEY: Record<ScreenKey, SectionData> = {
       ["Interest Income / Ingreso por Intereses", "Income / Ingreso", "USD 402,000", "USD 389,000", "+3.3% / +3.3%"],
       ["Fee Income / Ingreso por Comisiones", "Income / Ingreso", "USD 120,300", "USD 111,800", "+7.6% / +7.6%"],
       ["Personnel Expense / Gasto de Personal", "Expense / Gasto", "USD 187,100", "USD 181,400", "+3.1% / +3.1%"],
+    ],
+  },
+  "accounting-interest-accrual-breakdown": {
+    title: "Interest Accrual Breakdown / Desglose de Devengo de Intereses",
+    subtitle:
+      "Accrued interest by product, portfolio segment and GL mapping. / Intereses devengados por producto, segmento de cartera y mapeo contable.",
+    cards: [
+      { label: "Accrued MTD / Devengado MTD", value: "USD 284,200" },
+      { label: "GL Postings Pending / Contabilizaciones pendientes", value: "12" },
+      { label: "Reconciliation Delta / Delta conciliación", value: "USD 1,240" },
+    ],
+    columns: [
+      "Account / Cuenta",
+      "Product / Producto",
+      "Accrued / Devengado",
+      "Posted / Contabilizado",
+      "Delta / Delta",
+    ],
+    rows: [
+      ["INT-4100 / INT-4100", "Micro Loan / Microcrédito", "USD 98,400", "USD 97,100", "USD 1,300"],
+      ["INT-4101 / INT-4101", "SME Loan / Préstamo PyME", "USD 112,800", "USD 112,800", "USD 0"],
+      ["INT-4200 / INT-4200", "Deposits / Depósitos", "USD 73,000", "USD 71,860", "USD 1,140"],
     ],
   },
   "accounting-closures": {
@@ -475,6 +653,8 @@ function getRowActions(key: ScreenKey): string[] {
     case "reports-cashflow":
       return ["Open / Abrir", "Export / Exportar", "Schedule / Programar"];
     case "accounting-profit-loss":
+    case "accounting-balance-sheet":
+    case "accounting-interest-accrual-breakdown":
     case "accounting-closures":
       return ["View / Ver", "Post / Contabilizar", "Export / Exportar"];
     case "loans-pending-approval":

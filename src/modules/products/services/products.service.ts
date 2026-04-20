@@ -24,7 +24,7 @@ const DEPOSIT_PRODUCTS: DepositProduct[] = [
   },
   {
     id: "DEP-PROD-002",
-    name: "Cuenta Nomina",
+    name: "Cuenta Nómina",
     kind: "DEPOSIT",
     active: true,
     minAmount: 0,
@@ -37,12 +37,72 @@ const DEPOSIT_PRODUCTS: DepositProduct[] = [
     overdraftLimit: 1200,
     interestRateSettings: "FIXED",
   },
+  {
+    id: "DEP-PROD-003",
+    name: "Ahorro infantil juvenil",
+    kind: "DEPOSIT",
+    active: true,
+    minAmount: 25,
+    maxAmount: 8_000,
+    minInterestRate: 2,
+    maxInterestRate: 5.25,
+    updatedAt: "2026-04-10",
+    productType: "SAVINGS_PLAN",
+    overdraftAllowed: false,
+    overdraftLimit: 0,
+    interestRateSettings: "TIERED",
+  },
+  {
+    id: "DEP-PROD-004",
+    name: "Depósito a plazo 90 días",
+    kind: "DEPOSIT",
+    active: true,
+    minAmount: 500,
+    maxAmount: 250_000,
+    minInterestRate: 3.25,
+    maxInterestRate: 7.5,
+    updatedAt: "2026-04-16",
+    productType: "FIXED_DEPOSIT",
+    overdraftAllowed: false,
+    overdraftLimit: 0,
+    interestRateSettings: "FIXED",
+  },
+  {
+    id: "DEP-PROD-005",
+    name: "Cuenta de ahorros libre",
+    kind: "DEPOSIT",
+    active: true,
+    minAmount: 100,
+    maxAmount: 75_000,
+    minInterestRate: 0.35,
+    maxInterestRate: 3.8,
+    updatedAt: "2026-04-14",
+    productType: "SAVINGS_PLAN",
+    overdraftAllowed: false,
+    overdraftLimit: 0,
+    interestRateSettings: "FIXED",
+  },
+  {
+    id: "DEP-PROD-006",
+    name: "Ahorro grupal comunitario",
+    kind: "DEPOSIT",
+    active: true,
+    minAmount: 100,
+    maxAmount: 25_000,
+    minInterestRate: 1.75,
+    maxInterestRate: 5.9,
+    updatedAt: "2026-04-11",
+    productType: "SAVINGS_PLAN",
+    overdraftAllowed: false,
+    overdraftLimit: 0,
+    interestRateSettings: "TIERED",
+  },
 ];
 
 const LOAN_PRODUCTS: LoanProduct[] = [
   {
     id: "LOAN-PROD-001",
-    name: "Microcredito Agricola",
+    name: "Microcrédito agrícola",
     kind: "LOAN",
     active: true,
     minAmount: 500,
@@ -58,7 +118,7 @@ const LOAN_PRODUCTS: LoanProduct[] = [
   },
   {
     id: "LOAN-PROD-002",
-    name: "Credito Comercial Pyme",
+    name: "Crédito comercial PyME",
     kind: "LOAN",
     active: true,
     minAmount: 3000,
@@ -176,15 +236,3 @@ export const productsService = {
   },
 };
 
-/** Textos de detalle para la UI (sin método HTTP ni rutas de API en crudo). */
-export const productUiCopy = {
-  selectedSubtitle: (kind: ProductKind, id: string) =>
-    kind === "DEPOSIT"
-      ? `Plantilla de captación · Identificador ${id}`
-      : `Plantilla de crédito · Identificador ${id}`,
-  emptySubtitle: "Selecciona un producto para ver su configuración.",
-  modalRulesHint: (kind: ProductKind) =>
-    kind === "DEPOSIT"
-      ? "Reglas maestras de productos de depósito (demostración, sin llamadas a API)."
-      : "Reglas maestras de productos de préstamo (demostración, sin llamadas a API).",
-};
