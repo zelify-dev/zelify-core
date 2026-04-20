@@ -26,6 +26,7 @@ import { NavTab } from "@/components/ui/molecules/nav-tab/nav-tab";
 import { ProfileMenu } from "@/components/ui/molecules/profile-trigger/profile-menu";
 import { TopbarSearchBox } from "@/components/ui/molecules/search-box/topbar-search-box";
 import { useI18n } from "@/providers/i18n-provider";
+import type { DropdownMenuItem } from "@/components/ui/molecules/dropdown-menu/dropdown-menu";
 
 import "./zelify-top-navbar.css";
 
@@ -47,6 +48,26 @@ const VIEW_MENU_KEYS = [
   "topbar.viewMenu.users",
   "topbar.viewMenu.communications",
   "topbar.viewMenu.reports",
+] as const;
+
+const CREATE_MENU_HREFS = [
+  "/customers?create=client",
+  "/settings/organization?create=organization",
+  "/groups?create=group",
+  "/deposits?create=account",
+  "/settings/access?create=user",
+  "/settings/templates?create=communication",
+] as const;
+
+const VIEW_MENU_HREFS = [
+  "/customers",
+  "/settings/organization",
+  "/deposits",
+  "/loan-transactions",
+  "/activities",
+  "/settings/access",
+  "/settings/templates",
+  "/reports",
 ] as const;
 
 type ZelifyTopNavbarProps = {
@@ -73,6 +94,14 @@ export function ZelifyTopNavbar({
   const showAdminSubBar = isAdministrationPath(pathname);
   const showAccountingSubBar = isAccountingPath(pathname);
   const organizationLabel = organizationLabelProp ?? t("org.allOrganizations");
+  const createMenuItems: DropdownMenuItem[] = CREATE_MENU_KEYS.map((key, index) => ({
+    label: t(key),
+    href: CREATE_MENU_HREFS[index],
+  }));
+  const viewMenuItems: DropdownMenuItem[] = VIEW_MENU_KEYS.map((key, index) => ({
+    label: t(key),
+    href: VIEW_MENU_HREFS[index],
+  }));
 
   const [isCondensed, setIsCondensed] = useState(false);
   const [openMenu, setOpenMenu] = useState<null | "create" | "view">(null);
@@ -151,7 +180,7 @@ export function ZelifyTopNavbar({
             {openMenu === "create" ? (
               <DropdownMenu
                 className="zelify-topbar-dropdown"
-                items={CREATE_MENU_KEYS.map((key) => t(key))}
+                items={createMenuItems}
               />
             ) : null}
           </div>
@@ -169,7 +198,7 @@ export function ZelifyTopNavbar({
             {openMenu === "view" ? (
               <DropdownMenu
                 className="zelify-topbar-dropdown"
-                items={VIEW_MENU_KEYS.map((key) => t(key))}
+                items={viewMenuItems}
               />
             ) : null}
           </div>

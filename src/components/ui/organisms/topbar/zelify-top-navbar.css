@@ -21,6 +21,8 @@
   transition:
     min-height 180ms ease,
     padding 180ms ease;
+  position: relative;
+  z-index: 6;
 }
 
 .zelify-topbar-wrapper.is-condensed .zelify-topbar-primary {
@@ -35,6 +37,8 @@
   padding: 0 20px;
   background: #ffffff;
   border-bottom: 1px solid rgba(26, 39, 64, 0.08);
+  position: relative;
+  z-index: 2;
 }
 
 .zelify-topbar-tertiary {
@@ -44,6 +48,8 @@
   padding: 0 20px;
   background: #eef1f5;
   border-bottom: 1px solid rgba(26, 39, 64, 0.08);
+  position: relative;
+  z-index: 1;
 }
 
 .zelify-topbar-tertiary .zelify-topbar__nav {
@@ -195,6 +201,7 @@
 
 .zelify-topbar__menu-anchor {
   position: relative;
+  z-index: 30;
 }
 
 .zelify-topbar-button,
@@ -318,6 +325,7 @@
   border-radius: 12px;
   background: #223148;
   box-shadow: 0 14px 34px rgba(6, 14, 28, 0.22);
+  z-index: 1200;
 }
 
 .zelify-dropdown-menu__item,

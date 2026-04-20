@@ -5,7 +5,7 @@ export type GeneralSetupSubNavItem = {
 
 /** Pestañas internas de Administración → General Setup (referencia Figma). */
 export const generalSetupSubNavItems: GeneralSetupSubNavItem[] = [
-  { label: "Organization Details", href: "/settings/general/organization-details" },
+  { label: "Branch Details", href: "/settings/general/organization-details" },
   { label: "Holidays", href: "/settings/general/holidays" },
   { label: "Client Types", href: "/settings/general/client-types" },
   { label: "Internal Controls", href: "/settings/general/internal-controls" },

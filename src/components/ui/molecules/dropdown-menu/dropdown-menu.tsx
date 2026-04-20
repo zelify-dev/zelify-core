@@ -1,5 +1,15 @@
+import Link from "next/link";
+
+export type DropdownMenuItem =
+  | string
+  | {
+      label: string;
+      href?: string;
+      onClick?: () => void;
+    };
+
 type DropdownMenuProps = {
-  items: string[];
+  items: DropdownMenuItem[];
   className?: string;
 };
 
@@ -10,11 +20,24 @@ export function DropdownMenu({ items, className }: DropdownMenuProps) {
 
   return (
     <div className={classes} role="menu">
-      {items.map((item) => (
-        <button key={item} type="button" role="menuitem" className="zelify-dropdown-menu__item">
-          {item}
-        </button>
-      ))}
+      {items.map((item, index) => {
+        const entry = typeof item === "string" ? { label: item } : item;
+        const key = `${entry.label}-${index}`;
+
+        if (entry.href) {
+          return (
+            <Link key={key} href={entry.href} role="menuitem" className="zelify-dropdown-menu__item">
+              {entry.label}
+            </Link>
+          );
+        }
+
+        return (
+          <button key={key} type="button" role="menuitem" className="zelify-dropdown-menu__item" onClick={entry.onClick}>
+            {entry.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

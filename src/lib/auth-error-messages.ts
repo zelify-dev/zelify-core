@@ -14,8 +14,8 @@
  * | POST /api/auth/register           | 409    | "Este correo ya tiene cuenta. Inicia sesión." |
  * | POST /api/auth/dashboard/login   | 201    | OK         |
  * | POST /api/auth/dashboard/login   | 401    | "Email o contraseña incorrectos" |
- * | POST /api/auth/dashboard/login   | 403    | "Usuario u organización deshabilitados" |
- * | POST /api/auth/dashboard/login   | 409    | Email en múltiples orgs (elegir organización) |
+ * | POST /api/auth/dashboard/login   | 403    | "Usuario o sede deshabilitados" |
+ * | POST /api/auth/dashboard/login   | 409    | Email en múltiples sedes (elegir sede) |
  * | POST /api/auth/dashboard/login   | 423    | Body: message + retry_after (segundos hasta desbloqueo). Ya no usar 401 para bloqueo. |
  * | POST /api/auth/dashboard/login   | 429    | "Demasiados intentos" / rate limit (recomendado para ráfaga de logins) |
  * | POST /api/auth/refresh            | 201    | OK         |
@@ -41,7 +41,7 @@ const MESSAGES_ES: Record<number, string> = {
 
 const MESSAGES_LOGIN_ES: Record<number, string> = {
   401: "Email o contraseña incorrectos.",
-  403: "Usuario u organización deshabilitados.",
+  403: "Usuario o sede deshabilitados.",
   423: "Cuenta bloqueada temporalmente por seguridad. Inténtalo de nuevo en unos minutos.",
   429: "Demasiados intentos de inicio de sesión. Espera unos minutos e inténtalo de nuevo.",
 };
@@ -68,7 +68,7 @@ const MESSAGES_EN: Record<number, string> = {
 
 const MESSAGES_LOGIN_EN: Record<number, string> = {
   401: "Incorrect email or password.",
-  403: "User or organization disabled.",
+  403: "User or branch disabled.",
   423: "Account temporarily locked for security. Please try again in a few minutes.",
   429: "Too many sign-in attempts. Please wait a few minutes and try again.",
 };

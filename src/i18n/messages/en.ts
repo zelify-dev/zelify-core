@@ -18,7 +18,7 @@ export const en = {
     view: "View",
     createMenu: {
       client: "Client",
-      organization: "Organization",
+      organization: "Branch",
       group: "Group",
       account: "Account",
       user: "User",
@@ -26,7 +26,7 @@ export const en = {
     },
     viewMenu: {
       clients: "Clients",
-      organizations: "Organizations",
+      organizations: "Branches",
       accounts: "Accounts",
       transactions: "Transactions",
       activities: "Activities",
@@ -57,7 +57,7 @@ export const en = {
     },
   },
   org: {
-    allOrganizations: "ALL ORGANIZATIONS",
+    allOrganizations: "ALL BRANCHES",
   },
   nav: {
     top: {
@@ -78,8 +78,12 @@ export const en = {
     admin: {
       generalSetup: "General Setup",
       financialSetup: "Financial Setup",
-      organization: "Organization",
+      organization: "Branches",
       access: "Access",
+      generalLabels: "Labels",
+      generalBranding: "Branding",
+      financialRates: "Rates",
+      financialAccounting: "Accounting",
       products: "Products",
       fields: "Fields",
       views: "Views",
@@ -127,7 +131,7 @@ export const en = {
       reporting: {
         indicators: "Indicators",
         portfolio: "Portfolio",
-        organization: "Organization",
+        organization: "Branches",
         earnings: "Earnings",
         cashflow: "Cashflow",
         outreach: "Outreach",
@@ -180,12 +184,12 @@ export const en = {
     },
     descriptions: {
       generalSetup:
-        "Set up Zelify Core with all the details for your organization. Define your institution details and contact information, configure your holidays and working days as well as your labels and templates. Customize your internal control settings to prevent errors and fraud and manage your custom fields.",
-      financialSetup: "Set up Zelify Core with all the financial details for your organization.",
+        "Set up Zelify Core with all details for your branches. Define institution details and contact information, configure holidays and working days, and manage labels and templates. Customize internal controls to prevent errors and fraud, and manage custom fields.",
+      financialSetup: "Set up Zelify Core with all financial details for your branches.",
       organization:
-        "Structure your organization by creating and editing branches & centres. You can then assign clients, groups and users to branches to capture how your organization works.",
+        "Structure your branch network by creating and editing branches and centres. Then assign clients, groups, and users to branches to reflect your operating model.",
       access:
-        "Open up Zelify Core to your entire organization by creating and managing your users. Create and edit users or modify permissions for existing ones to give everyone the level of access they need and the rights to work with the system.",
+        "Open up Zelify Core to your entire branch network by creating and managing users. Create and edit users or update permissions so everyone has the access level needed to work with the system.",
       products:
         "Manage the products offerings that you have available to your clients by creating and editing loan and deposit products.",
       fields:
@@ -197,7 +201,7 @@ export const en = {
       email: "Configure email integrations, templates, and sender settings.",
       webhooks: "Subscribe to events and route payloads to your integrations securely.",
       eventsStreaming: "Stream domain events to external systems for analytics and automation.",
-      templates: "Manage document and communication templates used across the organization.",
+      templates: "Manage document and communication templates used across branches.",
       apps: "Install and configure marketplace apps that extend core functionality.",
       tasks: "Define task types and automation for operational workflows.",
       data: "Manage exports, retention policies, and data-related administration tools.",
@@ -235,6 +239,23 @@ export const en = {
     },
   },
   customers: {
+    create: {
+      open: "New client",
+      title: "Create new client",
+      subtitle: "Complete the required information to register a new client.",
+      fullName: "Full name",
+      fullNamePlaceholder: "Client full name",
+      email: "Email",
+      phone: "Phone",
+      birthDate: "Birth date",
+      creditOfficer: "Credit officer",
+      creditOfficerPlaceholder: "Assigned officer name",
+      address: "Address",
+      addressPlaceholder: "Main address and reference details",
+      initialState: "Initial state",
+      cancel: "Cancel",
+      save: "Create client",
+    },
     list: {
       loading: "Loading clients...",
       columns: {
@@ -516,13 +537,21 @@ export const en = {
       activeDeposits: "Active Deposits",
       noActiveAccounts: "No active accounts",
       noMembers: "No members",
+      searchLabel: "Search by group name",
+      searchPlaceholder: "Search by group name",
+      allOfficers: "All officers",
+      operationsTeam: "Operations team",
       columns: {
         groupName: "Group name",
         id: "ID",
+        assignedOfficer: "Assigned Officer",
+        createdAt: "Created Date",
         state: "State",
-        branch: "Branch",
         membersCount: "Members",
-        lastModified: "Last modified",
+      },
+      rowActions: {
+        viewDetails: "View Details",
+        edit: "Edit",
       },
       states: {
         active: "Active",
@@ -538,6 +567,36 @@ export const en = {
       allCount: "All {count}",
       prevPageAria: "Previous page",
       nextPageAria: "Next page",
+    },
+  },
+  organizationSettings: {
+    unitsAria: "Branch units",
+    branch: "Branch",
+    centre: "Centre",
+    branches: "Branches",
+    centres: "Centres",
+    new: "New",
+    showDeactivated: "Show deactivated",
+    loading: "Loading...",
+    states: {
+      active: "Active",
+      inactive: "Inactive",
+      deactivated: "Deactivated",
+    },
+    table: {
+      name: "Name",
+      id: "ID",
+      state: "State",
+      address: "Address",
+      created: "Created",
+      lastModified: "Last modified",
+      actions: "Actions",
+      empty: "No {type} found.",
+      moreActionsFor: "More actions for {name}",
+      show: "Show",
+      total: "Total: {count}",
+      previousPage: "Previous page",
+      nextPage: "Next page",
     },
   },
   activities: {

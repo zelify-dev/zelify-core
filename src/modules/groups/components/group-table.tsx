@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react";
 import { SettingsDataTable } from "@/components/ui/organisms/settings-data-table/settings-data-table";
 import { AppBadge } from "@/components/ui/atoms/badge/app-badge";
 import { AppIconButton } from "@/components/ui/atoms/icon-button/app-icon-button";
+import { AppButton } from "@/components/ui/atoms/button/app-button";
 import { Group, GroupState } from "../types/group.types";
 import { useI18n } from "@/providers/i18n-provider";
 
@@ -23,34 +24,40 @@ export const GroupTable: React.FC<GroupTableProps> = ({ groups }) => {
       <SettingsDataTable variant="clients">
         <thead>
           <tr>
-            <th>{t("groups.list.columns.groupName")}</th>
             <th>{t("groups.list.columns.id")}</th>
-            <th>{t("groups.list.columns.state")}</th>
-            <th>{t("groups.list.columns.branch")}</th>
+            <th>{t("groups.list.columns.groupName")}</th>
+            <th>{t("groups.list.columns.assignedOfficer")}</th>
+            <th>{t("groups.list.columns.createdAt")}</th>
             <th className="is-numeric-header">{t("groups.list.columns.membersCount")}</th>
-            <th className="is-numeric-header">{t("groups.list.columns.lastModified")}</th>
+            <th>{t("groups.list.columns.state")}</th>
             <th className="is-actions-header">{t("groups.common.actions")}</th>
           </tr>
         </thead>
         <tbody>
           {groups.map((group) => (
             <tr key={group.id}>
-              <td className="is-primary-cell">{group.name}</td>
               <td className="is-mono-cell">{group.id}</td>
+              <td className="is-primary-cell">{group.name}</td>
+              <td>{group.assignedOfficer}</td>
+              <td>{group.createdAt}</td>
+              <td className="is-numeric-cell">{group.membersCount}</td>
               <td>
                 <AppBadge tone={groupStateToTone(group.state)} size="sm">
                   {groupStateLabel(group.state, t)}
                 </AppBadge>
               </td>
-              <td>{group.branch}</td>
-              <td className="is-numeric-cell">{group.membersCount}</td>
-              <td className="is-numeric-cell">{group.lastModified}</td>
               <td className="is-actions-cell">
-                <AppIconButton
-                  ariaLabel={t("groups.common.actionsAria").replace("{name}", group.name)}
-                >
-                  <MoreHorizontal size={16} />
-                </AppIconButton>
+                <div className="zelify-group-table__crud">
+                  <AppButton tone="neutral" type="button" className="zelify-group-table__crud-btn">
+                    {t("groups.list.rowActions.viewDetails")}
+                  </AppButton>
+                  <AppButton tone="secondary" type="button" className="zelify-group-table__crud-btn">
+                    {t("groups.list.rowActions.edit")}
+                  </AppButton>
+                  <AppIconButton ariaLabel={t("groups.common.actionsAria").replace("{name}", group.name)}>
+                    <MoreHorizontal size={16} />
+                  </AppIconButton>
+                </div>
               </td>
             </tr>
           ))}

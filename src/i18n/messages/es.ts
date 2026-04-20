@@ -17,7 +17,7 @@ export const es: Messages = {
     view: "Ver",
     createMenu: {
       client: "Cliente",
-      organization: "Organización",
+      organization: "Sede",
       group: "Grupo",
       account: "Cuenta",
       user: "Usuario",
@@ -25,7 +25,7 @@ export const es: Messages = {
     },
     viewMenu: {
       clients: "Clientes",
-      organizations: "Organizaciones",
+      organizations: "Sedes",
       accounts: "Cuentas",
       transactions: "Transacciones",
       activities: "Actividades",
@@ -56,7 +56,7 @@ export const es: Messages = {
     },
   },
   org: {
-    allOrganizations: "TODAS LAS ORGANIZACIONES",
+    allOrganizations: "TODAS LAS SEDES",
   },
   nav: {
     top: {
@@ -77,8 +77,12 @@ export const es: Messages = {
     admin: {
       generalSetup: "Configuración general",
       financialSetup: "Configuración financiera",
-      organization: "Organización",
+      organization: "Sedes",
       access: "Acceso",
+      generalLabels: "Etiquetas",
+      generalBranding: "Marca",
+      financialRates: "Tasas",
+      financialAccounting: "Contabilidad",
       products: "Productos",
       fields: "Campos",
       views: "Vistas",
@@ -126,7 +130,7 @@ export const es: Messages = {
       reporting: {
         indicators: "Indicadores",
         portfolio: "Cartera",
-        organization: "Organización",
+        organization: "Sedes",
         earnings: "Ingresos",
         cashflow: "Flujo de caja",
         outreach: "Alcance",
@@ -179,13 +183,13 @@ export const es: Messages = {
     },
     descriptions: {
       generalSetup:
-        "Configure Zelify Core con todos los detalles de su organización. Defina los datos de la institución y la información de contacto, configure festivos y días laborables, así como etiquetas y plantillas. Personalice los controles internos para prevenir errores y fraude y gestione sus campos personalizados.",
+        "Configure Zelify Core con todos los detalles de sus sedes. Defina los datos de la institución y la información de contacto, configure festivos y días laborables, así como etiquetas y plantillas. Personalice los controles internos para prevenir errores y fraude y gestione sus campos personalizados.",
       financialSetup:
-        "Configure Zelify Core con todos los detalles financieros de su organización.",
+        "Configure Zelify Core con todos los detalles financieros de sus sedes.",
       organization:
-        "Estructure su organización creando y editando sucursales y centros. Luego asigne clientes, grupos y usuarios a las sucursales para reflejar cómo opera su organización.",
+        "Estructure su red de sedes creando y editando sucursales y centros. Luego asigne clientes, grupos y usuarios a las sucursales para reflejar su modelo operativo.",
       access:
-        "Abra Zelify Core a toda su organización creando y gestionando usuarios. Cree y edite usuarios o modifique permisos para que cada persona tenga el nivel de acceso y los derechos adecuados en el sistema.",
+        "Abra Zelify Core a toda su red de sedes creando y gestionando usuarios. Cree y edite usuarios o modifique permisos para que cada persona tenga el nivel de acceso y los derechos adecuados en el sistema.",
       products:
         "Gestione la oferta de productos disponible para sus clientes creando y editando productos de préstamo y depósito.",
       fields:
@@ -197,7 +201,7 @@ export const es: Messages = {
       email: "Configure integraciones de correo, plantillas y remitentes.",
       webhooks: "Suscríbase a eventos y envíe cargas a sus integraciones de forma segura.",
       eventsStreaming: "Transmita eventos de dominio a sistemas externos para analítica y automatización.",
-      templates: "Gestione plantillas de documentos y comunicaciones en toda la organización.",
+      templates: "Gestione plantillas de documentos y comunicaciones en todas las sedes.",
       apps: "Instale y configure aplicaciones del marketplace que amplían la funcionalidad del core.",
       tasks: "Defina tipos de tareas y automatización para flujos operativos.",
       data: "Gestione exportaciones, políticas de retención y herramientas de administración de datos.",
@@ -235,6 +239,23 @@ export const es: Messages = {
     },
   },
   customers: {
+    create: {
+      open: "Nuevo cliente",
+      title: "Crear nuevo cliente",
+      subtitle: "Completa la información requerida para registrar un nuevo cliente.",
+      fullName: "Nombre completo",
+      fullNamePlaceholder: "Nombre completo del cliente",
+      email: "Correo electrónico",
+      phone: "Teléfono",
+      birthDate: "Fecha de nacimiento",
+      creditOfficer: "Oficial de crédito",
+      creditOfficerPlaceholder: "Nombre del oficial asignado",
+      address: "Dirección",
+      addressPlaceholder: "Dirección principal y referencias",
+      initialState: "Estado inicial",
+      cancel: "Cancelar",
+      save: "Crear cliente",
+    },
     list: {
       loading: "Cargando clientes...",
       columns: {
@@ -516,13 +537,21 @@ export const es: Messages = {
       activeDeposits: "Depósitos activos",
       noActiveAccounts: "Sin cuentas activas",
       noMembers: "Sin miembros",
+      searchLabel: "Buscar por nombre de grupo",
+      searchPlaceholder: "Buscar por nombre de grupo",
+      allOfficers: "Todos los oficiales",
+      operationsTeam: "Equipo de operaciones",
       columns: {
         groupName: "Nombre del grupo",
         id: "ID",
+        assignedOfficer: "Oficial Asignado",
+        createdAt: "Fecha Creación",
         state: "Estado",
-        branch: "Sucursal",
         membersCount: "Miembros",
-        lastModified: "Última modificación",
+      },
+      rowActions: {
+        viewDetails: "Ver Detalles",
+        edit: "Editar",
       },
       states: {
         active: "Activo",
@@ -538,6 +567,36 @@ export const es: Messages = {
       allCount: "Todos {count}",
       prevPageAria: "Página anterior",
       nextPageAria: "Página siguiente",
+    },
+  },
+  organizationSettings: {
+    unitsAria: "Unidades de sedes",
+    branch: "Sucursal",
+    centre: "Centro",
+    branches: "Sucursales",
+    centres: "Centros",
+    new: "Nueva",
+    showDeactivated: "Mostrar desactivadas",
+    loading: "Cargando...",
+    states: {
+      active: "Activa",
+      inactive: "Inactiva",
+      deactivated: "Desactivada",
+    },
+    table: {
+      name: "Nombre",
+      id: "ID",
+      state: "Estado",
+      address: "Dirección",
+      created: "Creado",
+      lastModified: "Última modificación",
+      actions: "Acciones",
+      empty: "No se encontraron {type}.",
+      moreActionsFor: "Más acciones para {name}",
+      show: "Mostrar",
+      total: "Total: {count}",
+      previousPage: "Página anterior",
+      nextPage: "Página siguiente",
     },
   },
   activities: {

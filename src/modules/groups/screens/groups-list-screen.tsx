@@ -3,65 +3,57 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
-import { AppBadge } from "@/components/ui/atoms/badge/app-badge";
 import { AppInput } from "@/components/ui/atoms/input/app-input";
-import { AppButton } from "@/components/ui/atoms/button/app-button";
-import { SettingsDataTable } from "@/components/ui/organisms/settings-data-table/settings-data-table";
 import { SandboxBanner } from "@/modules/customers/components/sandbox-banner";
+import { useI18n } from "@/providers/i18n-provider";
+import { groupsService } from "../services/groups.service";
+import { Group, GroupView } from "../types/group.types";
+import { GroupTable } from "../components/group-table";
+import { useEffect } from "react";
 
 import "@/components/ui/templates/workspace-page.css";
 import "./groups-list-screen.css";
 
-type GroupRow = {
-  id: string;
-  name: string;
-  officer: string;
-  date: string;
-  members: number;
-  state: "ACTIVE" | "INACTIVE";
-  branch: string;
-  totalSavings: number;
-  activeAccounts: number;
-  memberBalances: { name: string; balance: number }[];
-};
-
-const GROUPS: GroupRow[] = [
-  {
-    id: "GRP-992",
-    name: "Mujeres Emprendedoras Centro",
-    officer: "Laura Gómez",
-    date: "2025-11-10",
-    members: 15,
-    state: "ACTIVE",
-    branch: "Matriz",
-    totalSavings: 120400,
-    activeAccounts: 15,
-    memberBalances: [
-      { name: "María Vera", balance: 12000 },
-      { name: "Ana Solís", balance: 9800 },
-      { name: "Resto de miembros", balance: 98600 },
-    ],
-  },
-];
-
-const money = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
-
 export function GroupsListScreen() {
+  const { t } = useI18n();
   const searchParams = useSearchParams();
-  const view = searchParams.get("view");
-  const isActiveDeposits = view === "active-deposits";
+  const view = (searchParams.get("view") as GroupView | null) ?? "all-groups";
 
   const [query, setQuery] = useState("");
   const [officer, setOfficer] = useState("all");
-  const [drawer, setDrawer] = useState<GroupRow | null>(null);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      const data = await groupsService.getGroups();
+      setGroups(data);
+      setLoading(false);
+    };
+    void load();
+  }, []);
 
   const filtered = useMemo(() => {
-    return GROUPS.filter((g) => {
-      if (officer !== "all" && g.officer !== officer) return false;
+    return groups.filter((g) => {
       if (query.trim() && !g.name.toLowerCase().includes(query.toLowerCase())) return false;
+      if (officer !== "all" && officer !== "ops") return true;
+
+      if (view === "active-loans" && !g.hasActiveLoans) return false;
+      if (view === "active-deposits" && !g.hasActiveDeposits) return false;
+      if (view === "sin-cuentas-activas" && (g.hasActiveLoans || g.hasActiveDeposits)) return false;
+      if (view === "sin-miembros" && g.membersCount !== 0) return false;
       return true;
     });
-  }, [query, officer]);
+  }, [groups, query, officer, view]);
+
+  const title = (() => {
+    if (view === "active-loans") return t("groups.list.activeLoans");
+    if (view === "active-deposits") return t("groups.list.activeDeposits");
+    if (view === "sin-cuentas-activas") return t("groups.list.noActiveAccounts");
+    if (view === "sin-miembros") return t("groups.list.noMembers");
+    return t("groups.list.allGroups");
+  })();
 
   return (
     <div className="zelify-workspace-page">
@@ -70,90 +62,40 @@ export function GroupsListScreen() {
 
       <div className="zelify-workspace-page__scroll">
         <div className="zelify-workspace-page__inner">
-          <h1 className="zelify-workspace-page__title">
-            {isActiveDeposits ? "Active Deposits - Groups" : "All Groups"}
-          </h1>
+          <h1 className="zelify-workspace-page__title">{title}</h1>
 
-          {!isActiveDeposits ? (
-            <div className="zelify-groups-toolbar">
+          <div className="zelify-groups-toolbar">
+            <div className="zelify-groups-toolbar__search-wrap">
+              <label className="zelify-groups-toolbar__search-label" htmlFor="groups-search">
+                {t("groups.list.searchLabel")}
+              </label>
               <AppInput
+                id="groups-search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar por nombre de grupo"
+                placeholder={t("groups.list.searchPlaceholder")}
               />
-              <select className="zelify-groups-toolbar__select" value={officer} onChange={(e) => setOfficer(e.target.value)}>
-                <option value="all">Todos los oficiales</option>
-                <option value="Laura Gómez">Laura Gómez</option>
-              </select>
             </div>
-          ) : null}
+            <select
+              className="zelify-groups-toolbar__select"
+              value={officer}
+              onChange={(e) => setOfficer(e.target.value)}
+            >
+              <option value="all">{t("groups.list.allOfficers")}</option>
+              <option value="ops">{t("groups.list.operationsTeam")}</option>
+            </select>
+          </div>
 
-          <SettingsDataTable variant="clients">
-            <thead>
-              <tr>
-                <th>{isActiveDeposits ? "ID Grupo" : "ID"}</th>
-                <th>Nombre</th>
-                {isActiveDeposits ? <th>Sucursal</th> : <th>Oficial Asignado</th>}
-                {isActiveDeposits ? (
-                  <th className="is-numeric-header">Total Ahorrado</th>
-                ) : (
-                  <th>Fecha Creación</th>
-                )}
-                {isActiveDeposits ? (
-                  <th className="is-numeric-header">Cuentas Activas</th>
-                ) : (
-                  <th className="is-numeric-header">Miembros</th>
-                )}
-                {!isActiveDeposits ? <th>Estado</th> : null}
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((row) => (
-                <tr key={row.id} onClick={() => isActiveDeposits && setDrawer(row)}>
-                  <td className="zelify-mono">{row.id}</td>
-                  <td>{row.name}</td>
-                  <td>{isActiveDeposits ? row.branch : row.officer}</td>
-                  <td className={isActiveDeposits ? "is-numeric" : ""}>
-                    {isActiveDeposits ? money(row.totalSavings) : row.date}
-                  </td>
-                  <td className="is-numeric">{isActiveDeposits ? row.activeAccounts : row.members}</td>
-                  {!isActiveDeposits ? (
-                    <td>
-                      <AppBadge tone={row.state === "ACTIVE" ? "success" : "neutral"} size="sm">
-                        {row.state}
-                      </AppBadge>
-                    </td>
-                  ) : null}
-                  <td className="is-actions">
-                    <AppButton type="button" tone="neutral" onClick={() => setDrawer(row)}>
-                      Ver Detalles
-                    </AppButton>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </SettingsDataTable>
+          {loading ? (
+            <div className="zelify-workspace-page__loading">
+              <div className="zelify-workspace-page__spinner" aria-hidden />
+              <span>{t("groups.list.loading")}</span>
+            </div>
+          ) : (
+            <GroupTable groups={filtered} />
+          )}
         </div>
       </div>
-
-      {drawer ? (
-        <>
-          <div className="zelify-groups-drawer-backdrop" onMouseDown={() => setDrawer(null)} />
-          <aside className="zelify-groups-drawer">
-            <h3>{drawer.name}</h3>
-            <p>Total Ahorrado: {money(drawer.totalSavings)}</p>
-            <ul>
-              {drawer.memberBalances.map((member) => (
-                <li key={member.name}>
-                  <span>{member.name}</span>
-                  <strong>{money(member.balance)}</strong>
-                </li>
-              ))}
-            </ul>
-          </aside>
-        </>
-      ) : null}
     </div>
   );
 }

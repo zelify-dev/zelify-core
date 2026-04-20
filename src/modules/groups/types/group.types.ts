@@ -8,8 +8,9 @@ export enum GroupState {
 export interface Group {
   id: string;
   name: string;
+  assignedOfficer: string;
+  createdAt: string;
   state: GroupState;
-  branch: string;
   membersCount: number;
   hasActiveLoans: boolean;
   hasActiveDeposits: boolean;

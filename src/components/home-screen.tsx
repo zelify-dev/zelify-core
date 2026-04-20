@@ -22,6 +22,7 @@ import {
 
 import "./home-screen.css";
 import { useI18n } from "@/providers/i18n-provider";
+import { useRouter } from "next/navigation";
 
 function localizeText(text: string, locale: "en" | "es"): string {
   const [en, es] = text.split(" / ");
@@ -34,31 +35,37 @@ const indicators = [
     label: "Active clients / Clientes activos",
     value: "48,392",
     meta: "1,204 added this month / 1,204 agregados este mes",
+    href: "/customers?view=active-clients",
   },
   {
-    label: "Organizations / Organizaciones",
+    label: "Branches / Sedes",
     value: "128",
     meta: "6 pending approval / 6 pendientes de aprobación",
+    href: "/settings/organization",
   },
   {
     label: "Open accounts / Cuentas abiertas",
     value: "132,640",
     meta: "942 opened today / 942 abiertas hoy",
+    href: "/deposits",
   },
   {
     label: "Transactions today / Transacciones hoy",
     value: "284,901",
     meta: "$18.4M settled / $18.4M liquidados",
+    href: "/deposit-transactions",
   },
   {
     label: "Loans awaiting approval / Préstamos pendientes de aprobación",
     value: "37",
     meta: "9 submitted in the last hour / 9 enviados en la última hora",
+    href: "/loans?view=pending-approval",
   },
   {
     label: "PAR > 30 days / PAR > 30 días",
     value: "2.8%",
     meta: "Within policy threshold / Dentro del umbral de política",
+    href: "/reports?view=portfolio",
   },
 ];
 
@@ -66,7 +73,7 @@ const recentActivity: ActivityFeedItem[] = [
   {
     type: "Client onboarding / Incorporación de cliente",
     title: "New corporate client approved for Andean Treasury / Nuevo cliente corporativo aprobado para Andean Treasury",
-    meta: "Organization: Andean Treasury Group / Organización: Andean Treasury Group",
+    meta: "Branch: Andean Treasury Group / Sede: Andean Treasury Group",
     time: "8 min ago / hace 8 min",
     marker: "CL",
   },
@@ -80,7 +87,7 @@ const recentActivity: ActivityFeedItem[] = [
   {
     type: "Account event / Evento de cuenta",
     title: "Operational savings account opened / Cuenta de ahorro operativa abierta",
-    meta: "Organization: Nova Capital / Product: Business Saver / Organización: Nova Capital / Producto: Business Saver",
+    meta: "Branch: Nova Capital / Product: Business Saver / Sede: Nova Capital / Producto: Business Saver",
     time: "31 min ago / hace 31 min",
     marker: "AC",
   },
@@ -97,6 +104,27 @@ const recentActivity: ActivityFeedItem[] = [
     meta: "Batch: PAY-2026-04-18-09 / Lote: PAY-2026-04-18-09",
     time: "1 hr ago / hace 1 h",
     marker: "PM",
+  },
+  {
+    type: "Loans / Préstamos",
+    title: "Risk review completed for pending applications / Revisión de riesgo completada para solicitudes pendientes",
+    meta: "Queue: Pending Approval / Cola: Pendiente de aprobación",
+    time: "1 hr 24 min ago / hace 1 h 24 min",
+    marker: "LN",
+  },
+  {
+    type: "Deposits / Depósitos",
+    title: "Dormant account reactivated after verification / Cuenta inactiva reactivada tras verificación",
+    meta: "Account: DP-22014 / Cuenta: DP-22014",
+    time: "1 hr 42 min ago / hace 1 h 42 min",
+    marker: "DP",
+  },
+  {
+    type: "Groups / Grupos",
+    title: "New group profile approved in branch north / Nuevo perfil de grupo aprobado en sucursal norte",
+    meta: "Group: GRP-201 / Grupo: GRP-201",
+    time: "2 hr ago / hace 2 h",
+    marker: "GR",
   },
 ];
 
@@ -154,6 +182,7 @@ const systemSummary: SummaryGridItem[] = [
 
 export default function HomeScreen() {
   const { locale } = useI18n();
+  const router = useRouter();
 
   return (
     <div className="zelify-home">
@@ -207,6 +236,8 @@ export default function HomeScreen() {
                 label={localizeText(item.label, locale)}
                 value={item.value}
                 meta={localizeText(item.meta, locale)}
+                actionLabel={localizeText("Open view / Abrir vista", locale)}
+                onAction={() => router.push(item.href)}
               />
             ))}
           </div>

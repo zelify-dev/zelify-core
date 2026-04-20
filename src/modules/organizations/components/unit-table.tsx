@@ -6,15 +6,17 @@ import { SettingsDataTable } from "@/components/ui/organisms/settings-data-table
 import { AppBadge } from "@/components/ui/atoms/badge/app-badge";
 import { AppIconButton } from "@/components/ui/atoms/icon-button/app-icon-button";
 import { OrganizationUnit, UnitState } from "../types/organization.types";
+import { useI18n } from "@/providers/i18n-provider";
 
 import "./unit-table.css";
 
 interface UnitTableProps {
   units: OrganizationUnit[];
-  type: "Branch" | "Centre";
+  type: "branch" | "centre";
 }
 
 export const UnitTable: React.FC<UnitTableProps> = ({ units, type }) => {
+  const { t } = useI18n();
   const colCount = 7;
 
   return (
@@ -22,20 +24,22 @@ export const UnitTable: React.FC<UnitTableProps> = ({ units, type }) => {
       <SettingsDataTable variant="clients">
         <thead>
           <tr>
-            <th>Name</th>
-            <th>ID</th>
-            <th>State</th>
-            <th>Address</th>
-            <th>Created</th>
-            <th className="is-numeric-header">Last modified</th>
-            <th className="zelify-settings-data-table__actions-col" aria-label="Actions" />
+            <th>{t("organizationSettings.table.name")}</th>
+            <th>{t("organizationSettings.table.id")}</th>
+            <th>{t("organizationSettings.table.state")}</th>
+            <th>{t("organizationSettings.table.address")}</th>
+            <th>{t("organizationSettings.table.created")}</th>
+            <th className="is-numeric-header">{t("organizationSettings.table.lastModified")}</th>
+            <th className="zelify-settings-data-table__actions-col" aria-label={t("organizationSettings.table.actions")} />
           </tr>
         </thead>
         <tbody>
           {units.length === 0 ? (
             <tr>
               <td colSpan={colCount} className="zelify-unit-table__empty">
-                No {type.toLowerCase()}s found.
+                {t("organizationSettings.table.empty", {
+                  type: type === "branch" ? t("organizationSettings.branches") : t("organizationSettings.centres"),
+                })}
               </td>
             </tr>
           ) : (
@@ -54,14 +58,14 @@ export const UnitTable: React.FC<UnitTableProps> = ({ units, type }) => {
                 </td>
                 <td>
                   <AppBadge tone={unitStateToTone(unit.state)} size="sm">
-                    {formatUnitStateLabel(unit.state)}
+                    {formatUnitStateLabel(unit.state, t)}
                   </AppBadge>
                 </td>
                 <td>{unit.address}</td>
                 <td>{unit.created}</td>
                 <td className="is-numeric">{unit.lastModified}</td>
                 <td className="is-actions">
-                  <AppIconButton ariaLabel={`More actions for ${unit.name}`}>
+                  <AppIconButton ariaLabel={t("organizationSettings.table.moreActionsFor", { name: unit.name })}>
                     <MoreHorizontal size={18} strokeWidth={2} />
                   </AppIconButton>
                 </td>
@@ -73,16 +77,18 @@ export const UnitTable: React.FC<UnitTableProps> = ({ units, type }) => {
 
       <div className="zelify-data-table-footer">
         <div className="zelify-data-table-footer__page-size">
-          <span className="zelify-data-table-footer__info">Show</span>
+          <span className="zelify-data-table-footer__info">{t("organizationSettings.table.show")}</span>
           <span className="zelify-data-table-footer__page-size-value">10</span>
         </div>
         <div className="zelify-data-table-footer__controls">
-          <span className="zelify-data-table-footer__info">Total: {units.length}</span>
+          <span className="zelify-data-table-footer__info">
+            {t("organizationSettings.table.total", { count: String(units.length) })}
+          </span>
           <div className="zelify-data-table-footer__pages">
-            <button type="button" className="zelify-pagination-btn" disabled aria-label="Previous page">
+            <button type="button" className="zelify-pagination-btn" disabled aria-label={t("organizationSettings.table.previousPage")}>
               <ChevronLeft size={16} strokeWidth={2} />
             </button>
-            <button type="button" className="zelify-pagination-btn" disabled aria-label="Next page">
+            <button type="button" className="zelify-pagination-btn" disabled aria-label={t("organizationSettings.table.nextPage")}>
               <ChevronRight size={16} strokeWidth={2} />
             </button>
           </div>
@@ -92,8 +98,17 @@ export const UnitTable: React.FC<UnitTableProps> = ({ units, type }) => {
   );
 };
 
-function formatUnitStateLabel(state: UnitState): string {
-  return state.charAt(0) + state.slice(1).toLowerCase();
+function formatUnitStateLabel(state: UnitState, t: (key: string) => string): string {
+  switch (state) {
+    case UnitState.ACTIVE:
+      return t("organizationSettings.states.active");
+    case UnitState.INACTIVE:
+      return t("organizationSettings.states.inactive");
+    case UnitState.DEACTIVATED:
+      return t("organizationSettings.states.deactivated");
+    default:
+      return state;
+  }
 }
 
 function unitStateToTone(state: UnitState): "success" | "error" | "warning" | "neutral" {

@@ -405,7 +405,7 @@ export async function login(
     let msg = apiMsg;
     if (!msg) {
       if (res.status === 401) msg = "Email o contraseña incorrectos.";
-      else if (res.status === 403) msg = "Usuario u organización deshabilitados.";
+      else if (res.status === 403) msg = "Usuario o sede deshabilitados.";
       else if (res.status === 423)
         msg =
           "Cuenta bloqueada temporalmente por seguridad. Inténtalo de nuevo en unos minutos.";
@@ -595,7 +595,7 @@ export async function getOrganization(id: string): Promise<OrganizationDetails> 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     throw new AuthError(
-      (data as { message?: string }).message ?? "Error al obtener la organización",
+      (data as { message?: string }).message ?? "Error al obtener la sede",
       res.status,
       data
     );
@@ -607,7 +607,7 @@ export async function getOrganization(id: string): Promise<OrganizationDetails> 
  * GET /api/organizations/:id/branding — obtener solo branding (público, sin auth).
  * URL final: {NEXT_PUBLIC_AUTH_API_URL}/api/organizations/:id/branding
  * (ej. https://rhdt3ppx7f.us-east-1.awsapprunner.com/api/organizations/:id/branding)
- * Errores: 404 — Organización no encontrada.
+ * Errores: 404 — Sede no encontrada.
  */
 export async function getOrganizationBranding(id: string): Promise<OrganizationBranding> {
   const base = getBaseUrl();
@@ -618,7 +618,7 @@ export async function getOrganizationBranding(id: string): Promise<OrganizationB
   if (!res.ok) {
     throw new AuthError(
       res.status === 404
-        ? "Organización no encontrada"
+        ? "Sede no encontrada"
         : (data as { message?: string }).message ?? "Error al obtener el branding",
       res.status,
       data

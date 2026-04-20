@@ -46,7 +46,7 @@ const activityItems = [
   {
     type: "Client onboarding",
     title: "Corporate client approved for treasury operations",
-    meta: "Organization: Andean Treasury Group",
+    meta: "Branch: Andean Treasury Group",
     time: "8 min ago",
     marker: "CL",
   },
@@ -67,7 +67,7 @@ const statusItems = [
 
 const quickViewItems = [
   { count: "21", label: "High-value transactions", meta: "Saved view" },
-  { count: "9", label: "Organizations pending approval", meta: "Approval queue" },
+  { count: "9", label: "Branches pending approval", meta: "Approval queue" },
   { count: "7", label: "Daily reconciliation queue", meta: "Operations" },
 ];
 
@@ -94,10 +94,10 @@ const ROUTE_LINKS: { href: string; label: string }[] = [
   { href: "/accounting/chart-of-accounts", label: "Accounting → Chart Of Accounts" },
   { href: "/accounting/balance-sheet", label: "Accounting → Balance Sheet (placeholder)" },
   { href: "/settings", label: "Administration (hub)" },
-  { href: "/settings/general/organization-details", label: "General Setup → Organization" },
+  { href: "/settings/general/organization-details", label: "General Setup → Branches" },
   { href: "/settings/general/holidays", label: "General Setup → Holidays" },
   { href: "/settings/general/client-types", label: "General Setup → Client Types" },
-  { href: "/settings/organization", label: "Admin → Organization (branches)" },
+  { href: "/settings/organization", label: "Admin → Branches" },
   { href: "/settings/financial/currency", label: "Financial Setup → Currency" },
   { href: "/settings/financial/transaction-channels", label: "Financial Setup → Transaction Channels" },
   { href: "/settings/financial/eod-processing", label: "Financial Setup → EOD Processing" },
@@ -262,7 +262,7 @@ export default function AtomicDesignScreen() {
             <div className="atomic-design-demo__menu-shell">
               <DropdownMenu
                 className="atomic-design-demo__dropdown"
-                items={["Client", "Organization", "Account", "User"]}
+                items={["Client", "Branch", "Account", "User"]}
               />
             </div>
           </PreviewCard>
