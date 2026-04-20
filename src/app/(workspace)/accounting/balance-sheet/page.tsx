@@ -1,5 +1,5 @@
-import { AccountingSectionPlaceholderScreen } from "@/modules/accounting/screens/accounting-section-placeholder-screen";
+import { ApiRouteInsightsScreen } from "@/modules/workspace/screens/api-route-insights-screen";
 
 export default function BalanceSheetPage() {
-  return <AccountingSectionPlaceholderScreen sectionTitle="Balance Sheet" />;
+  return <ApiRouteInsightsScreen screenKey="accounting-balance-sheet" />;
 }

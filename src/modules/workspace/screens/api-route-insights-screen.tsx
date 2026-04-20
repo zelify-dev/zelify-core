@@ -11,6 +11,8 @@ type ScreenKey =
   | "deposit-transactions"
   | "products"
   | "accounting-profit-loss"
+  | "accounting-balance-sheet"
+  | "accounting-interest-accrual-breakdown"
   | "accounting-closures"
   | "settings-forms"
   | "settings-templates"
@@ -101,6 +103,28 @@ const DATA_BY_KEY: Record<ScreenKey, SectionData> = {
       ["PR-GR-02", "Group Flex / Grupo Flexible", "Loan / Préstamo", "EUR", "Draft / Borrador"],
     ],
   },
+  "accounting-balance-sheet": {
+    title: "Balance Sheet / Balance General",
+    subtitle:
+      "Assets, liabilities and equity snapshot by period. / Instantánea de activos, pasivos y patrimonio por período.",
+    cards: [
+      { label: "Total Assets / Activos Totales", value: "USD 18.2M" },
+      { label: "Total Liabilities / Pasivos Totales", value: "USD 12.1M" },
+      { label: "Equity / Patrimonio", value: "USD 6.1M" },
+    ],
+    columns: [
+      "Line / Rubro",
+      "Category / Categoría",
+      "Current / Actual",
+      "Prior / Anterior",
+      "Variance / Variación",
+    ],
+    rows: [
+      ["Cash and equivalents / Efectivo y equivalentes", "Asset / Activo", "USD 2.4M", "USD 2.1M", "+14.3% / +14.3%"],
+      ["Loans receivable / Cartera por cobrar", "Asset / Activo", "USD 12.4M", "USD 11.9M", "+4.2% / +4.2%"],
+      ["Deposits payable / Depósitos por pagar", "Liability / Pasivo", "USD 8.9M", "USD 8.4M", "+6.0% / +6.0%"],
+    ],
+  },
   "accounting-profit-loss": {
     title: "Profit and Loss / Ganancias y Pérdidas",
     subtitle:
@@ -121,6 +145,28 @@ const DATA_BY_KEY: Record<ScreenKey, SectionData> = {
       ["Interest Income / Ingreso por Intereses", "Income / Ingreso", "USD 402,000", "USD 389,000", "+3.3% / +3.3%"],
       ["Fee Income / Ingreso por Comisiones", "Income / Ingreso", "USD 120,300", "USD 111,800", "+7.6% / +7.6%"],
       ["Personnel Expense / Gasto de Personal", "Expense / Gasto", "USD 187,100", "USD 181,400", "+3.1% / +3.1%"],
+    ],
+  },
+  "accounting-interest-accrual-breakdown": {
+    title: "Interest Accrual Breakdown / Desglose de Devengo de Intereses",
+    subtitle:
+      "Accrued interest by product, portfolio segment and GL mapping. / Intereses devengados por producto, segmento de cartera y mapeo contable.",
+    cards: [
+      { label: "Accrued MTD / Devengado MTD", value: "USD 284,200" },
+      { label: "GL Postings Pending / Contabilizaciones pendientes", value: "12" },
+      { label: "Reconciliation Delta / Delta conciliación", value: "USD 1,240" },
+    ],
+    columns: [
+      "Account / Cuenta",
+      "Product / Producto",
+      "Accrued / Devengado",
+      "Posted / Contabilizado",
+      "Delta / Delta",
+    ],
+    rows: [
+      ["INT-4100 / INT-4100", "Micro Loan / Microcrédito", "USD 98,400", "USD 97,100", "USD 1,300"],
+      ["INT-4101 / INT-4101", "SME Loan / Préstamo PyME", "USD 112,800", "USD 112,800", "USD 0"],
+      ["INT-4200 / INT-4200", "Deposits / Depósitos", "USD 73,000", "USD 71,860", "USD 1,140"],
     ],
   },
   "accounting-closures": {
@@ -473,6 +519,8 @@ function getRowActions(key: ScreenKey): string[] {
     case "reports-cashflow":
       return ["Open / Abrir", "Export / Exportar", "Schedule / Programar"];
     case "accounting-profit-loss":
+    case "accounting-balance-sheet":
+    case "accounting-interest-accrual-breakdown":
     case "accounting-closures":
       return ["View / Ver", "Post / Contabilizar", "Export / Exportar"];
     case "loans-pending-approval":
