@@ -11,6 +11,7 @@ import { AppSelect } from "@/components/ui/atoms/select/app-select";
 import { FieldLabel } from "@/components/ui/atoms/field-label/field-label";
 import { SandboxBanner } from "@/modules/customers/components/sandbox-banner";
 import { getSystemActivitiesSlice, SYSTEM_ACTIVITIES_TOTAL } from "../data/system-activities.mock";
+import { useI18n } from "@/providers/i18n-provider";
 
 import "@/components/ui/templates/workspace-page.css";
 import "@/components/ui/organisms/settings-data-table/settings-data-table.css";
@@ -19,6 +20,7 @@ import "./activities-screen.css";
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 
 export function ActivitiesScreen() {
+  const { t } = useI18n();
   const [branch, setBranch] = useState("all");
   const [filter, setFilter] = useState("none");
   const [pageSize, setPageSize] = useState(50);
@@ -47,12 +49,12 @@ export function ActivitiesScreen() {
           <div className="zelify-activities__head">
             <div className="zelify-activities__title-block">
               <h1 className="zelify-workspace-page__title zelify-activities__title">
-                System Activities
+                {t("activities.title")}
                 <button
                   type="button"
                   className="zelify-activities__title-help"
-                  aria-label="Ayuda: System Activities"
-                  title="System Activities"
+                  aria-label={t("activities.helpAria")}
+                  title={t("activities.title")}
                 >
                   <CircleHelp size={18} strokeWidth={1.75} aria-hidden />
                 </button>
@@ -60,10 +62,10 @@ export function ActivitiesScreen() {
             </div>
             <div className="zelify-activities__head-actions">
               <AppButton type="button" tone="primary" className="zelify-activities__columns-btn">
-                Custom Columns
+                {t("activities.customColumns")}
                 <ChevronDown size={16} strokeWidth={2} aria-hidden />
               </AppButton>
-              <AppIconButton ariaLabel="Vista y columnas" className="zelify-activities__settings-icon">
+              <AppIconButton ariaLabel={t("activities.viewColumnsAria")} className="zelify-activities__settings-icon">
                 <LayoutList size={20} strokeWidth={1.75} />
               </AppIconButton>
             </div>
@@ -71,7 +73,7 @@ export function ActivitiesScreen() {
 
           <div className="zelify-activities__filters">
             <div className="zelify-activities__filter-field">
-              <FieldLabel htmlFor="activities-branch">Branch</FieldLabel>
+              <FieldLabel htmlFor="activities-branch">{t("activities.branch")}</FieldLabel>
               <div className="zelify-activities__branch-wrap">
                 <AppSelect
                   id="activities-branch"
@@ -80,15 +82,15 @@ export function ActivitiesScreen() {
                   onChange={(e) => setBranch(e.target.value)}
                   className="zelify-activities__branch-select"
                 >
-                  <option value="all">All Branches</option>
-                  <option value="main">Main Branch</option>
+                  <option value="all">{t("activities.allBranches")}</option>
+                  <option value="main">{t("activities.mainBranch")}</option>
                 </AppSelect>
                 <Home className="zelify-activities__branch-home" size={16} strokeWidth={2} aria-hidden />
               </div>
             </div>
 
             <div className="zelify-activities__filter-field">
-              <FieldLabel htmlFor="activities-filter">Filter</FieldLabel>
+              <FieldLabel htmlFor="activities-filter">{t("activities.filter")}</FieldLabel>
               <AppSelect
                 id="activities-filter"
                 size="md"
@@ -96,30 +98,30 @@ export function ActivitiesScreen() {
                 onChange={(e) => setFilter(e.target.value)}
                 className="zelify-activities__filter-select"
               >
-                <option value="none">No Filter</option>
-                <option value="user">By user</option>
-                <option value="action">By action</option>
+                <option value="none">{t("activities.noFilter")}</option>
+                <option value="user">{t("activities.byUser")}</option>
+                <option value="action">{t("activities.byAction")}</option>
               </AppSelect>
             </div>
 
             <div className="zelify-activities__filter-submit">
               <AppButton type="button" tone="neutral" className="zelify-activities__get-btn">
-                Get Transactions
+                {t("activities.getTransactions")}
               </AppButton>
             </div>
 
             <div className="zelify-activities__filters-spacer" />
 
             <button type="button" className="zelify-activities__edit-columns">
-              Edit Columns
+              {t("activities.editColumns")}
             </button>
           </div>
 
           <div className="zelify-activities__table-toolbar">
             <div className="zelify-activities__page-size">
-              <span className="zelify-activities__page-size-label">Show</span>
+              <span className="zelify-activities__page-size-label">{t("activities.show")}</span>
               <AppSelect
-                aria-label="Filas por página"
+                aria-label={t("activities.rowsPerPageAria")}
                 size="md"
                 value={String(pageSize)}
                 onChange={(e) => {
@@ -137,14 +139,18 @@ export function ActivitiesScreen() {
             </div>
             <div className="zelify-activities__pagination">
               <span className="zelify-activities__range">
-                {rangeStart} – {rangeEnd} of {SYSTEM_ACTIVITIES_TOTAL}
+                {t("activities.range", {
+                  start: String(rangeStart),
+                  end: String(rangeEnd),
+                  total: String(SYSTEM_ACTIVITIES_TOTAL),
+                })}
               </span>
               <div className="zelify-data-table-footer__pages">
                 <button
                   type="button"
                   className="zelify-pagination-btn"
                   disabled={page <= 1}
-                  aria-label="Página anterior"
+                  aria-label={t("activities.prevPageAria")}
                   onClick={goPrev}
                 >
                   <ChevronLeft size={16} strokeWidth={2} />
@@ -153,7 +159,7 @@ export function ActivitiesScreen() {
                   type="button"
                   className="zelify-pagination-btn"
                   disabled={page >= totalPages}
-                  aria-label="Página siguiente"
+                  aria-label={t("activities.nextPageAria")}
                   onClick={goNext}
                 >
                   <ChevronRight size={16} strokeWidth={2} />
@@ -166,12 +172,12 @@ export function ActivitiesScreen() {
             <SettingsDataTable variant="clients" className="zelify-activities__data-table">
               <thead>
                 <tr>
-                  <th className="zelify-activities__th zelify-activities__th--accent">Creation Date</th>
-                  <th className="zelify-activities__th zelify-activities__th--accent">User</th>
-                  <th className="zelify-activities__th zelify-activities__th--accent">Action</th>
-                  <th className="zelify-activities__th zelify-activities__th--muted">Affected Item Name</th>
-                  <th className="zelify-activities__th zelify-activities__th--muted">Affected Item ID</th>
-                  <th className="zelify-activities__th zelify-activities__th--muted">Affected Client Name</th>
+                  <th className="zelify-activities__th zelify-activities__th--accent">{t("activities.columns.creationDate")}</th>
+                  <th className="zelify-activities__th zelify-activities__th--accent">{t("activities.columns.user")}</th>
+                  <th className="zelify-activities__th zelify-activities__th--accent">{t("activities.columns.action")}</th>
+                  <th className="zelify-activities__th zelify-activities__th--muted">{t("activities.columns.affectedItemName")}</th>
+                  <th className="zelify-activities__th zelify-activities__th--muted">{t("activities.columns.affectedItemId")}</th>
+                  <th className="zelify-activities__th zelify-activities__th--muted">{t("activities.columns.affectedClientName")}</th>
                 </tr>
               </thead>
               <tbody>
