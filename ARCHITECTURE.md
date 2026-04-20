@@ -6,6 +6,7 @@ Este documento existe para que un equipo de 4 a 5 personas pueda trabajar en par
 
 ## Regla de tipografia
 
+
 La tipografia oficial del producto es `Nata Sans`.
 
 Reglas:
