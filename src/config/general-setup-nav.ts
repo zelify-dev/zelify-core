@@ -1,31 +1,32 @@
 export type GeneralSetupSubNavItem = {
-  label: string;
+  labelKey: string;
   href: string;
 };
 
-/** Pestañas internas de Administración → General Setup (referencia Figma). */
+/** Pestañas internas de Administración → General Setup (textos vía `nav.generalSetup.*`). */
 export const generalSetupSubNavItems: GeneralSetupSubNavItem[] = [
-  { label: "Branch Details", href: "/settings/general/organization-details" },
-  { label: "Holidays", href: "/settings/general/holidays" },
-  { label: "Client Types", href: "/settings/general/client-types" },
-  { label: "Internal Controls", href: "/settings/general/internal-controls" },
-  { label: "Labels", href: "/settings/general/labels" },
-  { label: "ID Templates", href: "/settings/general/id-templates" },
-  { label: "Group Roles", href: "/settings/general/group-roles" },
-  { label: "Branding", href: "/settings/general/branding" },
+  { labelKey: "nav.generalSetup.branchDetails", href: "/settings/general/organization-details" },
+  { labelKey: "nav.generalSetup.holidays", href: "/settings/general/holidays" },
+  { labelKey: "nav.generalSetup.clientTypes", href: "/settings/general/client-types" },
+  { labelKey: "nav.generalSetup.internalControls", href: "/settings/general/internal-controls" },
+  { labelKey: "nav.generalSetup.labels", href: "/settings/general/labels" },
+  { labelKey: "nav.generalSetup.idTemplates", href: "/settings/general/id-templates" },
+  { labelKey: "nav.generalSetup.groupRoles", href: "/settings/general/group-roles" },
+  { labelKey: "nav.generalSetup.branding", href: "/settings/general/branding" },
 ];
 
-export function resolveGeneralSetupSubNavLabel(
+/** `href` de la pestaña activa según la ruta (para marcar estado sin depender del idioma). */
+export function resolveGeneralSetupSubNavActiveHref(
   pathname: string,
   items: GeneralSetupSubNavItem[] = generalSetupSubNavItems
 ): string | null {
   const prefix = "/settings/general";
-  if (pathname === prefix) return items[0]?.label ?? null;
+  if (pathname === prefix) return items[0]?.href ?? null;
   if (!pathname.startsWith(`${prefix}/`)) return null;
   const sorted = [...items].sort((a, b) => b.href.length - a.href.length);
   for (const item of sorted) {
     if (pathname === item.href || pathname.startsWith(`${item.href}/`)) {
-      return item.label;
+      return item.href;
     }
   }
   return null;

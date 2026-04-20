@@ -147,6 +147,17 @@ export const en = {
         closures: "Closures",
       },
     },
+    generalSetup: {
+      ariaLabel: "General setup",
+      branchDetails: "Branch Details",
+      holidays: "Holidays",
+      clientTypes: "Client Types",
+      internalControls: "Internal Controls",
+      labels: "Labels",
+      idTemplates: "ID Templates",
+      groupRoles: "Group Roles",
+      branding: "Branding",
+    },
   },
   administrationHub: {
     title: "Administration",

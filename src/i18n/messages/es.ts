@@ -146,6 +146,17 @@ export const es: Messages = {
         closures: "Cierres",
       },
     },
+    generalSetup: {
+      ariaLabel: "Configuración general",
+      branchDetails: "Detalle de sede",
+      holidays: "Festivos",
+      clientTypes: "Tipos de cliente",
+      internalControls: "Controles internos",
+      labels: "Etiquetas",
+      idTemplates: "Plantillas de ID",
+      groupRoles: "Roles de grupo",
+      branding: "Marca",
+    },
   },
   administrationHub: {
     title: "Administración",
