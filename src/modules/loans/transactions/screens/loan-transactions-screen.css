@@ -1,4 +1,4 @@
-.zelify-workspace-page {
+.zelify-loan-transactions-page {
   animation: fadeIn 0.3s ease-out;
 }
 
@@ -16,7 +16,7 @@
   font-weight: 500;
 }
 
-.animate-spin {
+.zelify-loan-transactions-spin {
   animation: spin 1s linear infinite;
 }
 
