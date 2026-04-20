@@ -652,7 +652,6 @@ export const es: Messages = {
     title: "Productos",
     subtitle:
       "Catálogo maestro de reglas (productos de depósito / productos de préstamo) para la creación de cuentas.",
-    mockChip: "Datos de demostración",
     newDeposit: "Nuevo depósito",
     newLoan: "Nuevo préstamo",
     kpis: {
@@ -725,8 +724,8 @@ export const es: Messages = {
     modal: {
       createTitle: "Crear producto",
       editTitle: "Editar producto",
-      rulesHintDeposit: "Reglas maestras de productos de depósito (demostración, sin llamadas a API).",
-      rulesHintLoan: "Reglas maestras de productos de préstamo (demostración, sin llamadas a API).",
+      rulesHintDeposit: "Reglas maestras de productos de depósito aplicadas al crear cuentas.",
+      rulesHintLoan: "Reglas maestras de productos de préstamo aplicadas al crear cuentas.",
       name: "Nombre",
       kind: "Tipo",
       minAmount: "Monto mínimo",

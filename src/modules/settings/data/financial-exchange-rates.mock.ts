@@ -1,6 +1,6 @@
 import type { ExchangeRateRow } from "../types/financial-currency.types";
 
-/** Tasas de referencia respecto al dólar (USD) como divisa base — datos de demostración. */
+/** Tasas de referencia respecto al dólar (USD) como divisa base. */
 export const mockExchangeRatesFromUsd: ExchangeRateRow[] = [
   {
     id: "btc",

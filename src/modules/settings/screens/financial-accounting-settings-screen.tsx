@@ -19,7 +19,7 @@ export function FinancialAccountingSettingsScreen() {
     <div className="zelify-settings-workspace zelify-fin-acct">
       <h1 className="zelify-settings-workspace__title">Contabilidad financiera</h1>
       <p className="zelify-fin-acct__lead">
-        Parámetros generales del motor contable y del cierre diario (demostración).
+        Parámetros generales del motor contable y del cierre diario.
       </p>
 
       <div className="zelify-fin-acct__grid">

@@ -61,7 +61,6 @@ export function OrganizationalLabelsScreen() {
     <div className="zelify-settings-workspace zelify-org-labels">
       <div className="zelify-org-labels__head">
         <h1 className="zelify-settings-workspace__title">Etiquetas de sistema</h1>
-        <span className="zelify-org-labels__chip">Demostración</span>
       </div>
       <p className="zelify-org-labels__lead">
         Textos reutilizables en correos, SMS y portales. Los placeholders como {"{institutionName}"} se sustituyen en tiempo de envío.

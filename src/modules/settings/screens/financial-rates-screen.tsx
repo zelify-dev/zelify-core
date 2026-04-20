@@ -33,7 +33,7 @@ export function FinancialRatesScreen() {
     <div className="zelify-settings-workspace zelify-fin-rates">
       <h1 className="zelify-settings-workspace__title">Tasas de referencia</h1>
       <p className="zelify-fin-rates__lead">
-        Tasas usadas en índices y spreads de productos (datos de demostración). La institución puede fijar valores manuales o importar feeds.
+        Tasas usadas en índices y spreads de productos. La institución puede fijar valores manuales o importar feeds.
       </p>
 
       <section className="zelify-policy-card zelify-fin-rates__manual">

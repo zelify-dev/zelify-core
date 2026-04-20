@@ -179,10 +179,7 @@ export function ProductsScreen() {
           <header className="zelify-products-crud__head">
             <div>
               <h1 className="zelify-workspace-page__title">{t("productsScreen.title")}</h1>
-              <p className="zelify-products-crud__meta">
-                {t("productsScreen.subtitle")}
-                <span className="zelify-products-crud__mock-chip">{t("productsScreen.mockChip")}</span>
-              </p>
+              <p className="zelify-products-crud__meta">{t("productsScreen.subtitle")}</p>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <AppButton type="button" tone="neutral" onClick={() => openCreate("DEPOSIT")}>

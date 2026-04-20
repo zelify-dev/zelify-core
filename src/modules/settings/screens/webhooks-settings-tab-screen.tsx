@@ -42,7 +42,7 @@ export function WebhooksSettingsTabScreen() {
     <div className="zelify-settings-workspace zelify-webhook-settings-tab">
       <h1 className="zelify-settings-workspace__title">Configuración de webhooks</h1>
       <p className="zelify-webhook-settings-tab__lead">
-        Suscripciones salientes hacia tus integraciones. Los secretos se muestran solo al crear (demostración).
+        Suscripciones salientes hacia tus integraciones. Los secretos se muestran solo al crear.
       </p>
 
       <section className="zelify-policy-card zelify-webhook-settings-tab__form">

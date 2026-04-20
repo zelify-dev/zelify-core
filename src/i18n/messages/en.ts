@@ -652,7 +652,6 @@ export const en = {
     title: "Products",
     subtitle:
       "Master catalog of rules (deposit products / loan products) for account creation.",
-    mockChip: "Mock data",
     newDeposit: "New deposit",
     newLoan: "New loan",
     kpis: {
@@ -725,8 +724,8 @@ export const en = {
     modal: {
       createTitle: "Create product",
       editTitle: "Edit product",
-      rulesHintDeposit: "Master rules for deposit products (demo, no API calls).",
-      rulesHintLoan: "Master rules for loan products (demo, no API calls).",
+      rulesHintDeposit: "Master rules for deposit products consumed when creating accounts.",
+      rulesHintLoan: "Master rules for loan products consumed when creating accounts.",
       name: "Name",
       kind: "Type",
       minAmount: "Minimum amount",

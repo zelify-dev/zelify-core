@@ -13,13 +13,12 @@ export function BrandingScreen() {
   const [primaryHex, setPrimaryHex] = useState("#1a2740");
   const [accentHex, setAccentHex] = useState("#c4f542");
   const [logoUrl, setLogoUrl] = useState("https://zelify.com/logo.svg");
-  const [loginMessage, setLoginMessage] = useState("Entorno de demostración. Los cambios no afectan producción.");
+  const [loginMessage, setLoginMessage] = useState("Mensaje opcional en la pantalla de acceso.");
 
   return (
     <div className="zelify-settings-workspace zelify-branding">
       <div className="zelify-branding__head">
         <h1 className="zelify-settings-workspace__title">Marca e identidad</h1>
-        <span className="zelify-branding__chip">Datos de demostración</span>
       </div>
       <p className="zelify-branding__lead">
         Define cómo ve tu institución la aplicación: nombre visible, colores y mensajes del acceso.

@@ -17,18 +17,6 @@
   font-size: 0.92rem;
 }
 
-.zelify-products-crud__mock-chip {
-  display: inline-block;
-  margin-left: 10px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(var(--zelify-brand-green-rgb), 0.15);
-  color: var(--zelify-brand-on-green);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
 .zelify-products-crud__toolbar {
   display: grid;
   grid-template-columns: 1.2fr 180px 180px auto;

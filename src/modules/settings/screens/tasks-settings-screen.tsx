@@ -39,7 +39,7 @@ export function TasksSettingsScreen() {
           <header className="zelify-tasks-settings__head">
             <div>
               <h1 className="zelify-workspace-page__title">Tareas operativas</h1>
-              <p className="zelify-tasks-settings__sub">Definición de colas y SLA (demostración).</p>
+              <p className="zelify-tasks-settings__sub">Definición de colas y SLA.</p>
             </div>
             <AppButton type="button" tone="primary">
               Nueva definición

@@ -59,7 +59,7 @@ export function AccessSettingsScreen() {
           <header className="zelify-access-settings__head">
             <div>
               <h1 className="zelify-workspace-page__title">Acceso y usuarios</h1>
-              <p className="zelify-access-settings__sub">Gestión de cuentas internas (demostración).</p>
+              <p className="zelify-access-settings__sub">Gestión de cuentas internas.</p>
             </div>
             <AppButton type="button" tone="primary">
               Invitar usuario
