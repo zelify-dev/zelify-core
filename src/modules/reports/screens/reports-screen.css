@@ -79,6 +79,13 @@
   color: #64748b;
 }
 
+.zelify-report-pdf-preview__body {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #334155;
+}
+
 .zelify-report-table {
   width: 100%;
   border-collapse: collapse;

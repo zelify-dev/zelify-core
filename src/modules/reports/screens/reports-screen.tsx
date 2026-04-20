@@ -227,6 +227,12 @@ export function ReportsScreen() {
                     <div className="zelify-report-pdf-preview__line" />
                     <div className="zelify-report-pdf-preview__line" />
                     <div className="zelify-report-pdf-preview__line short" />
+                    <p className="zelify-report-pdf-preview__body">
+                      {localizeText(
+                        "This executive summary consolidates portfolio and commercial KPIs (active clients, loans, transaction volumes) versus prior periods and internal targets. It highlights material variances, early warning trends and branch-level outliers for leadership follow-up. / Este resumen ejecutivo consolida indicadores de cartera y comerciales (clientes activos, préstamos, volumen de transacciones) frente a periodos anteriores y metas internas. Destaca variaciones relevantes, tendencias de alerta temprana y desviaciones por sede para seguimiento de la dirección.",
+                        locale
+                      )}
+                    </p>
                     <div className="zelify-report-pdf-preview__meta">
                       {localizeText("Generated: 2026-04-20 09:45 UTC / Generado: 2026-04-20 09:45 UTC", locale)}
                     </div>
@@ -363,9 +369,15 @@ export function ReportsScreen() {
                   <div className="zelify-report-pdf-preview__line" />
                   <div className="zelify-report-pdf-preview__line" />
                   <div className="zelify-report-pdf-preview__line" />
+                  <p className="zelify-report-pdf-preview__body">
+                    {localizeText(
+                      "The April committee pack covers portfolio-at-risk (PAR) buckets, provisioning coverage versus expected credit losses and a branch heat map of delinquency and risk scores. It is intended to support decisions on limits, collections strategy and capital buffers. / El pack de abril del comité abarca tramos de cartera en riesgo (PAR), cobertura de provisiones frente a pérdidas crediticias esperadas y un mapa de calor por sede de mora y puntajes de riesgo. Está orientado a apoyar decisiones sobre límites, estrategia de cobranza y colchones de capital.",
+                      locale
+                    )}
+                  </p>
                   <div className="zelify-report-pdf-preview__meta">
                     {localizeText(
-                      "Includes PAR, Provisioning and Branch Heatmap / Incluye PAR, provisiones y mapa de calor por sede",
+                      "Includes PAR, provisioning and branch heat map / Incluye PAR, provisiones y mapa de calor por sede",
                       locale
                     )}
                   </div>
