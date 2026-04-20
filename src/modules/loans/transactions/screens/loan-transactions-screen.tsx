@@ -5,6 +5,7 @@ import { Download, RefreshCw } from "lucide-react";
 
 import { useI18n } from "@/providers/i18n-provider";
 import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
+import { AppButton } from "@/components/ui/atoms/button/app-button";
 import { LoanTransaction } from "../types/loan-transaction.types";
 import { loanTransactionsService } from "../services/loan-transactions.service";
 import { LoanTransactionsTable } from "../components/loan-transactions-table";
@@ -47,13 +48,20 @@ export const LoanTransactionsScreen: React.FC = () => {
                 {t("loans.transactions.subtitle")}
               </p>
             </div>
-            <div className="zelify-workspace-page__actions">
-              <button className="zelify-action-btn zelify-action-btn--secondary">
+            <div className="zelify-workspace-page__actions zelify-loan-transactions__actions">
+              <AppButton
+                type="button"
+                tone="secondary"
+                className="zelify-loan-transactions__action-btn"
+              >
                 <Download size={18} />
                 <span>{t("loans.common.export")}</span>
-              </button>
-              <button
-                className="zelify-action-btn zelify-action-btn--secondary"
+              </AppButton>
+              <AppButton
+                type="button"
+                tone="secondary"
+                className="zelify-loan-transactions__action-btn"
+                aria-label={t("loans.common.reload")}
                 onClick={() => {
                   setLoading(true);
                   loanTransactionsService.getTransactions().then((data) => {
@@ -63,7 +71,8 @@ export const LoanTransactionsScreen: React.FC = () => {
                 }}
               >
                 <RefreshCw size={18} className={loading ? "zelify-loan-transactions-spin" : ""} />
-              </button>
+                <span>{t("loans.common.reload")}</span>
+              </AppButton>
             </div>
           </header>
 

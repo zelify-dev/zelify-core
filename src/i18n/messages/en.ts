@@ -575,6 +575,7 @@ export const en = {
       show: "Show",
       allCount: "All {count}",
       export: "Export",
+      reload: "Reload",
     },
     transactions: {
       subtitle: "Detailed log of all financial operations across loan accounts.",

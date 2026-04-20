@@ -16,6 +16,20 @@
   font-weight: 500;
 }
 
+.zelify-loan-transactions__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.zelify-loan-transactions__action-btn.zelify-button {
+  min-height: 38px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
 .zelify-loan-transactions-spin {
   animation: spin 1s linear infinite;
 }

@@ -575,6 +575,7 @@ export const es: Messages = {
       show: "Mostrar",
       allCount: "Todos {count}",
       export: "Exportar",
+      reload: "Recargar",
     },
     transactions: {
       subtitle: "Registro detallado de todas las operaciones financieras en cuentas de préstamo.",
