@@ -4,7 +4,7 @@ import type { Messages } from "./en";
 export const es: Messages = {
   meta: {
     title: "Zelify Core",
-    description: "Plataforma SaaS de core banking construida con Next.js and Tamagui.",
+    description: "Plataforma SaaS de core banking construida con Next.js y Tamagui.",
   },
   common: {
     language: "Idioma",
@@ -48,6 +48,7 @@ export const es: Messages = {
     brandAlt: "Zelify",
     navPrimary: "Principal",
     navAdministration: "Administración",
+    navAccounting: "Contabilidad",
     profileMenu: {
       ariaLabel: "Menú de usuario",
       userSettings: "Configuración de usuario",
@@ -79,6 +80,10 @@ export const es: Messages = {
       financialSetup: "Configuración financiera",
       organization: "Organización",
       access: "Acceso",
+      generalLabels: "Configuración general > Etiquetas",
+      generalBranding: "Configuración general > Branding",
+      financialRates: "Configuración financiera > Tasas",
+      financialAccounting: "Configuración financiera > Contabilidad",
       products: "Productos",
       fields: "Campos",
       views: "Vistas",
@@ -91,6 +96,10 @@ export const es: Messages = {
       apps: "Aplicaciones",
       tasks: "Tareas",
       data: "Datos",
+    },
+    accountingSub: {
+      balanceSheet: "Balance general",
+      interestAccrualBreakdown: "Desglose de devengo de intereses",
     },
     dropdowns: {
       clients: {
@@ -537,6 +546,41 @@ export const es: Messages = {
       allCount: "Todos {count}",
       prevPageAria: "Página anterior",
       nextPageAria: "Página siguiente",
+    },
+  },
+  loans: {
+    common: {
+      actions: "Acciones",
+      actionsAria: "Acciones para transacción {id}",
+      show: "Mostrar",
+      allCount: "Todos {count}",
+      export: "Exportar",
+    },
+    transactions: {
+      subtitle: "Registro detallado de todas las operaciones financieras en cuentas de préstamo.",
+      loading: "Cargando transacciones...",
+      columns: {
+        id: "ID Trans",
+        date: "Fecha creación",
+        type: "Tipo",
+        account: "Info cuenta",
+        amount: "Monto",
+        balance: "Saldo",
+        status: "Estado",
+      },
+      types: {
+        disbursement: "Desembolso",
+        repayment: "Pago de cuota",
+        interest: "Interés aplicado",
+        fee: "Comisión aplicada",
+        adjustment: "Ajuste",
+        repaymentAdjustment: "Ajuste de pago",
+      },
+      states: {
+        entered: "Registrado",
+        pending: "Pendiente",
+        reversed: "Revertido",
+      },
     },
   },
 };

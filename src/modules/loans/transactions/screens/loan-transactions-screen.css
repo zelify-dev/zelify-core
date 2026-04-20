@@ -1,0 +1,26 @@
+.zelify-workspace-page {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.zelify-loading-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

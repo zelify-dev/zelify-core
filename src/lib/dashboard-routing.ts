@@ -51,7 +51,7 @@ export function getDashboardActorFromRoles(
 export function getDefaultDashboardPath(
   roles: string[] | undefined | null
 ): string {
-  return "/dashboard";
+  return "/";
 }
 
 export function isActorRoute(pathname: string, actor: DashboardActor): boolean {

@@ -49,6 +49,7 @@ export const en = {
     brandAlt: "Zelify",
     navPrimary: "Primary",
     navAdministration: "Administration",
+    navAccounting: "Accounting",
     profileMenu: {
       ariaLabel: "User menu",
       userSettings: "User settings",
@@ -80,6 +81,10 @@ export const en = {
       financialSetup: "Financial Setup",
       organization: "Organization",
       access: "Access",
+      generalLabels: "General Setup > Labels",
+      generalBranding: "General Setup > Branding",
+      financialRates: "Financial Setup > Rates",
+      financialAccounting: "Financial Setup > Accounting",
       products: "Products",
       fields: "Fields",
       views: "Views",
@@ -92,6 +97,10 @@ export const en = {
       apps: "Apps",
       tasks: "Tasks",
       data: "Data",
+    },
+    accountingSub: {
+      balanceSheet: "Balance Sheet",
+      interestAccrualBreakdown: "Interest Accrual Breakdown",
     },
     dropdowns: {
       clients: {
@@ -538,6 +547,41 @@ export const en = {
       allCount: "All {count}",
       prevPageAria: "Previous page",
       nextPageAria: "Next page",
+    },
+  },
+  loans: {
+    common: {
+      actions: "Actions",
+      actionsAria: "Actions for transaction {id}",
+      show: "Show",
+      allCount: "All {count}",
+      export: "Export",
+    },
+    transactions: {
+      subtitle: "Detailed log of all financial operations across loan accounts.",
+      loading: "Loading transactions...",
+      columns: {
+        id: "Trans ID",
+        date: "Creation Date",
+        type: "Type",
+        account: "Account Info",
+        amount: "Amount",
+        balance: "Balance",
+        status: "Status",
+      },
+      types: {
+        disbursement: "Disbursement",
+        repayment: "Repayment",
+        interest: "Interest Applied",
+        fee: "Fee Applied",
+        adjustment: "Adjustment",
+        repaymentAdjustment: "Repayment Adj.",
+      },
+      states: {
+        entered: "Entered",
+        pending: "Pending",
+        reversed: "Reversed",
+      },
     },
   },
 } as const;
