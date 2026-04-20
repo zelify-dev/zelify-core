@@ -1,0 +1,132 @@
+.zelify-branches {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.zelify-branches__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.zelify-branches__kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.zelify-branches__kpis article {
+  border: 1px solid rgba(26, 39, 64, 0.1);
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px 12px;
+}
+
+.zelify-branches__kpis span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.zelify-branches__kpis strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 1.2rem;
+  color: #0f172a;
+}
+
+.zelify-branches__toolbar .zelify-input {
+  max-width: 440px;
+}
+
+.zelify-branches__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.8fr);
+  gap: 12px;
+}
+
+.zelify-branches__table-wrap {
+  border: 1px solid rgba(26, 39, 64, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.zelify-branches__table-wrap thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
+.zelify-branches__table-wrap tbody tr.is-selected td {
+  background: rgba(var(--zelify-brand-green-rgb), 0.14);
+}
+
+.zelify-branches__details {
+  border: 1px solid rgba(26, 39, 64, 0.1);
+  border-radius: 12px;
+  background: #fff;
+  padding: 12px;
+  height: fit-content;
+  position: sticky;
+  top: 12px;
+}
+
+.zelify-branches__details h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.zelify-branches__detail-id {
+  margin: 4px 0 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: #334155;
+}
+
+.zelify-branches__details ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.zelify-branches__details li {
+  border: 1px solid rgba(26, 39, 64, 0.08);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.zelify-branches__details li span {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.zelify-branches__details li strong {
+  display: block;
+  margin-top: 3px;
+  color: #0f172a;
+}
+
+.zelify-branches__detail-actions {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+@media (max-width: 1100px) {
+  .zelify-branches__kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .zelify-branches__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .zelify-branches__details {
+    position: static;
+  }
+}

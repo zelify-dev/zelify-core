@@ -1,5 +1,5 @@
-import { WorkspacePlaceholderScreen } from "@/modules/workspace/screens/workspace-placeholder-screen";
+import { BranchesScreen } from "@/modules/branches/screens/branches-screen";
 
 export default function BranchesPage() {
-  return <WorkspacePlaceholderScreen title="Branches" />;
+  return <BranchesScreen />;
 }
