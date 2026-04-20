@@ -16,11 +16,11 @@ import "./journal-entries-screen.css";
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 
-const eur = (n: number | null) => {
+const formatUsd = (n: number | null) => {
   if (n === null) return "—";
-  return new Intl.NumberFormat("de-DE", {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "EUR",
+    currency: "USD",
     minimumFractionDigits: 2,
   }).format(n);
 };
@@ -198,8 +198,8 @@ export function JournalEntriesScreen() {
                 <td>{row.bookingDate}</td>
                 <td className="is-numeric">{row.transactionId}</td>
                 <td>{row.glAccountName}</td>
-                <td className="is-numeric">{eur(row.debit)}</td>
-                <td className="is-numeric">{eur(row.credit)}</td>
+                <td className="is-numeric">{formatUsd(row.debit)}</td>
+                <td className="is-numeric">{formatUsd(row.credit)}</td>
                 <td className="is-actions zelify-journal-entries__action-cell">
                   <button
                     type="button"

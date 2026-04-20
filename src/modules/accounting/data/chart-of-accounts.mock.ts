@@ -48,7 +48,7 @@ export const MOCK_CHART_OF_ACCOUNTS_FULL: ChartOfAccountRow[] = (() => {
       accountName: index > 0 && name === seq[0] ? `${name} (${index + 1})` : name,
       type: TYPE_FOR[category],
       usage: "Detail",
-      currency: index % 3 === 0 ? "USD" : "EUR",
+      currency: "USD",
       inUse: index % 7 !== 0,
       manualEntriesAllowed: index % 5 !== 0,
       category,

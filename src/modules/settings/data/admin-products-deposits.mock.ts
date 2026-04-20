@@ -2,8 +2,8 @@ import type { AdminProductRow } from "../types/admin-product.types";
 
 export const mockAdminProductsDeposits: AdminProductRow[] = [
   {
-    id: "allfunds-eur",
-    productName: "Allfunds EUR",
+    id: "allfunds-usd",
+    productName: "Allfunds USD",
     productCode: "Allfunds",
     category: "Business Deposit",
     productType: "Current Account",

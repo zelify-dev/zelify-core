@@ -2,11 +2,11 @@ import type { CurrencyInUseRow } from "../types/financial-currency.types";
 
 export const mockCurrenciesInUse: CurrencyInUseRow[] = [
   {
-    id: "eur",
-    code: "EUR",
-    numericalCode: "978",
-    name: "Euro",
-    symbol: "€",
+    id: "usd",
+    code: "USD",
+    numericalCode: "840",
+    name: "United States dollar",
+    symbol: "$",
     kind: "FIAT",
     isBase: true,
   },
@@ -43,15 +43,6 @@ export const mockCurrenciesInUse: CurrencyInUseRow[] = [
     numericalCode: "985",
     name: "Polish złoty",
     symbol: "zł",
-    kind: "FIAT",
-    isBase: false,
-  },
-  {
-    id: "usd",
-    code: "USD",
-    numericalCode: "840",
-    name: "United States dollar",
-    symbol: "$",
     kind: "FIAT",
     isBase: false,
   },

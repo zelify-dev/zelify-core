@@ -7,7 +7,7 @@ import { SettingsDataTable } from "@/components/ui/organisms/settings-data-table
 import { SandboxBanner } from "@/modules/customers/components/sandbox-banner";
 import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
 import type { Product, ProductFormInput, ProductKind } from "../types/product.types";
-import { mockMambuEndpoints, productsService } from "../services/products.service";
+import { productUiCopy, productsService } from "../services/products.service";
 
 import "@/components/ui/templates/workspace-page.css";
 import "./products-screen.css";
@@ -153,9 +153,9 @@ export function ProductsScreen() {
     await load();
   };
 
-  const detailsEndpoint = selected
-    ? mockMambuEndpoints.detailEndpoint(selected.kind, selected.id)
-    : mockMambuEndpoints.listEndpoint("DEPOSIT");
+  const detailSubtitle = selected
+    ? productUiCopy.selectedSubtitle(selected.kind, selected.id)
+    : productUiCopy.emptySubtitle;
 
   return (
     <div className="zelify-workspace-page">
@@ -287,7 +287,7 @@ export function ProductsScreen() {
 
           <section className="zelify-products-details">
             <h3>{selected ? selected.name : "Detalle de producto"}</h3>
-            <p className="zelify-products-details__endpoint">{detailsEndpoint}</p>
+            <p className="zelify-products-details__endpoint">{detailSubtitle}</p>
             {selected ? (
               <ul>
                 <li>
@@ -326,9 +326,7 @@ export function ProductsScreen() {
         <div className="zelify-products-modal-backdrop" onMouseDown={() => setEditor(null)}>
           <div className="zelify-products-modal" onMouseDown={(e) => e.stopPropagation()}>
             <h2>{editor.mode === "create" ? "Crear producto" : "Editar producto"}</h2>
-            <p className="zelify-products-crud__meta">
-              {mockMambuEndpoints.listEndpoint(form.kind)} - define reglas maestras consumidas en creacion de cuentas.
-            </p>
+            <p className="zelify-products-crud__meta">{productUiCopy.modalRulesHint(form.kind)}</p>
             <div className="zelify-products-modal__grid">
               <label>
                 Nombre

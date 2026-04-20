@@ -25,7 +25,7 @@ export function getJournalEntriesSlice(page: number, pageSize: number): JournalE
     const bookingDate = `${String(day).padStart(2, "0")}-${String(month).padStart(2, "0")}-2025`;
     const glAccountName = GL_NAMES[idx % GL_NAMES.length];
     const amount = 500 + (idx % 50) * 100;
-    const euros = amount / 100;
+    const dollars = amount / 100;
     const useDebit = idx % 3 !== 0;
 
     out.push({
@@ -34,8 +34,8 @@ export function getJournalEntriesSlice(page: number, pageSize: number): JournalE
       bookingDate,
       transactionId,
       glAccountName,
-      debit: useDebit ? euros : null,
-      credit: useDebit ? null : euros,
+      debit: useDebit ? dollars : null,
+      credit: useDebit ? null : dollars,
     });
   }
   return out;

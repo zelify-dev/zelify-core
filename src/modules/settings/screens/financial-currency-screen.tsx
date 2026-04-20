@@ -10,7 +10,7 @@ import { SettingsDataTable } from "@/components/ui/organisms/settings-data-table
 import { mockAccountingRates } from "../data/financial-accounting-rates.mock";
 import { mockConversions } from "../data/financial-conversions.mock";
 import { mockCurrenciesInUse } from "../data/financial-currencies.mock";
-import { mockExchangeRatesFromEur } from "../data/financial-exchange-rates.mock";
+import { mockExchangeRatesFromUsd } from "../data/financial-exchange-rates.mock";
 import type { CurrencyKind } from "../types/financial-currency.types";
 
 import "./financial-currency-screen.css";
@@ -118,7 +118,7 @@ export function FinancialCurrencyScreen() {
         </div>
       </CollapsibleTableSection>
 
-      <CollapsibleTableSection title="Exchange Rates - From Euro (EUR)" defaultOpen>
+      <CollapsibleTableSection title="Exchange Rates - From US Dollar (USD)" defaultOpen>
         <div className="zelify-financial-currency__table-wrap">
           <SettingsDataTable variant="clients">
             <thead>
@@ -132,7 +132,7 @@ export function FinancialCurrencyScreen() {
               </tr>
             </thead>
             <tbody>
-              {mockExchangeRatesFromEur.map((row) => (
+              {mockExchangeRatesFromUsd.map((row) => (
                 <tr key={row.id}>
                   <td>
                     <span className="zelify-financial-currency__code">{row.code}</span>

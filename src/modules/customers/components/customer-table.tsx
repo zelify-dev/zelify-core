@@ -140,11 +140,9 @@ function clientStateToTone(state: ClientState): "success" | "error" | "warning" 
 }
 
 const formatCurrency = (amount: number) => {
-  const formatted = new Intl.NumberFormat("de-DE", {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "EUR",
+    currency: "USD",
     minimumFractionDigits: 2,
-  }).format(Math.abs(amount));
-
-  return amount < 0 ? `€-${formatted.replace("€", "").trim()}` : formatted;
+  }).format(amount);
 };
