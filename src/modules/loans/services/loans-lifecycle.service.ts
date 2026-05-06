@@ -48,13 +48,18 @@ export const loansLifecycleService = {
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
   },
-  async applyAction(loanId: string, payload: { action: string; [k: string]: unknown }): Promise<void> {
+  async applyAction(
+    loanId: string,
+    payload: { action: string; [k: string]: unknown },
+  ): Promise<{ ok: boolean; lifecycleState?: string }> {
     const response = await fetch(`/api/loans/${loanId}/actions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const json = (await response.json()) as { ok?: boolean; lifecycleState?: string; error?: string };
+    if (!response.ok) throw new Error(json.error ?? `HTTP ${response.status}`);
+    return { ok: Boolean(json.ok), lifecycleState: json.lifecycleState };
   },
   async getSchedule(loanId: string): Promise<LoanScheduleItem[]> {
     const response = await fetch(`/api/loans/${loanId}/schedule`, { cache: "no-store" });

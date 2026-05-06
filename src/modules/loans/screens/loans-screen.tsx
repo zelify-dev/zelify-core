@@ -25,7 +25,8 @@ export function LoansScreen() {
   const [transactions, setTransactions] = useState<LoanTransaction[]>([]);
   const [tranches, setTranches] = useState<LoanTranche[]>([]);
   const [loading, setLoading] = useState(true);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ text: string; tone: "success" | "error" } | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [tab, setTab] = useState<"ciclo" | "calendario" | "movimientos" | "configuracion">("ciclo");
   const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
@@ -80,11 +81,30 @@ export function LoansScreen() {
   }, [selectedLoanId]);
 
   const runAction = async (action: string, extras: Record<string, unknown> = {}) => {
-    if (!selectedLoanId) return;
-    await loansLifecycleService.applyAction(selectedLoanId, { action, ...extras });
-    await loadAll();
-    await loadLoanDetail(selectedLoanId);
-    setMsg(`${actionLabel(action)} aplicada correctamente.`);
+    if (!selectedLoanId || !selectedLoan) return;
+    setActionLoading(action);
+    setMsg(null);
+    try {
+      const previousState = selectedLoan.lifecycleState;
+      const result = await loansLifecycleService.applyAction(selectedLoanId, { action, ...extras });
+      await loadAll();
+      await loadLoanDetail(selectedLoanId);
+      const nextState = result.lifecycleState as Loan["lifecycleState"] | undefined;
+      const statusMessage = nextState && previousState !== nextState
+        ? `Estado actualizado: ${stateLabel(previousState)} -> ${stateLabel(nextState)}.`
+        : "No hubo cambio de estado; se registró la operación.";
+      setMsg({
+        tone: "success",
+        text: `${actionLabel(action)} aplicada correctamente. ${statusMessage}`,
+      });
+    } catch (err) {
+      setMsg({
+        tone: "error",
+        text: err instanceof Error ? err.message : "No se pudo aplicar la acción. Intenta nuevamente.",
+      });
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   return (
@@ -109,7 +129,15 @@ export function LoansScreen() {
               Interés, mora y comisiones
             </button>
           </div>
-          {msg ? <div style={{ marginBottom: 12, color: "#166534", fontWeight: 700 }}>{msg}</div> : null}
+          {msg ? (
+            <div
+              className={`zelify-loans-feedback ${msg.tone === "error" ? "is-error" : "is-success"}`}
+              role="status"
+              aria-live="polite"
+            >
+              {msg.text}
+            </div>
+          ) : null}
 
           <div className="zelify-loans-products-toolbar">
             <AppInput value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar por nombre o código..." />
@@ -154,19 +182,50 @@ export function LoansScreen() {
                 <>
                   <h3>{selectedLoan.id} · {selectedLoan.customerName}</h3>
                   <p style={{ marginTop: 0 }}>{selectedLoan.productName} ({selectedLoan.productCode})</p>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                    {availableActions(selectedLoan.lifecycleState).map((a) => (
-                      <AppButton key={a} tone="secondary" onClick={() => runAction(a)}>{actionLabel(a)}</AppButton>
-                    ))}
-                    <AppButton tone="primary" onClick={() => runAction("DISBURSE_TRANCHE", { amount: 1000, channel: "SPEI" })}>Desembolso por tramo</AppButton>
-                    <AppButton tone="primary" onClick={() => runAction("RESCHEDULE", { reason: "Ajuste de términos" })}>Reprogramar</AppButton>
-                    <AppButton tone="primary" onClick={() => runAction("REFINANCE", { reason: "Nuevo préstamo sobre saldo" })}>Refinanciar</AppButton>
-                    <AppButton tone="primary" onClick={() => runAction("CAPITALIZE_INTEREST", { reason: "Capitalización de intereses" })}>Capitalizar interés</AppButton>
-                    <AppButton tone="neutral" onClick={() => runAction("PAY_OFF", { amount: selectedLoan.outstandingPrincipal + selectedLoan.outstandingInterest })}>Pay-off anticipado</AppButton>
-                    <AppButton tone="neutral" onClick={() => runAction("TERMINATE", { reason: "Terminación" })}>Terminación</AppButton>
+                  <div className="zelify-loans-action-section">
+                    <p className="zelify-loans-action-title">Acciones de estado</p>
+                    <div className="zelify-loans-action-grid">
+                      {availableActions(selectedLoan.lifecycleState).map((a) => (
+                        <AppButton
+                          key={a}
+                          tone="secondary"
+                          onClick={() => runAction(a)}
+                          disabled={Boolean(actionLoading)}
+                        >
+                          {actionLoading === a ? "Procesando..." : actionLabel(a)}
+                        </AppButton>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="zelify-loans-action-section">
+                    <p className="zelify-loans-action-title">Gestión avanzada del préstamo</p>
+                    <div className="zelify-loans-action-grid">
+                      <AppButton tone="primary" onClick={() => runAction("DISBURSE_TRANCHE", { amount: 1000, channel: "SPEI" })} disabled={Boolean(actionLoading)}>
+                        {actionLoading === "DISBURSE_TRANCHE" ? "Procesando..." : "Desembolso por tramo"}
+                      </AppButton>
+                      <AppButton tone="primary" onClick={() => runAction("RESCHEDULE", { reason: "Ajuste de términos" })} disabled={Boolean(actionLoading)}>
+                        {actionLoading === "RESCHEDULE" ? "Procesando..." : "Reprogramar"}
+                      </AppButton>
+                      <AppButton tone="primary" onClick={() => runAction("REFINANCE", { reason: "Nuevo préstamo sobre saldo" })} disabled={Boolean(actionLoading)}>
+                        {actionLoading === "REFINANCE" ? "Procesando..." : "Refinanciar"}
+                      </AppButton>
+                      <AppButton tone="primary" onClick={() => runAction("CAPITALIZE_INTEREST", { reason: "Capitalización de intereses" })} disabled={Boolean(actionLoading)}>
+                        {actionLoading === "CAPITALIZE_INTEREST" ? "Procesando..." : "Capitalizar interés"}
+                      </AppButton>
+                      <AppButton tone="neutral" onClick={() => runAction("PAY_OFF", { amount: selectedLoan.outstandingPrincipal + selectedLoan.outstandingInterest })} disabled={Boolean(actionLoading)}>
+                        {actionLoading === "PAY_OFF" ? "Procesando..." : "Pay-off anticipado"}
+                      </AppButton>
+                      <AppButton tone="neutral" onClick={() => runAction("TERMINATE", { reason: "Terminación solicitada" })} disabled={Boolean(actionLoading)}>
+                        {actionLoading === "TERMINATE" ? "Procesando..." : "Terminación"}
+                      </AppButton>
+                    </div>
                   </div>
                   <h4 style={{ marginTop: 12 }}>Tramos de desembolso</h4>
-                  <ul>{tranches.map((t) => <li key={t.id}>{`Tramo ${t.trancheNo}: ${money(t.amount, selectedLoan.currency)} · ${trancheStatusLabel(t.status)}`}</li>)}</ul>
+                  <ul className="zelify-loans-tranches-list">
+                    {tranches.map((t) => (
+                      <li key={t.id}>{`Tramo ${t.trancheNo}: ${money(t.amount, selectedLoan.currency)} · ${trancheStatusLabel(t.status)}`}</li>
+                    ))}
+                  </ul>
                 </>
               ) : null}
               {tab === "calendario" ? (
