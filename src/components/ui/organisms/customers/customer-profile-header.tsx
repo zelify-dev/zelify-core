@@ -38,8 +38,8 @@ export function CustomerProfileHeader({ customer }: CustomerProfileHeaderProps) 
       </div>
       
       <div className="zelify-profile-header__actions">
-        <AppButton tone="secondary">New Task</AppButton>
-        <AppButton tone="secondary">More</AppButton>
+        <AppButton tone="secondary">Asignar tarea</AppButton>
+        <AppButton tone="secondary">Más acciones</AppButton>
       </div>
     </header>
   );

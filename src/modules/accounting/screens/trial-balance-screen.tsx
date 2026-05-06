@@ -57,6 +57,7 @@ export function TrialBalanceScreen() {
   const [to, setTo] = useState("2026-04-20");
   const [selectedBranches, setSelectedBranches] = useState<string[]>(["Matriz"]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ "1": true });
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const rows = TRIAL_BALANCE_MOCK;
   const difference = useMemo(() => {
@@ -68,11 +69,13 @@ export function TrialBalanceScreen() {
   const toggleExpanded = (id: string) => {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
   };
+  const mockAction = (label: string) => setActionMessage(`Acción ejecutada: ${label}`);
 
   return (
     <div className="zelify-accounting-trial-balance">
       <AccountingPageHeader />
       <h2 className="zelify-accounting-trial-balance__title">Trial Balance</h2>
+      {actionMessage ? <div className="zelify-workspace-page__subtitle">{actionMessage}</div> : null}
 
       <div className="zelify-accounting-trial-balance__filters">
         <label className="zelify-accounting-trial-balance__field">
@@ -101,7 +104,7 @@ export function TrialBalanceScreen() {
             ))}
           </select>
         </label>
-        <AppButton type="button" tone="primary">
+        <AppButton type="button" tone="primary" onClick={() => mockAction(`Filtrar balance de prueba (${from} a ${to})`)}>
           Filtrar
         </AppButton>
         <div

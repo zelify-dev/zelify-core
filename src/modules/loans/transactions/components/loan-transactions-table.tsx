@@ -24,6 +24,7 @@ export const LoanTransactionsTable: React.FC<LoanTransactionsTableProps> = ({ tr
           <tr>
             <th>{t("loans.transactions.columns.id")}</th>
             <th>{t("loans.transactions.columns.date")}</th>
+            <th>Producto</th>
             <th>{t("loans.transactions.columns.type")}</th>
             <th>{t("loans.transactions.columns.account")}</th>
             <th className="is-numeric-header">{t("loans.transactions.columns.amount")}</th>
@@ -37,6 +38,12 @@ export const LoanTransactionsTable: React.FC<LoanTransactionsTableProps> = ({ tr
             <tr key={tx.id}>
               <td className="is-mono-cell">{tx.id}</td>
               <td>{new Date(tx.creationDate).toLocaleString()}</td>
+              <td>
+                <div className="zelify-loan-tx-table__account">
+                  <span className="zelify-loan-tx-table__holder">{tx.productName}</span>
+                  <span className="zelify-loan-tx-table__acc-id">{tx.productId}</span>
+                </div>
+              </td>
               <td>{typeLabel(tx.type, t)}</td>
               <td>
                 <div className="zelify-loan-tx-table__account">

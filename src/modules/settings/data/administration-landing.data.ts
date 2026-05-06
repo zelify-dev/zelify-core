@@ -80,13 +80,6 @@ export const ADMIN_HUB_CARD_DEFS: readonly AdminHubCardDef[] = [
   { navAdminId: "products", href: "/settings/products", featured: false, icon: "products" },
   { navAdminId: "fields", href: "/settings/fields", featured: false, icon: "fields" },
   { navAdminId: "views", href: "/settings/views", featured: false, icon: "views" },
-  { navAdminId: "forms", href: "/settings/forms", featured: false, icon: "forms" },
-  { navAdminId: "sms", href: "/settings/sms", featured: false, icon: "sms" },
-  { navAdminId: "email", href: "/settings/email", featured: false, icon: "email" },
   { navAdminId: "webhooks", href: "/settings/webhooks", featured: false, icon: "webhooks" },
   { navAdminId: "eventsStreaming", href: "/settings/event-streaming", featured: false, icon: "streaming" },
-  { navAdminId: "templates", href: "/settings/templates", featured: false, icon: "templates" },
-  { navAdminId: "apps", href: "/settings/apps", featured: false, icon: "apps" },
-  { navAdminId: "tasks", href: "/settings/tasks", featured: false, icon: "tasks" },
-  { navAdminId: "data", href: "/settings/data", featured: false, icon: "data" },
 ];

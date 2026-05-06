@@ -22,9 +22,16 @@ import { getDefaultDashboardPath } from "@/lib/dashboard-routing";
 
 import "./auth-guard.css";
 
+const DEMO_BYPASS_STORAGE_KEY = "zelify_demo_bypass";
+
 function isPublicAuthPath(path: string | null | undefined): boolean {
   if (!path) return false;
   return path === "/login" || path === "/register";
+}
+
+function isDemoBypassSession(): boolean {
+  if (typeof window === "undefined") return false;
+  return sessionStorage.getItem(DEMO_BYPASS_STORAGE_KEY) === "true";
 }
 
 function Spinner() {
@@ -62,6 +69,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     async (force = false) => {
       if (typeof window === "undefined" || getIsPublic()) return;
       if (isValidatingRef.current) return;
+      if (isDemoBypassSession()) {
+        setIsAuthenticated(true);
+        setIsMounted(true);
+        return;
+      }
 
       const auth = sessionStorage.getItem("isAuthenticated");
       const token = getAccessToken();
@@ -121,15 +133,16 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
       const auth = sessionStorage.getItem("isAuthenticated");
       const token = getAccessToken();
+      const demoBypass = isDemoBypassSession();
 
-      if (auth === "true" && token) {
+      if ((auth === "true" && token) || demoBypass) {
         setIsAuthenticated(true);
         setIsMounted(true);
 
         const path = pathname || window.location.pathname;
         if (isPublicAuthPath(path)) {
           router.replace(getDefaultDashboardPath(getStoredRoles()));
-        } else {
+        } else if (!demoBypass) {
           void validateActiveSession(true);
         }
       } else {

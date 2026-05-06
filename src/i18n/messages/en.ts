@@ -99,8 +99,8 @@ export const en = {
     },
     dropdowns: {
       clients: {
-        f1Pilot: "F1 Pilot",
-        tennisPlayer: "Tennis Player",
+        f1Pilot: "Microbusiness clients",
+        tennisPlayer: "Independent professionals",
         activeClients: "Active clients",
         inactive: "Inactive",
         pendingApproval: "Pending Approval",
@@ -834,7 +834,8 @@ export const en = {
     },
     mock: {
       users: {
-        valerioFerrari: "Valerio Ferrari",
+        camilaRojas: "Camila Rojas",
+        joseHerrera: "Jose M. Herrera",
         andreaMolina: "Andrea Molina",
         juanCarlos: "Juan Carlos",
         system: "System",
@@ -847,15 +848,16 @@ export const en = {
         scheduledJobCompleted: "Scheduled job completed",
       },
       items: {
-        testFixDeposit: "Test fix — deposit account",
-        verifyBalance: "Balance verification",
+        savingsAccountUpdate: "Savings account update",
+        cashPositionReview: "Cash position review",
         monthlyReconciliation: "Monthly reconciliation",
-        operatingLoan: "Operating loan",
+        workingCapitalLoan: "Working capital loan",
         eodPosting: "End-of-day posting",
       },
       clients: {
-        rogerFederer: "Roger Federer",
-        lewisHamilton: "Lewis Hamilton",
+        mariaFernandaParedes: "Maria Fernanda Paredes",
+        luisCardenas: "Luis Alberto Cardenas",
+        transportePacifico: "Transportes del Pacifico S.A.S.",
         andeanTreasury: "Andean Treasury Group",
       },
       noClient: "—",

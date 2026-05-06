@@ -98,8 +98,8 @@ export const es: Messages = {
     },
     dropdowns: {
       clients: {
-        f1Pilot: "F1 Pilot",
-        tennisPlayer: "Tenista",
+        f1Pilot: "Microempresarios",
+        tennisPlayer: "Profesionales independientes",
         activeClients: "Clientes activos",
         inactive: "Inactivos",
         pendingApproval: "Pendiente de aprobación",
@@ -834,7 +834,8 @@ export const es: Messages = {
     },
     mock: {
       users: {
-        valerioFerrari: "Valerio Ferrari",
+        camilaRojas: "Camila Rojas",
+        joseHerrera: "Jose M. Herrera",
         andreaMolina: "Andrea Molina",
         juanCarlos: "Juan Carlos",
         system: "Sistema",
@@ -847,15 +848,16 @@ export const es: Messages = {
         scheduledJobCompleted: "Trabajo programado completado",
       },
       items: {
-        testFixDeposit: "Depósito de prueba — corrección",
-        verifyBalance: "Verificación de saldo",
+        savingsAccountUpdate: "Actualización de cuenta de ahorros",
+        cashPositionReview: "Revisión de posición de caja",
         monthlyReconciliation: "Conciliación mensual",
-        operatingLoan: "Préstamo operativo",
+        workingCapitalLoan: "Préstamo de capital de trabajo",
         eodPosting: "Contabilización fin de día",
       },
       clients: {
-        rogerFederer: "Roger Federer",
-        lewisHamilton: "Lewis Hamilton",
+        mariaFernandaParedes: "María Fernanda Paredes",
+        luisCardenas: "Luis Alberto Cárdenas",
+        transportePacifico: "Transportes del Pacífico S.A.S.",
         andeanTreasury: "Grupo Tesorería Andina",
       },
       noClient: "—",

@@ -16,6 +16,8 @@ export enum LoanTransactionStatus {
 export interface LoanTransaction {
   id: string;
   creationDate: string;
+  productId: string;
+  productName: string;
   type: LoanTransactionType;
   amount: number;
   balance: number;

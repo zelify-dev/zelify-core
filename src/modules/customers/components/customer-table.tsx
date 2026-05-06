@@ -8,14 +8,16 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SettingsDataTable } from "@/components/ui/organisms/settings-data-table/settings-data-table";
 import { AppAvatar } from "@/components/ui/atoms/avatar/app-avatar";
 import { AppBadge } from "@/components/ui/atoms/badge/app-badge";
-import { Customer, ClientState } from "../types/customer.types";
+import { Customer, ClientState, KycStatus, AmlStatus } from "../types/customer.types";
 import { useI18n } from "@/providers/i18n-provider";
 
 interface CustomerTableProps {
   customers: Customer[];
+  onEdit: (customer: Customer) => void;
+  onDelete: (id: string) => void;
 }
 
-export const CustomerTable: React.FC<CustomerTableProps> = ({ customers }) => {
+export const CustomerTable: React.FC<CustomerTableProps> = ({ customers, onEdit, onDelete }) => {
   const { t } = useI18n();
 
   return (
@@ -25,10 +27,15 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({ customers }) => {
           <tr>
             <th>{t("customers.list.columns.fullName")}</th>
             <th>{t("customers.list.columns.id")}</th>
+            <th>Tipo doc.</th>
+            <th>Documento</th>
+            <th>Fecha nacimiento</th>
             <th>{t("customers.list.columns.clientState")}</th>
-            <th>{t("customers.list.columns.creditOfficer")}</th>
-            <th className="is-numeric-header">{t("customers.list.columns.totalBalance")}</th>
-            <th className="is-numeric-header">{t("customers.list.columns.lastModified")}</th>
+            <th>Motivo estado</th>
+            <th>KYC</th>
+            <th>AML</th>
+            <th>Última actualización</th>
+            <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -46,22 +53,22 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({ customers }) => {
               <td>
                 <span className="zelify-mono">{customer.id}</span>
               </td>
+              <td>{documentTypeLabel(customer.documentType)}</td>
+              <td>{customer.documentNumber || "—"}</td>
+              <td>{customer.birthDate || "—"}</td>
               <td>
                 <AppBadge tone={clientStateToTone(customer.state)} size="sm">
                   {clientStateLabel(customer.state, t)}
                 </AppBadge>
               </td>
-              <td>{customer.creditOfficer || "—"}</td>
-              <td className="is-numeric">
-                <span
-                  className={
-                    customer.totalBalance < 0 ? "zelify-table-balance--negative" : undefined
-                  }
-                >
-                  {formatCurrency(customer.totalBalance)}
-                </span>
+              <td>{customer.statusReason || "—"}</td>
+              <td>{kycLabel(customer.kycStatus)}</td>
+              <td>{amlLabel(customer.amlStatus)}</td>
+              <td>{customer.lastModified}</td>
+              <td>
+                <button type="button" className="zelify-pagination-btn" onClick={() => onEdit(customer)}>Editar</button>
+                <button type="button" className="zelify-pagination-btn" onClick={() => onDelete(customer.id)}>Eliminar</button>
               </td>
-              <td className="is-numeric">{customer.lastModified}</td>
             </tr>
           ))}
         </tbody>
@@ -139,10 +146,35 @@ function clientStateToTone(state: ClientState): "success" | "error" | "warning" 
   }
 }
 
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-  }).format(amount);
-};
+function kycLabel(status?: KycStatus): string {
+  if (!status) return "Opcional";
+  const map: Record<KycStatus, string> = {
+    NOT_STARTED: "No iniciado",
+    PENDING: "Pendiente",
+    VERIFIED: "Verificado",
+    REJECTED: "Rechazado",
+  };
+  return map[status];
+}
+
+function amlLabel(status?: AmlStatus): string {
+  if (!status) return "Opcional";
+  const map: Record<AmlStatus, string> = {
+    NOT_STARTED: "No iniciado",
+    CLEAR: "Limpio",
+    REVIEW: "En revisión",
+    BLOCKED: "Bloqueado",
+  };
+  return map[status];
+}
+
+function documentTypeLabel(type?: string): string {
+  const map: Record<string, string> = {
+    INE: "INE",
+    CURP: "CURP",
+    RFC: "RFC",
+    PASAPORTE: "Pasaporte",
+    RESIDENCIA: "Tarjeta de residencia",
+  };
+  return type ? (map[type] ?? type) : "—";
+}

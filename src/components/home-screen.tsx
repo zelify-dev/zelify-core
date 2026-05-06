@@ -1,5 +1,6 @@
 "use client";
 import "./_home-screen.css";
+import { useEffect, useMemo, useState } from "react";
 
 import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
 import { PanelHeader } from "@/components/ui/molecules/panel-header/panel-header";
@@ -30,159 +31,104 @@ function localizeText(text: string, locale: "en" | "es"): string {
   return locale === "es" ? es : en;
 }
 
-const indicators = [
-  {
-    label: "Active clients / Clientes activos",
-    value: "48,392",
-    meta: "1,204 added this month / 1,204 agregados este mes",
-    href: "/customers?view=active-clients",
-  },
-  {
-    label: "Branches / Sedes",
-    value: "128",
-    meta: "6 pending approval / 6 pendientes de aprobación",
-    href: "/settings/organization",
-  },
-  {
-    label: "Open accounts / Cuentas abiertas",
-    value: "132,640",
-    meta: "942 opened today / 942 abiertas hoy",
-    href: "/deposits",
-  },
-  {
-    label: "Transactions today / Transacciones hoy",
-    value: "284,901",
-    meta: "$18.4M settled / $18.4M liquidados",
-    href: "/deposit-transactions",
-  },
-  {
-    label: "Loans awaiting approval / Préstamos pendientes de aprobación",
-    value: "37",
-    meta: "9 submitted in the last hour / 9 enviados en la última hora",
-    href: "/loans?view=pending-approval",
-  },
-  {
-    label: "PAR > 30 days / PAR > 30 días",
-    value: "2.8%",
-    meta: "Within policy threshold / Dentro del umbral de política",
-    href: "/reports?view=portfolio",
-  },
-];
-
-const recentActivity: ActivityFeedItem[] = [
-  {
-    type: "Client onboarding / Incorporación de cliente",
-    title: "New corporate client approved for Andean Treasury / Nuevo cliente corporativo aprobado para Andean Treasury",
-    meta: "Branch: Andean Treasury Group / Sede: Andean Treasury Group",
-    time: "8 min ago / hace 8 min",
-    marker: "CL",
-  },
-  {
-    type: "Transaction review / Revisión de transacción",
-    title: "Large transfer flagged for secondary review / Transferencia grande marcada para revisión secundaria",
-    meta: "Account: 002-4481 / Amount: $86,420 / Cuenta: 002-4481 / Monto: $86,420",
-    time: "14 min ago / hace 14 min",
-    marker: "TX",
-  },
-  {
-    type: "Account event / Evento de cuenta",
-    title: "Operational savings account opened / Cuenta de ahorro operativa abierta",
-    meta: "Branch: Nova Capital / Product: Business Saver / Sede: Nova Capital / Producto: Business Saver",
-    time: "31 min ago / hace 31 min",
-    marker: "AC",
-  },
-  {
-    type: "Compliance / Cumplimiento",
-    title: "KYC documentation completed for a new entity / Documentación KYC completada para una nueva entidad",
-    meta: "Client: Pacific Bridge Holdings / Cliente: Pacific Bridge Holdings",
-    time: "52 min ago / hace 52 min",
-    marker: "KY",
-  },
-  {
-    type: "Payments / Pagos",
-    title: "Batch payment file released to processing / Archivo masivo de pagos liberado a procesamiento",
-    meta: "Batch: PAY-2026-04-18-09 / Lote: PAY-2026-04-18-09",
-    time: "1 hr ago / hace 1 h",
-    marker: "PM",
-  },
-  {
-    type: "Loans / Préstamos",
-    title: "Risk review completed for pending applications / Revisión de riesgo completada para solicitudes pendientes",
-    meta: "Queue: Pending Approval / Cola: Pendiente de aprobación",
-    time: "1 hr 24 min ago / hace 1 h 24 min",
-    marker: "LN",
-  },
-  {
-    type: "Deposits / Depósitos",
-    title: "Dormant account reactivated after verification / Cuenta inactiva reactivada tras verificación",
-    meta: "Account: DP-22014 / Cuenta: DP-22014",
-    time: "1 hr 42 min ago / hace 1 h 42 min",
-    marker: "DP",
-  },
-  {
-    type: "Groups / Grupos",
-    title: "New group profile approved in branch north / Nuevo perfil de grupo aprobado en sucursal norte",
-    meta: "Group: GRP-201 / Grupo: GRP-201",
-    time: "2 hr ago / hace 2 h",
-    marker: "GR",
-  },
-];
-
-const pendingActions: TaskQueueSummaryItem[] = [
-  { label: "Overdue / Vencidas", value: "12" },
-  { label: "Due today / Para hoy", value: "29" },
-  { label: "Upcoming / Próximas", value: "41" },
-];
-
-const taskQueueItems: TaskQueueItem[] = [
-  {
-    title: "Control total client balance / Controlar saldo total de clientes",
-    owner: "Juan Carlos",
-    dueDate: "18-04-2026",
-  },
-  {
-    title: "Review status of loans / Revisar estado de préstamos",
-    owner: "Operations team / Equipo de operaciones",
-    dueDate: "18-04-2026",
-  },
-  {
-    title: "Check overall liquidity position / Verificar posición general de liquidez",
-    owner: "Treasury desk / Mesa de tesorería",
-    dueDate: "19-04-2026",
-  },
-  {
-    title: "Release outbound communications batch / Liberar lote de comunicaciones salientes",
-    owner: "Client operations / Operaciones de clientes",
-    dueDate: "20-04-2026",
-  },
-];
-
-const quickViews: QuickViewItem[] = [
-  { count: "21", label: "Active clients / Clientes activos", meta: "Saved operational view / Vista operativa guardada" },
-  { count: "18", label: "Active loans / Préstamos activos", meta: "Approval pipeline / Flujo de aprobaciones" },
-  { count: "9", label: "Dormant accounts / Cuentas inactivas", meta: "Reactivation review / Revisión de reactivación" },
-  { count: "9", label: "Compliance cases / Casos de cumplimiento", meta: "In progress / En progreso" },
-  { count: "32", label: "Deposit active / Depósitos activos", meta: "Portfolio segment / Segmento de cartera" },
-];
-
-const systemSummary: SummaryGridItem[] = [
-  {
-    title: "Settlement health / Salud de liquidación",
-    description: "Core settlement flows are operating within expected thresholds. / Los flujos centrales de liquidación operan dentro de los umbrales esperados.",
-  },
-  {
-    title: "Review workload / Carga de revisión",
-    description: "Manual review queue increased 8% compared to yesterday morning. / La cola de revisión manual aumentó 8% frente a ayer por la mañana.",
-  },
-  {
-    title: "Platform availability / Disponibilidad de plataforma",
-    description: "All operational services are available. No degraded banking modules detected. / Todos los servicios operativos están disponibles. No se detectan módulos degradados.",
-  },
-];
-
 export default function HomeScreen() {
   const { locale } = useI18n();
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [customers, setCustomers] = useState<Array<{ id: string; state: string }>>([]);
+  const [loans, setLoans] = useState<Array<{ id: string; lifecycleState: string }>>([]);
+  const [deposits, setDeposits] = useState<Array<{ id: string; state: string }>>([]);
+  const [branches, setBranches] = useState<Array<{ id: string }>>([]);
+  const [activities, setActivities] = useState<Array<{ id: string; action: string; module: string; actor: string; created_at: string; affected_item_name?: string | null; affected_item_id?: string | null }>>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const [c, l, d, b, a] = await Promise.all([
+        fetch("/api/customers", { cache: "no-store" }),
+        fetch("/api/loans", { cache: "no-store" }),
+        fetch("/api/deposits", { cache: "no-store" }),
+        fetch("/api/branches", { cache: "no-store" }),
+        fetch("/api/activities?page=1&pageSize=50&module=all&branch=all", { cache: "no-store" }),
+      ]);
+      if (c.ok) setCustomers(((await c.json()) as { data: Array<{ id: string; state: string }> }).data ?? []);
+      if (l.ok) setLoans(((await l.json()) as { data: Array<{ id: string; lifecycleState: string }> }).data ?? []);
+      if (d.ok) setDeposits(((await d.json()) as { data: Array<{ id: string; state: string }> }).data ?? []);
+      if (b.ok) setBranches(((await b.json()) as { branches: Array<{ id: string }> }).branches ?? []);
+      if (a.ok) setActivities(((await a.json()) as { data: Array<{ id: string; action: string; module: string; actor: string; created_at: string; affected_item_name?: string | null; affected_item_id?: string | null }> }).data ?? []);
+      setLoading(false);
+    };
+    void load();
+  }, []);
+
+  const indicators = useMemo(() => {
+    const activeClients = customers.filter((c) => c.state === "ACTIVE").length;
+    const activeLoans = loans.filter((l) => l.lifecycleState === "ACTIVE").length;
+    const pendingLoans = loans.filter((l) => l.lifecycleState === "PENDING_APPROVAL").length;
+    const par30 = loans.length === 0 ? 0 : (loans.filter((l) => l.lifecycleState === "ACTIVE_IN_ARREARS").length / loans.length) * 100;
+    const activeDeposits = deposits.filter((d) => d.state === "ACTIVE").length;
+    return [
+      { label: "Active clients / Clientes activos", value: String(activeClients), meta: "Real-time from customers / Tiempo real desde clientes", href: "/customers" },
+      { label: "Branches / Sedes", value: String(branches.length), meta: "Current configured branches / Sedes configuradas", href: "/branches" },
+      { label: "Open accounts / Cuentas abiertas", value: String(deposits.length), meta: `${activeDeposits} active / ${activeDeposits} activas`, href: "/deposits" },
+      { label: "Transactions today / Eventos hoy", value: String(activities.length), meta: "Based on system activities / Basado en actividades del sistema", href: "/activities" },
+      { label: "Loans awaiting approval / Préstamos pendientes de aprobación", value: String(pendingLoans), meta: "Pending approval queue / Cola pendiente", href: "/loans" },
+      { label: "PAR > 30 days / PAR > 30 días", value: `${par30.toFixed(1)}%`, meta: "From loan lifecycle states / Desde estados de préstamo", href: "/reports" },
+    ];
+  }, [customers, loans, deposits, branches, activities]);
+
+  const recentActivity: ActivityFeedItem[] = useMemo(
+    () =>
+      activities.slice(0, 10).map((a) => ({
+        id: a.id,
+        type: `${a.module} / ${a.module}`,
+        title: `${a.action} / ${a.action}`,
+        meta: `${a.affected_item_name ?? "Elemento"} ${a.affected_item_id ?? ""} / ${a.actor}`,
+        time: `${new Date(a.created_at).toLocaleString()} / ${new Date(a.created_at).toLocaleString()}`,
+        marker: (a.module || "EV").slice(0, 2).toUpperCase(),
+      })),
+    [activities]
+  );
+
+  const pendingActions: TaskQueueSummaryItem[] = useMemo(() => {
+    const overdue = loans.filter((l) => l.lifecycleState === "ACTIVE_IN_ARREARS").length;
+    const dueToday = activities.length;
+    const upcoming = loans.filter((l) => l.lifecycleState === "APPROVED").length + deposits.filter((d) => d.state === "PENDING_APPROVAL").length;
+    return [
+      { label: "Overdue / Vencidas", value: String(overdue) },
+      { label: "Due today / Para hoy", value: String(dueToday) },
+      { label: "Upcoming / Próximas", value: String(upcoming) },
+    ];
+  }, [loans, deposits, activities]);
+
+  const taskQueueItems: TaskQueueItem[] = useMemo(() => [
+    { title: "Revisar préstamos en mora / Revisar préstamos en mora", owner: "Riesgo", dueDate: new Date().toISOString().slice(0, 10) },
+    { title: "Aprobar solicitudes pendientes / Aprobar solicitudes pendientes", owner: "Crédito", dueDate: new Date().toISOString().slice(0, 10) },
+    { title: "Monitorear cuentas dormant / Monitorear cuentas dormant", owner: "Operaciones", dueDate: new Date(Date.now() + 86400000).toISOString().slice(0, 10) },
+    { title: "Validar eventos críticos / Validar eventos críticos", owner: "Cumplimiento", dueDate: new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10) },
+  ], []);
+
+  const quickViews: QuickViewItem[] = useMemo(() => [
+    { count: String(customers.filter((c) => c.state === "ACTIVE").length), label: "Active clients / Clientes activos", meta: "Real view / Vista real" },
+    { count: String(loans.filter((l) => l.lifecycleState === "ACTIVE").length), label: "Active loans / Préstamos activos", meta: "Lifecycle state / Estado de ciclo" },
+    { count: String(deposits.filter((d) => d.state === "DORMANT").length), label: "Dormant accounts / Cuentas inactivas", meta: "Dormant monitoring / Monitoreo dormant" },
+    { count: String(activities.filter((a) => a.module === "customers" || a.module === "companies").length), label: "Compliance cases / Casos de cumplimiento", meta: "From activities / Desde actividades" },
+    { count: String(deposits.filter((d) => d.state === "ACTIVE").length), label: "Deposit active / Depósitos activos", meta: "Portfolio segment / Segmento de cartera" },
+  ], [customers, loans, deposits, activities]);
+
+  const systemSummary: SummaryGridItem[] = useMemo(() => [
+    {
+      title: "Settlement health / Salud de liquidación",
+      description: `Deposits active: ${deposits.filter((d) => d.state === "ACTIVE").length}. / Depósitos activos: ${deposits.filter((d) => d.state === "ACTIVE").length}.`,
+    },
+    {
+      title: "Review workload / Carga de revisión",
+      description: `Pending approvals: ${loans.filter((l) => l.lifecycleState === "PENDING_APPROVAL").length + deposits.filter((d) => d.state === "PENDING_APPROVAL").length}. / Pendientes de aprobación: ${loans.filter((l) => l.lifecycleState === "PENDING_APPROVAL").length + deposits.filter((d) => d.state === "PENDING_APPROVAL").length}.`,
+    },
+    {
+      title: "Platform availability / Disponibilidad de plataforma",
+      description: `Recent system events: ${activities.length}. / Eventos recientes del sistema: ${activities.length}.`,
+    },
+  ], [deposits, loans, activities]);
 
   return (
     <div className="zelify-home">
@@ -201,6 +147,7 @@ export default function HomeScreen() {
                 locale
               )}
             </p>
+            {loading ? <p className="zelify-home__subtitle">{localizeText("Loading real-time data... / Cargando datos en tiempo real...", locale)}</p> : null}
           </div>
         </section>
 

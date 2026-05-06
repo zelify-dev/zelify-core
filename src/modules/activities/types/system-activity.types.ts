@@ -1,28 +1,12 @@
-export type SystemActivityUserKey = "valerioFerrari" | "andreaMolina" | "juanCarlos" | "system";
-
-export type SystemActivityActionKey =
-  | "depositAccountEdited"
-  | "userLoggedIn"
-  | "taskCompleted"
-  | "loanTermsUpdated"
-  | "scheduledJobCompleted";
-
-export type SystemActivityItemKey =
-  | "testFixDeposit"
-  | "verifyBalance"
-  | "monthlyReconciliation"
-  | "operatingLoan"
-  | "eodPosting";
-
-export type SystemActivityClientKey = "rogerFederer" | "lewisHamilton" | "andeanTreasury" | "none";
-
 export type SystemActivityRow = {
   id: string;
-  creationDate: string;
-  userKey: SystemActivityUserKey;
-  actionKey: SystemActivityActionKey;
-  itemKey: SystemActivityItemKey;
-  itemIdPrefix: string;
-  affectedItemId: string;
-  clientKey: SystemActivityClientKey;
+  created_at: string;
+  actor: string;
+  action: string;
+  module: string;
+  affected_item_name: string | null;
+  affected_item_id: string | null;
+  affected_client_name: string | null;
+  affected_client_id: string | null;
+  branch_id: string | null;
 };

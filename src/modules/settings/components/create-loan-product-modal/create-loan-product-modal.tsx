@@ -133,8 +133,8 @@ type LoanProductDraft = {
 const INITIAL: LoanProductDraft = {
   productName: "Loan Demo 6 aug",
   productId: "DEMO6ago",
-  category: "personal-lending",
-  productType: "fixed-term",
+  category: "PERSONAL_LENDING",
+  productType: "FIXED_TERM_LOAN",
   active: true,
   description: "",
   availClients: true,
@@ -319,12 +319,12 @@ export function CreateLoanProductModal({ open, onClose, onSave }: CreateLoanProd
                     value={form.category}
                     onChange={(e) => patch("category", e.target.value)}
                   >
-                    <option value="personal-lending">Personal Lending</option>
-                    <option value="purchase">Purchase Financing</option>
-                    <option value="retail-mortgages">Retail Mortgages</option>
-                    <option value="sme">SME Lending</option>
-                    <option value="commercial">Commercial</option>
-                    <option value="uncategorized">Uncategorized</option>
+                    <option value="PERSONAL_LENDING">Personal Lending</option>
+                    <option value="BUSINESS_LENDING">Business Lending</option>
+                    <option value="MICROFINANCE">Microfinance</option>
+                    <option value="MORTGAGES">Mortgages</option>
+                    <option value="PURCHASE_FINANCE">Purchase Financing</option>
+                    <option value="UNCATEGORIZED">Uncategorized</option>
                   </AppSelect>
                 }
               />
@@ -344,13 +344,12 @@ export function CreateLoanProductModal({ open, onClose, onSave }: CreateLoanProd
                     value={form.productType}
                     onChange={(e) => patch("productType", e.target.value)}
                   >
-                    <option value="fixed-term">Fixed Term Loan</option>
-                    <option value="dynamic-term">Dynamic Term Loan</option>
-                    <option value="interest-free">Interest-Free Loan</option>
-                    <option value="tranched">Tranched Loan</option>
-                    <option value="revolving">Revolving Credit</option>
-                    <option value="interest-only">Interest Only Equal Installments Loan</option>
-                    <option value="dynamic-mortgage">Dynamic Term Mortgage Loan</option>
+                    <option value="FIXED_TERM_LOAN">Fixed Term Loan</option>
+                    <option value="DYNAMIC_TERM_LOAN">Dynamic Term Loan</option>
+                    <option value="REVOLVING_CREDIT">Revolving Credit</option>
+                    <option value="TRANCHED_LOAN">Tranched Loan ↳ Dynamic Term</option>
+                    <option value="INTEREST_FREE">Interest-Free Loan</option>
+                    <option value="DYNAMIC_MORTGAGE">Dynamic Mortgage ↳ Dynamic Term</option>
                   </AppSelect>
                 }
               />

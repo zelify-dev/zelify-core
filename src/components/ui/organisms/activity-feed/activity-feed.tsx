@@ -1,4 +1,5 @@
 type ActivityFeedItem = {
+  id?: string;
   type: string;
   title: string;
   meta: string;
@@ -13,8 +14,8 @@ type ActivityFeedProps = {
 export function ActivityFeed({ items }: ActivityFeedProps) {
   return (
     <div className="zelify-activity-feed">
-      {items.map((item) => (
-        <div key={`${item.title}-${item.time}`} className="zelify-activity-item">
+      {items.map((item, index) => (
+        <div key={item.id ?? `${item.title}-${item.time}-${index}`} className="zelify-activity-item">
           <div className="zelify-activity-item__marker">{item.marker}</div>
           <div className="zelify-activity-item__body">
             <span className="zelify-activity-item__type">{item.type}</span>

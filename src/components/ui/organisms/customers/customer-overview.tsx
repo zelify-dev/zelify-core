@@ -10,20 +10,47 @@ type CustomerOverviewProps = {
 
 export function CustomerOverview({ customer }: CustomerOverviewProps) {
   const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+  const accountTypeLabel: Record<string, string> = {
+    Loan: "Préstamo",
+    Deposit: "Depósito",
+    "Current Account": "Cuenta corriente",
+    Savings: "Ahorros",
+  };
+  const accountStateLabel: Record<string, string> = {
+    Active: "Activa",
+    "In Arrears": "En mora",
+    Closed: "Cerrada",
+    Matured: "Vencida",
+  };
+  const clientTypeLabel: Record<string, string> = {
+    Individual: "Individual",
+    Corporate: "Empresa",
+  };
+  const customerStateLabel: Record<string, string> = {
+    Active: "Activo",
+    Inactive: "Inactivo",
+    "In Arrears": "En mora",
+    Blacklisted: "Lista negra",
+    "Pending Approval": "Pendiente de aprobación",
+  };
+  const genderLabel: Record<string, string> = {
+    Male: "Masculino",
+    Female: "Femenino",
+  };
 
   return (
     <div className="zelify-customer-overview">
       <section className="zelify-panel zelify-customer-overview__accounts">
         <div className="zelify-panel__header">
-          <h2 className="zelify-panel__title">Accounts Summary</h2>
+          <h2 className="zelify-panel__title">Resumen de cuentas</h2>
         </div>
         <SettingsDataTable variant="accounts">
           <thead>
             <tr>
-              <th>Account name</th>
-              <th>Type</th>
-              <th>State</th>
-              <th className="is-numeric-header">Balance</th>
+              <th>Nombre de cuenta</th>
+              <th>Tipo</th>
+              <th>Estado</th>
+              <th className="is-numeric-header">Saldo</th>
             </tr>
           </thead>
           <tbody>
@@ -35,10 +62,10 @@ export function CustomerOverview({ customer }: CustomerOverviewProps) {
                     <span className="zelify-mono">{acc.id}</span>
                   </div>
                 </td>
-                <td>{acc.type}</td>
+                <td>{accountTypeLabel[acc.type] ?? acc.type}</td>
                 <td>
                   <AppBadge tone={acc.state === "In Arrears" ? "error" : "success"} size="sm">
-                    {acc.state.toUpperCase()}
+                    {(accountStateLabel[acc.state] ?? acc.state).toUpperCase()}
                   </AppBadge>
                 </td>
                 <td className="is-numeric">{currency.format(acc.balance)}</td>
@@ -67,61 +94,61 @@ export function CustomerOverview({ customer }: CustomerOverviewProps) {
               <dd className="zelify-mono">{customer.id}</dd>
             </div>
             <div className="zelify-info-list__item">
-              <dt>Client Type</dt>
-              <dd>{customer.clientType}</dd>
+              <dt>Tipo de cliente</dt>
+              <dd>{clientTypeLabel[customer.clientType] ?? customer.clientType}</dd>
             </div>
             <div className="zelify-info-list__item">
-              <dt>Branch</dt>
+              <dt>Sucursal</dt>
               <dd>{customer.branch}</dd>
             </div>
             <div className="zelify-info-list__item">
-              <dt>Centre</dt>
+              <dt>Centro</dt>
               <dd>{customer.assignedCentre}</dd>
             </div>
             <div className="zelify-info-list__item">
-              <dt>Credit Officer</dt>
+              <dt>Oficial de crédito</dt>
               <dd>{customer.creditOfficer}</dd>
             </div>
             <div className="zelify-info-list__item">
-              <dt>Created</dt>
+              <dt>Creado</dt>
               <dd>{customer.createdDate}</dd>
             </div>
             <div className="zelify-info-list__item">
-              <dt>Status</dt>
-              <dd>{customer.state}</dd>
+              <dt>Estado</dt>
+              <dd>{customerStateLabel[customer.state] ?? customer.state}</dd>
             </div>
           </dl>
         </section>
 
         <section className="zelify-panel">
           <div className="zelify-panel__header">
-            <h2 className="zelify-panel__title">Personal & Contact</h2>
+            <h2 className="zelify-panel__title">Personal y contacto</h2>
           </div>
           <dl className="zelify-info-list">
             <div className="zelify-info-list__group">Personal</div>
             <div className="zelify-info-list__item">
-              <dt>Gender</dt>
-              <dd>{customer.personalInfo.gender}</dd>
+              <dt>Género</dt>
+              <dd>{genderLabel[customer.personalInfo.gender] ?? customer.personalInfo.gender}</dd>
             </div>
             <div className="zelify-info-list__item">
-              <dt>Birth Date</dt>
+              <dt>Fecha de nacimiento</dt>
               <dd>{customer.personalInfo.birthDate}</dd>
             </div>
             <div className="zelify-info-list__item">
-              <dt>Language</dt>
+              <dt>Idioma</dt>
               <dd>{customer.personalInfo.preferredLanguage}</dd>
             </div>
-            <div className="zelify-info-list__group">Contact</div>
+            <div className="zelify-info-list__group">Contacto</div>
             <div className="zelify-info-list__item">
-              <dt>Phone</dt>
+              <dt>Teléfono</dt>
               <dd>{customer.phone}</dd>
             </div>
             <div className="zelify-info-list__item">
-              <dt>Email</dt>
+              <dt>Correo</dt>
               <dd>{customer.email}</dd>
             </div>
             <div className="zelify-info-list__item">
-              <dt>Address</dt>
+              <dt>Dirección</dt>
               <dd>{customer.personalInfo.address}</dd>
             </div>
           </dl>

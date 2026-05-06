@@ -14,9 +14,12 @@ import "./group-table.css";
 
 interface GroupTableProps {
   groups: Group[];
+  onViewGroup?: (group: Group) => void;
+  onEditGroup?: (group: Group) => void;
+  onDeleteGroup?: (group: Group) => void;
 }
 
-export const GroupTable: React.FC<GroupTableProps> = ({ groups }) => {
+export const GroupTable: React.FC<GroupTableProps> = ({ groups, onViewGroup, onEditGroup, onDeleteGroup }) => {
   const { t } = useI18n();
 
   return (
@@ -25,9 +28,10 @@ export const GroupTable: React.FC<GroupTableProps> = ({ groups }) => {
         <thead>
           <tr>
             <th>{t("groups.list.columns.id")}</th>
-            <th>{t("groups.list.columns.groupName")}</th>
-            <th>{t("groups.list.columns.assignedOfficer")}</th>
-            <th>{t("groups.list.columns.createdAt")}</th>
+            <th>Empresa</th>
+            <th>Tipo</th>
+            <th>Sucursal</th>
+            <th>KYB</th>
             <th className="is-numeric-header">{t("groups.list.columns.membersCount")}</th>
             <th>{t("groups.list.columns.state")}</th>
             <th className="is-actions-header">{t("groups.common.actions")}</th>
@@ -38,8 +42,9 @@ export const GroupTable: React.FC<GroupTableProps> = ({ groups }) => {
             <tr key={group.id}>
               <td className="is-mono-cell">{group.id}</td>
               <td className="is-primary-cell">{group.name}</td>
-              <td>{group.assignedOfficer}</td>
-              <td>{group.createdAt}</td>
+              <td>{group.groupType}</td>
+              <td>{group.assignedBranch}</td>
+              <td>{group.kybStatus ?? "Opcional"}</td>
               <td className="is-numeric-cell">{group.membersCount}</td>
               <td>
                 <AppBadge tone={groupStateToTone(group.state)} size="sm">
@@ -48,13 +53,13 @@ export const GroupTable: React.FC<GroupTableProps> = ({ groups }) => {
               </td>
               <td className="is-actions-cell">
                 <div className="zelify-group-table__crud">
-                  <AppButton tone="neutral" type="button" className="zelify-group-table__crud-btn">
-                    {t("groups.list.rowActions.viewDetails")}
+                  <AppButton tone="neutral" type="button" className="zelify-group-table__crud-btn" onClick={() => onViewGroup?.(group)}>
+                    Ver
                   </AppButton>
-                  <AppButton tone="secondary" type="button" className="zelify-group-table__crud-btn">
-                    {t("groups.list.rowActions.edit")}
+                  <AppButton tone="secondary" type="button" className="zelify-group-table__crud-btn" onClick={() => onEditGroup?.(group)}>
+                    Editar
                   </AppButton>
-                  <AppIconButton ariaLabel={t("groups.common.actionsAria").replace("{name}", group.name)}>
+                  <AppIconButton ariaLabel={t("groups.common.actionsAria").replace("{name}", group.name)} onClick={() => onDeleteGroup?.(group)}>
                     <MoreHorizontal size={16} />
                   </AppIconButton>
                 </div>

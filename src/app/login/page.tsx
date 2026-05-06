@@ -9,6 +9,10 @@ import { login, verifyDashboardOtp, persistAuthSession, AuthError, syncMe, type 
 import { getLoginAuthErrorDisplay } from "@/lib/auth-error-messages";
 import { getDefaultDashboardPath } from "@/lib/dashboard-routing";
 
+const DEMO_BYPASS_EMAIL = "demo@zwippe.com";
+const DEMO_BYPASS_PASSWORD = "Zelify2026@";
+const DEMO_BYPASS_STORAGE_KEY = "zelify_demo_bypass";
+
 // ============================================================================
 // TRANSLATIONS
 // ============================================================================
@@ -55,7 +59,7 @@ const TRANSLATIONS = {
     reqEmail: "El correo es obligatorio.",
     reqPassword: "La contraseña es obligatoria.",
     placeholderEmail: "admin@tuempresa.com",
-    placeholderPassword: "Ingresa tu contraseña",
+    placeholderPassword: "Ingresa tu contraseña", 
     noAccount: "¿No tienes cuenta? ",
     createAccount: "Crear cuenta",
     otpTitle: "Verifica tu identidad",
@@ -367,6 +371,40 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
+
+    const normalizedEmail = data.email.trim().toLowerCase();
+    const isDemoBypassLogin =
+      normalizedEmail === DEMO_BYPASS_EMAIL && data.password === DEMO_BYPASS_PASSWORD;
+
+    if (isDemoBypassLogin) {
+      const demoAuthSession: AuthSuccessResponse = {
+        access_token: "demo-bypass-access-token",
+        refresh_token: "demo-bypass-refresh-token",
+        user: {
+          id: "demo-bypass-user",
+          email: DEMO_BYPASS_EMAIL,
+          full_name: "Demo User",
+          status: "ACTIVE",
+        },
+        organization: {
+          id: "demo-bypass-org",
+          name: "Demo Organization",
+          status: "ACTIVE",
+        },
+        roles: ["OWNER"],
+      };
+      persistAuthSession(demoAuthSession);
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(DEMO_BYPASS_STORAGE_KEY, "true");
+      }
+      setLoading(false);
+      window.location.href = getDefaultDashboardPath(demoAuthSession.roles);
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem(DEMO_BYPASS_STORAGE_KEY);
+    }
 
     const authBaseUrl = process.env.NEXT_PUBLIC_AUTH_API_URL;
     if (!authBaseUrl) {

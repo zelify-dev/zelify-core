@@ -38,6 +38,7 @@ export function JournalEntriesScreen() {
   const [filter, setFilter] = useState("none");
   const [pageSize, setPageSize] = useState(50);
   const [page, setPage] = useState(1);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const totalPages = Math.max(1, Math.ceil(JOURNAL_ENTRIES_TOTAL / pageSize));
 
@@ -48,10 +49,12 @@ export function JournalEntriesScreen() {
 
   const goPrev = () => setPage((p) => Math.max(1, p - 1));
   const goNext = () => setPage((p) => Math.min(totalPages, p + 1));
+  const mockAction = (label: string) => setActionMessage(`Acción ejecutada: ${label}`);
 
   return (
     <div className="zelify-journal-entries">
       <AccountingPageHeader />
+      {actionMessage ? <div className="zelify-workspace-page__subtitle">{actionMessage}</div> : null}
 
       <div className="zelify-journal-entries__filters">
         <div className="zelify-journal-entries__filters-left">
@@ -87,7 +90,7 @@ export function JournalEntriesScreen() {
           </div>
 
           <div className="zelify-journal-entries__filter-btn-wrap">
-            <AppButton type="button" tone="neutral" className="zelify-journal-entries__filter-btn">
+            <AppButton type="button" tone="neutral" className="zelify-journal-entries__filter-btn" onClick={() => mockAction("Aplicar filtro de asientos")}>
               {t("accounting.journalEntries.filterButton")}
             </AppButton>
           </div>
@@ -99,24 +102,25 @@ export function JournalEntriesScreen() {
             className="zelify-journal-entries__help"
             aria-label={t("accounting.journalEntries.helpAria")}
             title={t("accounting.journalEntries.helpTitle")}
+            onClick={() => mockAction("Abrir ayuda de asientos")}
           >
             <CircleHelp size={18} strokeWidth={1.75} aria-hidden />
           </button>
-          <AppButton type="button" tone="neutral" className="zelify-journal-entries__primary-action">
+          <AppButton type="button" tone="neutral" className="zelify-journal-entries__primary-action" onClick={() => mockAction("Nuevo asiento contable")}>
             {t("accounting.journalEntries.newJournalEntry")}
           </AppButton>
-          <AppButton type="button" tone="primary" className="zelify-journal-entries__columns-btn">
+          <AppButton type="button" tone="primary" className="zelify-journal-entries__columns-btn" onClick={() => mockAction("Configurar columnas personalizadas")}>
             {t("accounting.journalEntries.customColumns")}
             <ChevronDown size={16} strokeWidth={2} aria-hidden />
           </AppButton>
-          <AppIconButton ariaLabel={t("accounting.journalEntries.viewAria")} className="zelify-journal-entries__settings-icon">
+          <AppIconButton ariaLabel={t("accounting.journalEntries.viewAria")} className="zelify-journal-entries__settings-icon" onClick={() => mockAction("Cambiar vista de asientos")}>
             <LayoutList size={20} strokeWidth={1.75} />
           </AppIconButton>
         </div>
       </div>
 
       <div className="zelify-journal-entries__edit-row">
-        <button type="button" className="zelify-journal-entries__edit-columns">
+        <button type="button" className="zelify-journal-entries__edit-columns" onClick={() => mockAction("Editar columnas")}>
           {t("accounting.journalEntries.editColumns")}
         </button>
       </div>
@@ -205,6 +209,7 @@ export function JournalEntriesScreen() {
                     type="button"
                     className="zelify-journal-entries__info-btn"
                     aria-label={t("accounting.journalEntries.rowInfoAria")}
+                    onClick={() => mockAction(`Ver detalle de asiento ${row.entryId}`)}
                   >
                     <Info size={14} strokeWidth={2.5} aria-hidden />
                   </button>

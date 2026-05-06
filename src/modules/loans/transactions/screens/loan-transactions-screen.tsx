@@ -17,12 +17,17 @@ import "./loan-transactions-screen.css";
 export const LoanTransactionsScreen: React.FC = () => {
   const { t } = useI18n();
   const [transactions, setTransactions] = useState<LoanTransaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<LoanTransaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
+  const [selectedProductId, setSelectedProductId] = useState("all");
+  const [selectedStatus, setSelectedStatus] = useState("all");
 
   useEffect(() => {
     async function loadData() {
       try {
         const data = await loanTransactionsService.getTransactions();
+        setAllTransactions(data);
         setTransactions(data);
       } catch (error) {
         console.error("Failed to load loan transactions:", error);
@@ -47,6 +52,9 @@ export const LoanTransactionsScreen: React.FC = () => {
               <p className="zelify-workspace-page__subtitle">
                 {t("loans.transactions.subtitle")}
               </p>
+              <p className="zelify-workspace-page__subtitle">
+                Operaciones vinculadas a productos de préstamo con trazabilidad para auditoría.
+              </p>
             </div>
             <div className="zelify-workspace-page__actions zelify-loan-transactions__actions">
               <AppButton
@@ -65,6 +73,7 @@ export const LoanTransactionsScreen: React.FC = () => {
                 onClick={() => {
                   setLoading(true);
                   loanTransactionsService.getTransactions().then((data) => {
+                    setAllTransactions(data);
                     setTransactions(data);
                     setLoading(false);
                   });
@@ -77,7 +86,19 @@ export const LoanTransactionsScreen: React.FC = () => {
           </header>
 
           <section className="zelify-workspace-page__filters">
-            <LoanTransactionsFilters />
+            <LoanTransactionsFilters
+              query={query}
+              onQueryChange={(value) => {
+                setQuery(value);
+              }}
+              productId={selectedProductId}
+              onProductIdChange={setSelectedProductId}
+              status={selectedStatus}
+              onStatusChange={setSelectedStatus}
+              productOptions={Array.from(
+                new Map(allTransactions.map((tx) => [tx.productId, { id: tx.productId, name: tx.productName }])).values()
+              )}
+            />
           </section>
 
           <main className="zelify-workspace-page__content">
@@ -86,7 +107,21 @@ export const LoanTransactionsScreen: React.FC = () => {
                 <p>{t("loans.transactions.loading")}</p>
               </div>
             ) : (
-              <LoanTransactionsTable transactions={transactions} />
+              <LoanTransactionsTable
+                transactions={transactions.filter((tx) => {
+                  if (selectedProductId !== "all" && tx.productId !== selectedProductId) return false;
+                  if (selectedStatus !== "all" && tx.status !== selectedStatus) return false;
+                  if (!query.trim()) return true;
+                  const q = query.toLowerCase();
+                  return (
+                    tx.id.toLowerCase().includes(q) ||
+                    tx.accountId.toLowerCase().includes(q) ||
+                    tx.accountHolder.toLowerCase().includes(q) ||
+                    tx.productName.toLowerCase().includes(q) ||
+                    tx.productId.toLowerCase().includes(q)
+                  );
+                })}
+              />
             )}
           </main>
         </div>

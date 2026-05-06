@@ -92,17 +92,29 @@
 /* Overview Sections */
 .zelify-customer-overview {
   display: grid;
-  gap: 20px;
+  gap: 24px;
 }
 
 .zelify-customer-overview__accounts .zelify-settings-data-table-wrap {
   border-radius: 10px;
 }
 
+.zelify-customer-overview .zelify-panel {
+  padding: 18px 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+}
+
+.zelify-customer-overview .zelify-panel__header {
+  margin-bottom: 12px;
+}
+
 .zelify-customer-overview__account-name {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .zelify-customer-overview__account-name strong {
@@ -124,12 +136,12 @@
 .zelify-customer-overview__info-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
+  gap: 24px;
 }
 
 .zelify-info-list {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   margin: 0;
 }
 
@@ -147,20 +159,37 @@
 .zelify-info-list__item {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
+  gap: 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #ffffff;
 }
 
 .zelify-info-list__item dt {
-  color: #64748b;
-  font-size: 13px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .zelify-info-list__item dd {
   margin: 0;
   color: #0a1538;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   text-align: right;
+}
+
+@media (max-width: 1100px) {
+  .zelify-customer-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .zelify-customer-overview__info-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Activity Sidebar / Timeline */

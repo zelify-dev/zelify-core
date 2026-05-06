@@ -39,6 +39,7 @@ export function ChartOfAccountsScreen() {
   const [category, setCategory] = useState<CoaCategory>("all");
   const [pageSize, setPageSize] = useState(50);
   const [page, setPage] = useState(1);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const filtered = useMemo(
     () => filterChartOfAccounts(MOCK_CHART_OF_ACCOUNTS_FULL, category),
@@ -60,10 +61,12 @@ export function ChartOfAccountsScreen() {
   const goPrev = () => setPage((p) => Math.max(1, p - 1));
   const goNext = () => setPage((p) => Math.min(totalPages, p + 1));
   const goLast = () => setPage(totalPages);
+  const mockAction = (label: string) => setActionMessage(`Acción ejecutada: ${label}`);
 
   return (
     <div className="zelify-accounting-coa">
       <AccountingPageHeader />
+      {actionMessage ? <div className="zelify-workspace-page__subtitle">{actionMessage}</div> : null}
 
       <div className="zelify-accounting-coa__filters">
         <div className="zelify-accounting-coa__filter-pills" role="tablist" aria-label="Account category">
@@ -88,6 +91,7 @@ export function ChartOfAccountsScreen() {
           className="zelify-accounting-coa__filter-help"
           aria-label="Ayuda: categorías"
           title="Categorías"
+          onClick={() => mockAction("Ayuda de categorías")}
         >
           <CircleHelp size={18} strokeWidth={1.75} aria-hidden />
         </button>
@@ -198,11 +202,21 @@ export function ChartOfAccountsScreen() {
                 </td>
                 <td className="is-actions">
                   <div className="zelify-accounting-coa__actions">
-                    <button type="button" className="zelify-accounting-coa__icon-btn" aria-label="Edit">
+                    <button
+                      type="button"
+                      className="zelify-accounting-coa__icon-btn"
+                      aria-label="Edit"
+                      onClick={() => mockAction(`Editar cuenta ${row.glCode}`)}
+                    >
                       <Pencil size={14} strokeWidth={2} aria-hidden />
                     </button>
                     {row.showDeleteAction ? (
-                      <button type="button" className="zelify-accounting-coa__icon-btn" aria-label="Remove">
+                      <button
+                        type="button"
+                        className="zelify-accounting-coa__icon-btn"
+                        aria-label="Remove"
+                        onClick={() => mockAction(`Eliminar cuenta ${row.glCode}`)}
+                      >
                         <X size={14} strokeWidth={2} aria-hidden />
                       </button>
                     ) : null}

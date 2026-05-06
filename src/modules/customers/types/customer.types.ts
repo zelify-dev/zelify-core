@@ -5,14 +5,27 @@ export enum ClientState {
   PENDING = 'PENDING',
 }
 
+export type KycStatus = "NOT_STARTED" | "PENDING" | "VERIFIED" | "REJECTED";
+export type AmlStatus = "NOT_STARTED" | "CLEAR" | "REVIEW" | "BLOCKED";
+export type DocumentType = "INE" | "CURP" | "RFC" | "PASAPORTE" | "RESIDENCIA";
+
 export interface Customer {
   id: string;
   fullName: string;
+  email: string;
+  mobilePhone: string;
+  documentType: DocumentType;
+  documentNumber: string;
   state: ClientState;
-  creditOfficer: string;
-  totalBalance: number;
+  statusReason?: string;
+  statusChangedAt?: string;
+  address?: string;
   lastModified: string;
   birthDate: string;
+  // Optional until Zelify products populate them automatically
+  kycStatus?: KycStatus;
+  kycVerifiedAt?: string;
+  amlStatus?: AmlStatus;
 }
 
 export interface CustomerFilters {

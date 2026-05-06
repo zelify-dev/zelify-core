@@ -15,17 +15,17 @@ export const mockAdminViews: AdminViewRow[] = [
   {
     id: "v1",
     parentMenu: "clients",
-    name: "F1 Pilot",
+    name: "Microempresarios activos",
     isFavorite: true,
-    filter: "Where Client Type is F1 Pilot",
+    filter: "Where Client Type is Microempresario and State is Active",
     owner: "you",
   },
   {
     id: "v2",
     parentMenu: "clients",
-    name: "Tennis Player",
+    name: "Profesionales independientes",
     isFavorite: true,
-    filter: "Where Client Type is Tennis Player",
+    filter: "Where Client Type is Profesional Independiente",
     owner: "zelify",
   },
   {

@@ -1,44 +1,56 @@
 "use client";
 
 import React from "react";
-import { Search, Filter, Calendar, Home, ChevronDown } from "lucide-react";
+import { Search } from "lucide-react";
 
 import "./loan-transactions-filters.css";
 
-export const LoanTransactionsFilters: React.FC = () => {
+type LoanTransactionsFiltersProps = {
+  query: string;
+  onQueryChange: (value: string) => void;
+  productId: string;
+  onProductIdChange: (value: string) => void;
+  status: string;
+  onStatusChange: (value: string) => void;
+  productOptions: Array<{ id: string; name: string }>;
+};
+
+export const LoanTransactionsFilters: React.FC<LoanTransactionsFiltersProps> = ({
+  query,
+  onQueryChange,
+  productId,
+  onProductIdChange,
+  status,
+  onStatusChange,
+  productOptions,
+}) => {
   return (
     <div className="zelify-loan-tx-filters">
-      {/* Branch Selector (Premium Mockup) */}
-      <div className="zelify-loan-tx-filters__dropdown">
-        <Home size={16} />
-        <span>Branch</span>
-        <span className="zelify-loan-tx-filters__label">All Branches</span>
-        <ChevronDown size={16} />
-      </div>
+      <select className="zelify-loan-tx-filters__select" value={productId} onChange={(e) => onProductIdChange(e.target.value)}>
+        <option value="all">Todos los productos</option>
+        {productOptions.map((product) => (
+          <option key={product.id} value={product.id}>
+            {product.name}
+          </option>
+        ))}
+      </select>
 
-      {/* Date Range Selector (Premium Mockup) */}
-      <div className="zelify-loan-tx-filters__dropdown">
-        <Calendar size={16} />
-        <span>Range</span>
-        <span className="zelify-loan-tx-filters__label">Last 30 Days</span>
-        <ChevronDown size={16} />
-      </div>
+      <select className="zelify-loan-tx-filters__select" value={status} onChange={(e) => onStatusChange(e.target.value)}>
+        <option value="all">Todos los estados</option>
+        <option value="ENTERED">Registrado</option>
+        <option value="PENDING">Pendiente</option>
+        <option value="REVERSED">Revertido</option>
+      </select>
 
-      {/* Search Bar */}
       <div className="zelify-loan-tx-filters__search">
         <Search size={18} className="zelify-loan-tx-filters__search-icon" />
-        <input 
-          type="text" 
-          placeholder="Search by account ID, holder or transaction ID..." 
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => onQueryChange(e.target.value)}
+          placeholder="Buscar por transacción, cuenta o cliente..."
           className="zelify-loan-tx-filters__input"
         />
-      </div>
-
-      <div className="zelify-loan-tx-filters__actions">
-        <button className="zelify-loan-tx-filters__btn zelify-loan-tx-filters__btn--primary">
-          <Filter size={16} style={{ marginRight: '8px' }} />
-          Filter
-        </button>
       </div>
     </div>
   );

@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Home, LayoutList } from "lucide-react";
 import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
 import { SettingsDataTable } from "@/components/ui/organisms/settings-data-table/settings-data-table";
@@ -10,8 +9,8 @@ import { AppIconButton } from "@/components/ui/atoms/icon-button/app-icon-button
 import { AppSelect } from "@/components/ui/atoms/select/app-select";
 import { FieldLabel } from "@/components/ui/atoms/field-label/field-label";
 import { SandboxBanner } from "@/modules/customers/components/sandbox-banner";
-import { getSystemActivitiesSlice, SYSTEM_ACTIVITIES_TOTAL } from "../data/system-activities.mock";
 import { useI18n } from "@/providers/i18n-provider";
+import type { SystemActivityRow } from "../types/system-activity.types";
 
 import "@/components/ui/templates/workspace-page.css";
 import "@/components/ui/organisms/settings-data-table/settings-data-table.css";
@@ -22,22 +21,37 @@ const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 export function ActivitiesScreen() {
   const { t } = useI18n();
   const [branch, setBranch] = useState("all");
-  const [filter, setFilter] = useState("none");
+  const [filter, setFilter] = useState("all");
   const [pageSize, setPageSize] = useState(50);
   const [page, setPage] = useState(1);
+  const [rows, setRows] = useState<SystemActivityRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  const totalPages = Math.max(1, Math.ceil(SYSTEM_ACTIVITIES_TOTAL / pageSize));
-
-  const rows = useMemo(
-    () => getSystemActivitiesSlice(page, pageSize),
-    [page, pageSize]
-  );
-
-  const rangeStart = SYSTEM_ACTIVITIES_TOTAL === 0 ? 0 : (page - 1) * pageSize + 1;
-  const rangeEnd = Math.min(page * pageSize, SYSTEM_ACTIVITIES_TOTAL);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const rangeStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = Math.min(page * pageSize, total);
 
   const goPrev = () => setPage((p) => Math.max(1, p - 1));
   const goNext = () => setPage((p) => Math.min(totalPages, p + 1));
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      const response = await fetch(`/api/activities?page=${page}&pageSize=${pageSize}&module=${filter}&branch=${branch}`, { cache: "no-store" });
+      if (!response.ok) {
+        setRows([]);
+        setTotal(0);
+        setLoading(false);
+        return;
+      }
+      const json = (await response.json()) as { data: SystemActivityRow[]; total: number };
+      setRows(json.data ?? []);
+      setTotal(json.total ?? 0);
+      setLoading(false);
+    };
+    void load();
+  }, [page, pageSize, filter, branch]);
 
   return (
     <div className="zelify-workspace-page">
@@ -98,9 +112,12 @@ export function ActivitiesScreen() {
                 onChange={(e) => setFilter(e.target.value)}
                 className="zelify-activities__filter-select"
               >
-                <option value="none">{t("activities.noFilter")}</option>
-                <option value="user">{t("activities.byUser")}</option>
-                <option value="action">{t("activities.byAction")}</option>
+                <option value="all">Todos los módulos</option>
+                <option value="customers">Clientes</option>
+                <option value="companies">Empresas</option>
+                <option value="loans">Préstamos</option>
+                <option value="deposits">Depósitos</option>
+                <option value="branches">Sucursales</option>
               </AppSelect>
             </div>
 
@@ -142,7 +159,7 @@ export function ActivitiesScreen() {
                 {t("activities.range")
                   .replace("{start}", String(rangeStart))
                   .replace("{end}", String(rangeEnd))
-                  .replace("{total}", String(SYSTEM_ACTIVITIES_TOTAL))}
+                  .replace("{total}", String(total))}
               </span>
               <div className="zelify-data-table-footer__pages">
                 <button
@@ -180,32 +197,16 @@ export function ActivitiesScreen() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => (
+                {loading ? (
+                  <tr><td colSpan={6}>Cargando actividades...</td></tr>
+                ) : rows.map((row) => (
                   <tr key={row.id}>
-                    <td>{row.creationDate}</td>
-                    <td>
-                      <Link href="#" className="zelify-activities__cell-link" onClick={(e) => e.preventDefault()}>
-                        {t(`activities.mock.users.${row.userKey}`)}
-                      </Link>
-                    </td>
-                    <td>
-                      <span className="zelify-activities__action">{t(`activities.mock.actions.${row.actionKey}`)}</span>
-                    </td>
-                    <td>
-                      <Link href="#" className="zelify-activities__cell-link" onClick={(e) => e.preventDefault()}>
-                        {t(`activities.mock.items.${row.itemKey}`)}
-                      </Link>
-                    </td>
-                    <td className="zelify-activities__cell-mono">{row.affectedItemId}</td>
-                    <td>
-                      {row.clientKey === "none" ? (
-                        <span className="zelify-activities__cell-dash">{t("activities.mock.noClient")}</span>
-                      ) : (
-                        <Link href="#" className="zelify-activities__cell-link" onClick={(e) => e.preventDefault()}>
-                          {t(`activities.mock.clients.${row.clientKey}`)}
-                        </Link>
-                      )}
-                    </td>
+                    <td>{new Date(row.created_at).toLocaleString("es-MX")}</td>
+                    <td>{row.actor}</td>
+                    <td><span className="zelify-activities__action">{row.action}</span></td>
+                    <td>{row.affected_item_name ?? "—"}</td>
+                    <td className="zelify-activities__cell-mono">{row.affected_item_id ?? "—"}</td>
+                    <td>{row.affected_client_name ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>
