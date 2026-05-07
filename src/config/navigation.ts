@@ -18,6 +18,7 @@ export const zelifyTopNavItems: ZelifyTopNavItem[] = [
   { id: "groups", labelKey: "nav.top.groups", href: "/groups" },
   { id: "loans", labelKey: "nav.top.loans", href: "/loans" },
   { id: "deposits", labelKey: "nav.top.deposits", href: "/deposits" },
+  { id: "lim", labelKey: "nav.top.lim", href: "/lim" },
   { id: "activities", labelKey: "nav.top.activities", href: "/activities" },
   { id: "branches", labelKey: "nav.top.branches", href: "/branches" },
   { id: "products", labelKey: "nav.top.products", href: "/products" },

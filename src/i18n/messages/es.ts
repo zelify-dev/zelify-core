@@ -65,6 +65,7 @@ export const es: Messages = {
       groups: "Grupos",
       loans: "Préstamos",
       deposits: "Depósitos",
+      lim: "LIM",
       loanTransactions: "Transacciones de préstamo",
       depositTransactions: "Transacciones de depósito",
       activities: "Actividades",
