@@ -101,6 +101,10 @@
   color: #cbd5e1;
 }
 
+.zelify-lim-pipeline .muted {
+  color: #94a3b8;
+}
+
 .zelify-lim-step {
   border: 1px dashed #cbd5e1;
   border-radius: 10px;
@@ -175,4 +179,437 @@
 .zelify-lim-mapping th {
   background: #f1f5f9;
   color: #0f172a;
+}
+
+/* —— Overview architecture SVG —— */
+.zelify-lim-arch {
+  margin-top: 12px;
+}
+
+.zelify-lim-arch__caption {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.zelify-lim-arch__svg {
+  width: 100%;
+  max-width: 640px;
+  height: auto;
+  display: block;
+}
+
+.zelify-lim-arch__txt {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+/* —— Sim header —— */
+.zelify-lim-simtop {
+  margin-bottom: 12px;
+}
+
+.zelify-lim-card--grow {
+  width: 100%;
+}
+
+.zelify-lim-lead {
+  margin: 0 0 12px;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.zelify-lim-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.zelify-lim-toolbar__field {
+  min-width: 260px;
+  flex: 1;
+}
+
+.zelify-lim-toolbar__field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+/* —— Progress —— */
+.zelify-lim-progress-wrap {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.zelify-lim-progress {
+  flex: 1;
+  height: 10px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.zelify-lim-progress__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #1d4ed8, #6366f1);
+  transition: width 0.35s ease;
+}
+
+.zelify-lim-progress__lbl {
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+  white-space: nowrap;
+}
+
+/* —— Pipeline rail —— */
+.zelify-lim-rail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0;
+  margin-top: 16px;
+  padding-top: 4px;
+  overflow-x: auto;
+}
+
+.zelify-lim-rail__slot {
+  display: flex;
+  align-items: center;
+}
+
+.zelify-lim-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 72px;
+  padding: 8px 6px;
+  border-radius: 10px;
+  border: 2px solid #e2e8f0;
+  background: #fff;
+  cursor: pointer;
+  font-size: 10px;
+  color: #64748b;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    transform 0.15s;
+}
+
+.zelify-lim-node:hover:not(:disabled) {
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+}
+
+.zelify-lim-node:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.zelify-lim-node__abbr {
+  font-weight: 800;
+  font-size: 12px;
+  color: #0f172a;
+}
+
+.zelify-lim-node__lbl {
+  text-align: center;
+  line-height: 1.2;
+}
+
+.zelify-lim-node--todo {
+  background: #f8fafc;
+}
+
+.zelify-lim-node--current {
+  border-color: #1d4ed8;
+  background: #eff6ff;
+  box-shadow: 0 0 0 1px rgba(29, 78, 216, 0.2);
+  color: #1e3a8a;
+}
+
+.zelify-lim-node--done {
+  border-color: #10b981;
+  background: #ecfdf5;
+}
+
+.zelify-lim-node--done .zelify-lim-node__abbr {
+  color: #047857;
+}
+
+@keyframes lim-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(29, 78, 216, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(29, 78, 216, 0);
+  }
+}
+
+.zelify-lim-node--pulse {
+  animation: lim-pulse 1.2s ease-in-out infinite;
+}
+
+.zelify-lim-rail__conn {
+  width: 18px;
+  height: 3px;
+  margin: 0 2px;
+  align-self: center;
+  margin-top: -24px;
+  background: #e2e8f0;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.zelify-lim-rail__conn.is-done {
+  background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.zelify-lim-rail__conn.is-active {
+  background: linear-gradient(90deg, #1d4ed8, #60a5fa);
+}
+
+/* —— Two-column sim grid —— */
+.zelify-lim-simgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .zelify-lim-simgrid {
+    grid-template-columns: 1fr;
+  }
+
+  .zelify-lim-rail__conn {
+    margin-top: 0;
+  }
+}
+
+/* —— Charts —— */
+.zelify-lim-charts {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
+}
+
+.zelify-lim-charts__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.zelify-lim-chartbox {
+  margin-bottom: 12px;
+}
+
+.zelify-lim-chartbox:last-child {
+  margin-bottom: 0;
+}
+
+.zelify-lim-chartbox__t {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.zelify-lim-chartbox__hint {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.zelify-lim-spark {
+  width: 100%;
+  height: 88px;
+}
+
+.zelify-lim-spark__svg {
+  width: 100%;
+  height: 88px;
+}
+
+.zelify-lim-bars__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 4fr auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 11px;
+}
+
+.zelify-lim-bars__lab {
+  color: #475569;
+}
+
+.zelify-lim-bars__track {
+  height: 12px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.zelify-lim-bars__fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.55s ease;
+}
+
+.zelify-lim-bars__pct {
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 11px;
+  min-width: 36px;
+  text-align: right;
+}
+
+.zelify-lim-horiz {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 120px;
+  padding-top: 8px;
+}
+
+.zelify-lim-horiz__col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.zelify-lim-horiz__bar {
+  width: 100%;
+  max-width: 48px;
+  min-height: 8px;
+  border-radius: 6px 6px 2px 2px;
+  transition: height 0.55s ease;
+  align-self: flex-end;
+}
+
+.zelify-lim-horiz__lbl {
+  font-size: 10px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+/* —— Routing deck —— */
+.zelify-lim-route {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fafafa;
+}
+
+.zelify-lim-route__title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.zelify-lim-route__grid {
+  display: grid;
+  gap: 8px;
+}
+
+@media (min-width: 520px) {
+  .zelify-lim-route__grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  }
+}
+
+.zelify-lim-route__card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px;
+  background: #fff;
+  opacity: 0.55;
+  transition:
+    opacity 0.3s,
+    border-color 0.3s,
+    box-shadow 0.3s;
+}
+
+.zelify-lim-route__card.is-lit {
+  opacity: 1;
+  border-color: #10b981;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.15);
+}
+
+.zelify-lim-route__card p {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #475569;
+}
+
+.zelify-lim-route__card strong {
+  font-size: 12px;
+  color: #0f172a;
+}
+
+.zelify-lim-route__icon {
+  display: block;
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+
+.zelify-lim-route__corewall {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed #cbd5e1;
+  font-size: 11px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zelify-lim-route__wall {
+  width: 4px;
+  height: 14px;
+  background: #94a3b8;
+  border-radius: 2px;
+}
+
+.zelify-lim-insight {
+  border-left: 4px solid #1d4ed8;
+}
+
+.zelify-lim-insight__title {
+  font-weight: 800;
+  margin: 0 0 8px;
+  color: #0f172a;
+}
+
+.zelify-lim-insight__body {
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.zelify-lim-log {
+  max-height: 200px;
 }
