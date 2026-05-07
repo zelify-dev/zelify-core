@@ -3,6 +3,24 @@
   margin: 0 auto;
 }
 
+.zelify-lim-title-wrap {
+  padding: 28px 8px 32px;
+  margin: 0 -8px 8px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+@media (min-width: 768px) {
+  .zelify-lim-title-wrap {
+    padding: 36px 16px 40px;
+    margin: 0 -16px 12px;
+  }
+}
+
+.zelify-lim-page-title {
+  margin: 0;
+  line-height: 1.25;
+}
+
 .zelify-lim-hero {
   border: 1px solid #e2e8f0;
   border-radius: 14px;
@@ -557,6 +575,12 @@
   box-shadow: 0 4px 14px rgba(16, 185, 129, 0.15);
 }
 
+.zelify-lim-route__card.is-lit .zelify-lim-route__marker {
+  color: #047857;
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+}
+
 .zelify-lim-route__card p {
   margin: 6px 0 0;
   font-size: 11px;
@@ -569,10 +593,19 @@
   color: #0f172a;
 }
 
-.zelify-lim-route__icon {
-  display: block;
-  font-size: 18px;
-  margin-bottom: 4px;
+.zelify-lim-route__marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 6px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #1e40af;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
 }
 
 .zelify-lim-route__corewall {

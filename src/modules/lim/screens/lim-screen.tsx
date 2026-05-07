@@ -5,8 +5,6 @@ import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-nav
 import { AppBadge } from "@/components/ui/atoms/badge/app-badge";
 import { AppButton } from "@/components/ui/atoms/button/app-button";
 import { AppSelect } from "@/components/ui/atoms/select/app-select";
-import { SandboxBanner } from "@/modules/customers/components/sandbox-banner";
-
 import "@/components/ui/templates/workspace-page.css";
 import "./lim-screen.css";
 
@@ -43,10 +41,10 @@ const SCENARIOS: Record<
   withdrawal: {
     label: "Salida atípica de depósitos (multi-sede)",
     ingestLines: [
-      "batch: balances diarios consolidados (MXN, USD) ✓",
-      "stream: tx depósito/retiro últimos 15 min ✓",
-      "pricing histórico plazo fijo (últimos 90d) ✓",
-      "atributos cliente: segmento, antigüedad, canal ✓",
+      "batch: balances diarios consolidados (MXN, USD) [ok]",
+      "stream: tx depósito/retiro últimos 15 min [ok]",
+      "pricing histórico plazo fijo (últimos 90d) [ok]",
+      "atributos cliente: segmento, antigüedad, canal [ok]",
     ],
     analyticsHint:
       "Modelo de comportamiento detecta cluster con retiros >2σ vs baseline semanal por producto y sede.",
@@ -66,15 +64,15 @@ const SCENARIOS: Record<
   repricing: {
     label: "Oportunidad de repricing segmentado",
     ingestLines: [
-      "batch: books de tasas vigentes + competencia proxy ✓",
-      "near real-time: volumen y costo de fondeo por tramo ✓",
-      "histórico: spreads por producto y cupo ✓",
+      "batch: books de tasas vigentes + competencia proxy [ok]",
+      "near real-time: volumen y costo de fondeo por tramo [ok]",
+      "histórico: spreads por producto y cupo [ok]",
     ],
     analyticsHint:
       "Detección de elasticidad estimada y margen neto proyectado por cohorte (framework; la tasa final la define el banco).",
     insightTitle: "Escenario: repricing selectivo rentable",
     insightBody:
-      "Cohortes retail plazo 90–180d toleran +15 bps sin churn proyectado crítico según modelo sandbox. Salida: matriz de escenarios para comité (API), no aplicación en core.",
+      "Cohortes retail plazo 90–180d toleran +15 bps sin churn proyectado crítico según modelo de elasticidad estimado. Salida: matriz de escenarios para comité (API), no aplicación en core.",
     alertTone: "success",
     workflowPrimary: "Pricing / ALCO — tarea “evaluar escenarios LIM-042”",
     workflowSecondary: "Comercial — lista corta de clientes para propuesta (export BI)",
@@ -88,9 +86,9 @@ const SCENARIOS: Record<
   liquidity: {
     label: "Forecast de liquidez y escenario adverso",
     ingestLines: [
-      "batch: saldos consolidados multi-entidad ✓",
-      "proyección cashflow entrada/salida 30/60/90d ✓",
-      "eventos macro / festivos / seasonality ✓",
+      "batch: saldos consolidados multi-entidad [ok]",
+      "proyección cashflow entrada/salida 30/60/90d [ok]",
+      "eventos macro / festivos / seasonality [ok]",
     ],
     analyticsHint:
       "Motor de escenarios simula brecha de liquidez bajo stress moderado; ranking de palancas (solo informativo).",
@@ -124,7 +122,7 @@ const FLOW_STEPS: { phase: Exclude<PipelinePhase, "idle">; label: string; abbr: 
   { phase: "analytics", label: "Analytics / IA", abbr: "A" },
   { phase: "insights", label: "Insights", abbr: "I" },
   { phase: "workflow", label: "Workflow", abbr: "WF" },
-  { phase: "done", label: "Listo", abbr: "✓" },
+  { phase: "done", label: "Listo", abbr: "OK" },
 ];
 
 function phaseLabelFromIndex(stepIndex: number): string {
@@ -285,7 +283,7 @@ function LimScenarioCharts({
   return (
     <div className="zelify-lim-charts">
       <div className="zelify-lim-charts__head">
-        <span>Señales visuales (demo)</span>
+        <span>Señales visuales</span>
         <AppBadge tone={cfg.alertTone} size="sm">
           {scenario === "withdrawal" ? "Énfasis saldos" : scenario === "repricing" ? "Énfasis spreads" : "Énfasis liquidez"}
         </AppBadge>
@@ -388,23 +386,23 @@ function LimRoutingDeck({
       <p className="zelify-lim-route__title">Enrutamiento (sin ejecución en core)</p>
       <div className="zelify-lim-route__grid">
         <div className={`zelify-lim-route__card ${lit ? "is-lit" : ""}`}>
-          <span className="zelify-lim-route__icon" aria-hidden>
-            🏦
+          <span className="zelify-lim-route__marker" aria-hidden>
+            T
           </span>
           <strong>Tesorería / Liquidez</strong>
           <p>{primary}</p>
         </div>
         <div className={`zelify-lim-route__card ${lit ? "is-lit" : ""}`}>
-          <span className="zelify-lim-route__icon" aria-hidden>
-            📣
+          <span className="zelify-lim-route__marker" aria-hidden>
+            C
           </span>
           <strong>Comercial / CRM</strong>
           <p>{secondary}</p>
         </div>
         {showAlco ? (
           <div className={`zelify-lim-route__card ${lit ? "is-lit" : ""}`}>
-            <span className="zelify-lim-route__icon" aria-hidden>
-              📊
+            <span className="zelify-lim-route__marker" aria-hidden>
+              A
             </span>
             <strong>ALCO / Pricing</strong>
             <p>{scenario === "liquidity" ? "Briefing de escenario B adjunto al workflow." : "Matriz de escenarios en BI."}</p>
@@ -495,10 +493,11 @@ export function LimScreen() {
   return (
     <div className="zelify-workspace-page">
       <ZelifyTopNavbar />
-      <SandboxBanner />
       <div className="zelify-workspace-page__scroll">
         <div className="zelify-workspace-page__inner zelify-lim-wrap">
-          <h1 className="zelify-workspace-page__title">LIM — Liquidity Intelligence & Management</h1>
+          <div className="zelify-lim-title-wrap">
+            <h1 className="zelify-workspace-page__title zelify-lim-page-title">LIM — Liquidity Intelligence & Management</h1>
+          </div>
 
           <div className="zelify-lim-tabs" role="tablist">
             <button type="button" className={tab === "resumen" ? "is-active" : ""} onClick={() => setTab("resumen")}>
@@ -642,7 +641,7 @@ export function LimScreen() {
                       </AppSelect>
                     </div>
                     <AppButton tone="primary" onClick={runAuto} disabled={isPlaying}>
-                      {isPlaying ? "Reproduciendo…" : "▶ Automático"}
+                      {isPlaying ? "Reproduciendo…" : "Automático"}
                     </AppButton>
                     <AppButton tone="secondary" onClick={nextManualStep} disabled={isPlaying || stepIndex >= PHASE_ORDER.length - 1}>
                       Siguiente paso
@@ -650,9 +649,6 @@ export function LimScreen() {
                     <AppButton tone="neutral" onClick={resetSimulation} disabled={isPlaying}>
                       Reiniciar
                     </AppButton>
-                    <AppBadge tone={cfg.alertTone} size="sm">
-                      Demo
-                    </AppBadge>
                   </div>
                   <div className="zelify-lim-progress-wrap">
                     <div className="zelify-lim-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPct}>
@@ -691,11 +687,6 @@ export function LimScreen() {
                   <p className="zelify-lim-insight__body">{cfg.insightBody}</p>
                 </div>
               ) : null}
-
-              <div className="zelify-lim-disclaimer">
-                <strong>Importante:</strong> gráficos y enrutamiento son ilustrativos para la demo. No hay ejecución
-                real de órdenes ni cambios en el core.
-              </div>
             </>
           ) : null}
 
