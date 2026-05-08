@@ -10,7 +10,7 @@ import { getLoginAuthErrorDisplay } from "@/lib/auth-error-messages";
 import { getDefaultDashboardPath } from "@/lib/dashboard-routing";
 
 const DEMO_BYPASS_EMAIL = "demo@zwippe.com";
-const DEMO_BYPASS_PASSWORD = "Zelify2026@";
+const DEMO_BYPASS_PASSWORD = "image.png";
 const DEMO_BYPASS_STORAGE_KEY = "zelify_demo_bypass";
 
 // ============================================================================
@@ -20,6 +20,9 @@ const TRANSLATIONS = {
   en: {
     welcome: "Welcome back",
     subWelcome: "Sign in to your account to access the dashboard.",
+
+
+    
     email: "Email",
     password: "Password",
     signIn: "Sign In",

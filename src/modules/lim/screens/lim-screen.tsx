@@ -1,745 +1,1022 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
-import { AppBadge } from "@/components/ui/atoms/badge/app-badge";
-import { AppButton } from "@/components/ui/atoms/button/app-button";
-import { AppSelect } from "@/components/ui/atoms/select/app-select";
 import "@/components/ui/templates/workspace-page.css";
 import "./lim-screen.css";
 
-type ScenarioId = "withdrawal" | "repricing" | "liquidity";
+type MainTab = "cashflow" | "bank" | "expected" | "reconciliation" | "financing" | "dashboard";
+type ScenarioId = "real" | "optimista" | "pesimista";
+type OptimisticMode = "5" | "20";
+type ViewMode = "mensual" | "trimestral" | "semestral" | "anual";
 
-type PipelinePhase =
-  | "idle"
-  | "ingest"
-  | "quality"
-  | "analytics"
-  | "insights"
-  | "workflow"
-  | "done";
+const MONTHS = ["May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic", "Ene", "Feb", "Mar", "Abr"];
 
-const SCENARIOS: Record<
-  ScenarioId,
-  {
-    label: string;
-    ingestLines: string[];
-    analyticsHint: string;
-    insightTitle: string;
-    insightBody: string;
-    alertTone: "success" | "warning" | "neutral";
-    workflowPrimary: string;
-    workflowSecondary: string;
-    /** Valores 0–100 para mini-gráfico de “índice de saldo” */
-    balanceSeries: number[];
-    /** Barras comparativas (repricing) */
-    spreadBars: { label: string; value: number }[];
-    /** Colchón de liquidez % proyectado T+30/60/90 */
-    cushionSeries: number[];
-  }
-> = {
-  withdrawal: {
-    label: "Salida atípica de depósitos (multi-sede)",
-    ingestLines: [
-      "batch: balances diarios consolidados (MXN, USD) [ok]",
-      "stream: tx depósito/retiro últimos 15 min [ok]",
-      "pricing histórico plazo fijo (últimos 90d) [ok]",
-      "atributos cliente: segmento, antigüedad, canal [ok]",
-    ],
-    analyticsHint:
-      "Modelo de comportamiento detecta cluster con retiros >2σ vs baseline semanal por producto y sede.",
-    insightTitle: "Señal: riesgo de salida concentrada",
-    insightBody:
-      "Segmento PYME · Plazo · Región Norte muestra caída de saldo acumulada ~8% en 48h vs tendencia. Recomendación sugerida (no ejecutada): campaña de retención prioritaria + revisión de oferta competitiva.",
-    alertTone: "warning",
-    workflowPrimary: "Tesorería — cola “stress liquidez regional” (solo revisión; sin movimiento de fondos)",
-    workflowSecondary: "Comercial — “next best action” leads alto valor (enrutado a CRM; sin repricing automático)",
-    balanceSeries: [100, 96, 91, 88, 85, 84],
-    spreadBars: [
-      { label: "Spread vigente", value: 42 },
-      { label: "Competencia (proxy)", value: 55 },
-    ],
-    cushionSeries: [78, 72, 68],
-  },
-  repricing: {
-    label: "Oportunidad de repricing segmentado",
-    ingestLines: [
-      "batch: books de tasas vigentes + competencia proxy [ok]",
-      "near real-time: volumen y costo de fondeo por tramo [ok]",
-      "histórico: spreads por producto y cupo [ok]",
-    ],
-    analyticsHint:
-      "Detección de elasticidad estimada y margen neto proyectado por cohorte (framework; la tasa final la define el banco).",
-    insightTitle: "Escenario: repricing selectivo rentable",
-    insightBody:
-      "Cohortes retail plazo 90–180d toleran +15 bps sin churn proyectado crítico según modelo de elasticidad estimado. Salida: matriz de escenarios para comité (API), no aplicación en core.",
-    alertTone: "success",
-    workflowPrimary: "Pricing / ALCO — tarea “evaluar escenarios LIM-042”",
-    workflowSecondary: "Comercial — lista corta de clientes para propuesta (export BI)",
-    balanceSeries: [100, 100, 101, 102, 102, 103],
-    spreadBars: [
-      { label: "Margen neto (base)", value: 48 },
-      { label: "Escenario +15 bps", value: 62 },
-    ],
-    cushionSeries: [82, 79, 76],
-  },
-  liquidity: {
-    label: "Forecast de liquidez y escenario adverso",
-    ingestLines: [
-      "batch: saldos consolidados multi-entidad [ok]",
-      "proyección cashflow entrada/salida 30/60/90d [ok]",
-      "eventos macro / festivos / seasonality [ok]",
-    ],
-    analyticsHint:
-      "Motor de escenarios simula brecha de liquidez bajo stress moderado; ranking de palancas (solo informativo).",
-    insightTitle: "Alerta temprana: brecha proyectada bajo escenario B",
-    insightBody:
-      "En escenario B (retiros +3pp, nuevo funding +50M), LIM proyecta uso cercano al límite operativo de colchón en T+18. Output: briefing + triggers a workflow; sin operaciones automáticas.",
-    alertTone: "warning",
-    workflowPrimary: "Tesorería — alerta “LIM-LIQ-URG” + checklist documentado",
-    workflowSecondary: "ALCO — sesión breve sugerida (calendario externo)",
-    balanceSeries: [100, 97, 93, 89, 86, 82],
-    spreadBars: [
-      { label: "Colchón mínimo reglamentario", value: 100 },
-      { label: "Proyección T+18", value: 94 },
-    ],
-    cushionSeries: [72, 58, 44],
-  },
+const BANKS_DATA = [
+  { name: "Banco Pichincha", account: "****4821", currency: "USD", balance: 1_420_300, syncAgo: "3 min", status: "Online" },
+  { name: "Produbanco", account: "****9034", currency: "USD", balance: 892_540, syncAgo: "5 min", status: "Online" },
+  { name: "Banco Guayaquil", account: "****2210", currency: "USD", balance: 673_100, syncAgo: "12 min", status: "Online" },
+  { name: "Banco Bolivariano", account: "****3381", currency: "USD", balance: 1_834_060, syncAgo: "9 min", status: "Online" },
+  { name: "Banco del Pacífico", account: "****8803", currency: "USD", balance: 182_400, syncAgo: "15 min", status: "Online" },
+];
+
+function fmt(v: number): string {
+  if (Math.abs(v) >= 1_000_000) return `$${(v / 1_000_000).toFixed(2)}M`;
+  if (Math.abs(v) >= 1_000) return `$${Math.round(v / 1_000)}K`;
+  return `$${v}`;
+}
+function fmtFull(v: number): string {
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(v);
+}
+
+type MonthRow = {
+  label: string;
+  balanceStart: number;
+  inflow: number;
+  inflowAR: number;
+  inflowServices: number;
+  inflowOther: number;
+  outflow: number;
+  outflowSuppliers: number;
+  outflowPayroll: number;
+  balanceEnd: number;
 };
 
-const PHASE_ORDER: Exclude<PipelinePhase, "idle">[] = [
-  "ingest",
-  "quality",
-  "analytics",
-  "insights",
-  "workflow",
-  "done",
-];
+function buildRows(scenario: ScenarioId, optimisticMode: OptimisticMode): MonthRow[] {
+  const growth =
+    scenario === "optimista" ? (optimisticMode === "20" ? 0.2 : 0.05) : scenario === "pesimista" ? -0.03 : 0.01;
 
-const FLOW_STEPS: { phase: Exclude<PipelinePhase, "idle">; label: string; abbr: string }[] = [
-  { phase: "ingest", label: "Ingesta", abbr: "IN" },
-  { phase: "quality", label: "Calidad", abbr: "DQ" },
-  { phase: "analytics", label: "Analytics / IA", abbr: "A" },
-  { phase: "insights", label: "Insights", abbr: "I" },
-  { phase: "workflow", label: "Workflow", abbr: "WF" },
-  { phase: "done", label: "Listo", abbr: "OK" },
-];
+  let inflow = 1_395_000;
+  let outflow = 730_000;
+  let bal = 4_820_000;
+  const rows: MonthRow[] = [];
 
-function phaseLabelFromIndex(stepIndex: number): string {
-  if (stepIndex < 0) return "Listo para iniciar";
-  const map: Record<PipelinePhase, string> = {
-    idle: "Listo",
-    ingest: "Ingesta de datos",
-    quality: "Calidad y linaje",
-    analytics: "Analytics & AI (marco)",
-    insights: "Decisioning & insights",
-    workflow: "Orquestación de workflows",
-    done: "Flujo completado",
-  };
-  const p = PHASE_ORDER[stepIndex];
-  return map[p];
-}
-
-function buildLogLinesThroughStep(scenario: ScenarioId, maxIdx: number): string[] {
-  const cfg = SCENARIOS[scenario];
-  const lines: string[] = [];
-  for (let i = 0; i <= maxIdx; i += 1) {
-    const current = PHASE_ORDER[i];
-    if (current === "ingest") {
-      lines.push(...cfg.ingestLines.map((l) => `[ingesta] ${l}`));
-    } else if (current === "quality") {
-      lines.push("[calidad] DQ: completitud 99.2% · duplicados 0 · lineage hasta core contable");
-    } else if (current === "analytics") {
-      lines.push(`[analytics] ${cfg.analyticsHint}`);
-    } else if (current === "insights") {
-      lines.push(`[insights] ${cfg.insightTitle}`, `[insights] ${cfg.insightBody}`);
-    } else if (current === "workflow") {
-      lines.push(
-        "[workflow] Evento LIM_TRIP · enrutamiento inteligente (sin ejecución financiera)",
-        `[workflow] → ${cfg.workflowPrimary}`,
-        `[workflow] → ${cfg.workflowSecondary}`,
-      );
-    } else if (current === "done") {
-      lines.push("[done] LIM orquestó la decisión; el banco ejecuta fuera de esta capa.");
+  for (let i = 0; i < MONTHS.length; i++) {
+    if (i > 0) {
+      inflow *= 1 + growth;
+      outflow *= 1 + growth * 0.65;
     }
+    const inf = Math.round(inflow);
+    const out = Math.round(outflow);
+    const end = bal + inf - out;
+    rows.push({
+      label: MONTHS[i],
+      balanceStart: Math.round(bal),
+      inflow: inf,
+      inflowAR: Math.round(inf * 0.63),
+      inflowServices: Math.round(inf * 0.25),
+      inflowOther: Math.round(inf * 0.12),
+      outflow: out,
+      outflowSuppliers: Math.round(out * 0.71),
+      outflowPayroll: Math.round(out * 0.29),
+      balanceEnd: Math.round(end),
+    });
+    bal = end;
   }
-  return lines;
+  return rows;
 }
 
-function LimArchitectureOverview() {
-  return (
-    <div className="zelify-lim-arch">
-      <p className="zelify-lim-arch__caption">Vista lógica: overlay de inteligencia (sin sustituir el core)</p>
-      <svg className="zelify-lim-arch__svg" viewBox="0 0 640 200" role="img" aria-label="Core bancario, capa LIM y canales">
-        <defs>
-          <linearGradient id="limGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#1d4ed8" stopOpacity="0.15" />
-            <stop offset="100%" stopColor="#6366f1" stopOpacity="0.22" />
-          </linearGradient>
-        </defs>
-        <rect x="24" y="40" width="160" height="120" rx="12" fill="#f1f5f9" stroke="#94a3b8" strokeWidth="2" />
-        <text x="104" y="92" textAnchor="middle" className="zelify-lim-arch__txt" fontSize="13" fontWeight="700" fill="#0f172a">
-          Core bancario
-        </text>
-        <text x="104" y="116" textAnchor="middle" className="zelify-lim-arch__txt" fontSize="11" fill="#64748b">
-          Ledger · productos
-        </text>
-        <rect x="220" y="24" width="200" height="152" rx="14" fill="url(#limGrad)" stroke="#1d4ed8" strokeWidth="2" strokeDasharray="6 4" />
-        <text x="320" y="56" textAnchor="middle" className="zelify-lim-arch__txt" fontSize="14" fontWeight="800" fill="#1e3a8a">
-          LIM
-        </text>
-        <text x="320" y="78" textAnchor="middle" className="zelify-lim-arch__txt" fontSize="11" fill="#4338ca">
-          datos · señales · workflows
-        </text>
-        <line x1="184" y1="100" x2="216" y2="100" stroke="#1d4ed8" strokeWidth="2" />
-        <polygon points="214,96 222,100 214,104" fill="#1d4ed8" />
-        <rect x="260" y="96" width="56" height="28" rx="6" fill="#fff" stroke="#818cf8" />
-        <text x="288" y="114" textAnchor="middle" fontSize="9" fill="#3730a3">
-          DQ
-        </text>
-        <rect x="330" y="96" width="56" height="28" rx="6" fill="#fff" stroke="#818cf8" />
-        <text x="358" y="114" textAnchor="middle" fontSize="9" fill="#3730a3">
-          IA
-        </text>
-        <rect x="400" y="96" width="56" height="28" rx="6" fill="#fff" stroke="#818cf8" />
-        <text x="428" y="114" textAnchor="middle" fontSize="9" fill="#3730a3">
-          WF
-        </text>
-        <text x="320" y="150" textAnchor="middle" fontSize="10" fill="#4f46e5">
-          Orquesta · no ejecuta cash
-        </text>
-        <rect x="456" y="48" width="160" height="104" rx="12" fill="#ecfdf5" stroke="#10b981" strokeWidth="2" />
-        <text x="536" y="88" textAnchor="middle" className="zelify-lim-arch__txt" fontSize="12" fontWeight="700" fill="#065f46">
-          Tesorería
-        </text>
-        <text x="536" y="108" textAnchor="middle" fontSize="11" fill="#047857">
-          Comercial
-        </text>
-        <text x="536" y="128" textAnchor="middle" fontSize="10" fill="#059669">
-          BI / CRM
-        </text>
-        <line x1="420" y1="100" x2="456" y2="88" stroke="#10b981" strokeWidth="1.5" />
-        <line x1="420" y1="108" x2="456" y2="108" stroke="#10b981" strokeWidth="1.5" />
-        <line x1="420" y1="116" x2="456" y2="128" stroke="#94a3b8" strokeWidth="1" strokeDasharray="3 2" />
-      </svg>
-    </div>
-  );
-}
-
-function LimPipelineRail({
-  stepIndex,
-  isPlaying,
-  onJumpTo,
-}: {
-  stepIndex: number;
-  isPlaying: boolean;
-  onJumpTo: (idx: number) => void;
-}) {
-  return (
-    <div className="zelify-lim-rail" aria-label="Etapas del pipeline LIM">
-      {FLOW_STEPS.map((s, idx) => {
-        let state: "todo" | "current" | "done" = "todo";
-        if (stepIndex < 0) state = "todo";
-        else if (idx < stepIndex) state = "done";
-        else if (idx === stepIndex) state = "current";
-        else state = "todo";
-        return (
-          <div key={s.phase} className="zelify-lim-rail__slot">
-            <button
-              type="button"
-              className={`zelify-lim-node zelify-lim-node--${state} ${isPlaying && state === "current" ? "zelify-lim-node--pulse" : ""}`}
-              onClick={() => onJumpTo(idx)}
-              disabled={isPlaying || (stepIndex < 0 && idx > 0)}
-              title={stepIndex < 0 && idx === 0 ? "Iniciar desde ingesta" : `Ir a ${s.label}`}
-            >
-              <span className="zelify-lim-node__abbr">{s.abbr}</span>
-              <span className="zelify-lim-node__lbl">{s.label}</span>
-            </button>
-            {idx < FLOW_STEPS.length - 1 ? (
-              <div
-                className={`zelify-lim-rail__conn ${idx < stepIndex ? "is-done" : ""} ${idx === stepIndex ? "is-active" : ""}`}
-                aria-hidden
-              />
-            ) : null}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function LimScenarioCharts({
-  scenario,
-  stepIndex,
-}: {
-  scenario: ScenarioId;
-  stepIndex: number;
-}) {
-  const cfg = SCENARIOS[scenario];
-  const lineData = cfg.balanceSeries;
-  const maxLine = Math.max(...lineData, 1);
-  const reveal = stepIndex >= 2;
-
-  return (
-    <div className="zelify-lim-charts">
-      <div className="zelify-lim-charts__head">
-        <span>Señales visuales</span>
-        <AppBadge tone={cfg.alertTone} size="sm">
-          {scenario === "withdrawal" ? "Énfasis saldos" : scenario === "repricing" ? "Énfasis spreads" : "Énfasis liquidez"}
-        </AppBadge>
-      </div>
-      <div className="zelify-lim-chartbox">
-          <p className="zelify-lim-chartbox__t">
-            {scenario === "withdrawal"
-              ? "Evolución del índice de saldo (normalizado)"
-              : scenario === "repricing"
-                ? "Índice de saldo / fondeo (proxy)"
-                : "Trayectoria de base líquida (proxy)"}
-          </p>
-          <div className="zelify-lim-spark">
-            <svg viewBox={`0 0 ${lineData.length * 40} 80`} preserveAspectRatio="none" className="zelify-lim-spark__svg">
-              <polyline
-                fill="none"
-                stroke={scenario === "withdrawal" ? "#dc2626" : "#2563eb"}
-                strokeWidth="3"
-                strokeLinejoin="round"
-                strokeLinecap="round"
-                points={lineData
-                  .map((v, i) => {
-                    const x = i * 40 + 8;
-                    const y = 72 - (v / maxLine) * 56;
-                    return `${x},${y}`;
-                  })
-                  .join(" ")}
-                opacity={reveal ? 1 : 0.25}
-              />
-              {lineData.map((v, i) => (
-                <circle
-                  key={i}
-                  cx={i * 40 + 8}
-                  cy={72 - (v / maxLine) * 56}
-                  r={reveal ? 4 : 2}
-                  fill={scenario === "withdrawal" ? "#ef4444" : "#3b82f6"}
-                  opacity={reveal ? 1 : 0.35}
-                />
-              ))}
-            </svg>
-          </div>
-          {!reveal ? <p className="zelify-lim-chartbox__hint">Avanza hasta Analytics para animar la serie.</p> : null}
-        </div>
-      <div className="zelify-lim-chartbox">
-        <p className="zelify-lim-chartbox__t">Comparación (spread / colchón / competencia)</p>
-        <div className="zelify-lim-bars">
-          {cfg.spreadBars.map((b) => (
-            <div key={b.label} className="zelify-lim-bars__row">
-              <span className="zelify-lim-bars__lab">{b.label}</span>
-              <div className="zelify-lim-bars__track">
-                <div
-                  className="zelify-lim-bars__fill"
-                  style={{
-                    width: `${stepIndex >= 3 ? b.value : Math.min(b.value, 28)}%`,
-                    background: b.label.includes("Competencia") || b.label.includes("Proyección") ? "#f59e0b" : "#1d4ed8",
-                  }}
-                />
-              </div>
-              <span className="zelify-lim-bars__pct">{stepIndex >= 3 ? `${b.value}%` : "—"}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="zelify-lim-chartbox">
-        <p className="zelify-lim-chartbox__t">Colchón / horizonte (T+30 · T+60 · T+90)</p>
-        <div className="zelify-lim-horiz">
-          {cfg.cushionSeries.map((c, i) => (
-            <div key={i} className="zelify-lim-horiz__col">
-              <div
-                className="zelify-lim-horiz__bar"
-                style={{
-                  height: `${stepIndex >= 4 ? c : Math.min(c, 40)}%`,
-                  background: c < 50 ? "#ef4444" : c < 70 ? "#f59e0b" : "#10b981",
-                }}
-              />
-              <span className="zelify-lim-horiz__lbl">{i === 0 ? "T+30" : i === 1 ? "T+60" : "T+90"}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function LimRoutingDeck({
-  stepIndex,
-  primary,
-  secondary,
+/* ─── SVG Cashflow Chart — siempre muestra Real + escenarios seleccionados ─── */
+function CashflowChart({
+  realRows,
+  optimistaRows,
+  pessimistaRows,
+  activeMonth,
   scenario,
 }: {
-  stepIndex: number;
-  primary: string;
-  secondary: string;
+  realRows: MonthRow[];
+  optimistaRows: MonthRow[];
+  pessimistaRows: MonthRow[];
+  activeMonth: number;
   scenario: ScenarioId;
 }) {
-  const lit = stepIndex >= 4;
-  const showAlco = scenario === "liquidity" || scenario === "repricing";
-  return (
-    <div className="zelify-lim-route">
-      <p className="zelify-lim-route__title">Enrutamiento (sin ejecución en core)</p>
-      <div className="zelify-lim-route__grid">
-        <div className={`zelify-lim-route__card ${lit ? "is-lit" : ""}`}>
-          <span className="zelify-lim-route__marker" aria-hidden>
-            T
-          </span>
-          <strong>Tesorería / Liquidez</strong>
-          <p>{primary}</p>
-        </div>
-        <div className={`zelify-lim-route__card ${lit ? "is-lit" : ""}`}>
-          <span className="zelify-lim-route__marker" aria-hidden>
-            C
-          </span>
-          <strong>Comercial / CRM</strong>
-          <p>{secondary}</p>
-        </div>
-        {showAlco ? (
-          <div className={`zelify-lim-route__card ${lit ? "is-lit" : ""}`}>
-            <span className="zelify-lim-route__marker" aria-hidden>
-              A
-            </span>
-            <strong>ALCO / Pricing</strong>
-            <p>{scenario === "liquidity" ? "Briefing de escenario B adjunto al workflow." : "Matriz de escenarios en BI."}</p>
-          </div>
-        ) : null}
-      </div>
-      <div className="zelify-lim-route__corewall">
-        <span className="zelify-lim-route__wall" />
-        Core bancario — sin instrucciones automáticas de movimiento
-      </div>
-    </div>
-  );
-}
+  const W = 860, H = 248, PL = 62, PR = 12, PT = 32, PB = 28;
+  const cW = W - PL - PR;
+  const cH = H - PT - PB;
 
-export function LimScreen() {
-  const [tab, setTab] = useState<"resumen" | "simulador" | "zelify">("resumen");
-  const [scenario, setScenario] = useState<ScenarioId>("withdrawal");
-  const [stepIndex, setStepIndex] = useState(-1);
-  const [logLines, setLogLines] = useState<string[]>([]);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Barras siempre animadas hacia el escenario activo
+  const targetRows =
+    scenario === "optimista" ? optimistaRows
+      : scenario === "pesimista" ? pessimistaRows
+        : realRows;
 
-  const cfg = SCENARIOS[scenario];
-
-  const stopTimer = useCallback(() => {
-    if (timerRef.current != null) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    setIsPlaying(false);
-  }, []);
+  const [animRows, setAnimRows] = useState<MonthRow[]>(realRows);
+  const fromRef = useRef<MonthRow[]>(realRows);
+  const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
-    return () => stopTimer();
-  }, [stopTimer]);
+    const from = fromRef.current;
+    const to = targetRows;
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    const START = performance.now();
+    const DUR = 620;
+    const LAG = 36; // ms por barra (ola izq→der)
+    const ease = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
-  const resetSimulation = useCallback(() => {
-    stopTimer();
-    setStepIndex(-1);
-    setLogLines([]);
-  }, [stopTimer]);
+    const tick = (now: number) => {
+      const el = now - START;
+      setAnimRows(from.map((f, i) => {
+        const t = ease(Math.min(Math.max(el - i * LAG, 0) / DUR, 1));
+        return {
+          ...to[i],
+          inflow: Math.round(f.inflow + (to[i].inflow - f.inflow) * t),
+          outflow: Math.round(f.outflow + (to[i].outflow - f.outflow) * t),
+          balanceEnd: Math.round(f.balanceEnd + (to[i].balanceEnd - f.balanceEnd) * t),
+          balanceStart: Math.round(f.balanceStart + (to[i].balanceStart - f.balanceStart) * t),
+        };
+      }));
+      if (el < DUR + (from.length - 1) * LAG) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        setAnimRows(to);
+        fromRef.current = to;
+      }
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, [targetRows]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const goToStep = useCallback(
-    (idx: number) => {
-      if (idx < 0 || idx >= PHASE_ORDER.length) return;
-      stopTimer();
-      setStepIndex(idx);
-      setLogLines(buildLogLinesThroughStep(scenario, idx));
-    },
-    [scenario, stopTimer],
+  // Escala Y: máximo global entre los 3 escenarios para que las líneas sean comparables
+  const max = Math.max(
+    ...optimistaRows.map((r) => r.balanceEnd),
+    ...realRows.map((r) => Math.max(r.inflow, r.balanceEnd)),
+    1,
   );
+  const ys = (v: number) => PT + cH - (Math.max(v, 0) / max) * cH;
+  const slotW = cW / realRows.length;
+  const bW = slotW * 0.30;
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => max * f);
 
-  const nextManualStep = useCallback(() => {
-    if (isPlaying) return;
-    if (stepIndex >= PHASE_ORDER.length - 1) return;
-    const next = stepIndex < 0 ? 0 : stepIndex + 1;
-    goToStep(next);
-  }, [goToStep, isPlaying, stepIndex]);
+  const pts = (rows: MonthRow[]) =>
+    rows.map((r, i) => `${PL + i * slotW + slotW / 2},${ys(r.balanceEnd)}`).join(" ");
 
-  const runAuto = useCallback(() => {
-    if (timerRef.current != null) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    setStepIndex(0);
-    setLogLines(buildLogLinesThroughStep(scenario, 0));
-    setIsPlaying(true);
-    let idx = 0;
-    timerRef.current = setInterval(() => {
-      idx += 1;
-      if (idx >= PHASE_ORDER.length) {
-        stopTimer();
-        return;
-      }
-      setStepIndex(idx);
-      setLogLines(buildLogLinesThroughStep(scenario, idx));
-      if (PHASE_ORDER[idx] === "done") {
-        stopTimer();
-      }
-    }, 900);
-  }, [scenario, stopTimer]);
+  const realPts = pts(realRows);
+  const optPts = pts(optimistaRows);
+  const pesPts = pts(pessimistaRows);
 
-  const canChangeScenario = !isPlaying && (stepIndex < 0 || stepIndex === PHASE_ORDER.length - 1);
-  const progressPct = stepIndex < 0 ? 0 : Math.round(((stepIndex + 1) / PHASE_ORDER.length) * 100);
+  // Colores de barras del escenario activo
+  const iColor = scenario === "optimista" ? "#34d399" : scenario === "pesimista" ? "#fcd34d" : "#86efac";
+  const oColor = scenario === "optimista" ? "#6ee7b7" : scenario === "pesimista" ? "#f87171" : "#fca5a5";
+  const activeBg = scenario === "optimista" ? "#f0fdf4" : scenario === "pesimista" ? "#fef2f2" : "#eff6ff";
 
-  const insightVisible = stepIndex >= 3;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="lim-chart-svg" aria-hidden>
+      {/* Leyenda en la parte superior */}
+      <g transform={`translate(${PL}, 10)`}>
+        <rect width={9} height={9} fill="#86efac" rx={1} />
+        <text x={12} y={9} fontSize={9} fill="#6b7280">Entradas</text>
+        <rect x={65} width={9} height={9} fill="#fca5a5" rx={1} />
+        <text x={77} y={9} fontSize={9} fill="#6b7280">Salidas</text>
+        {/* Línea Real */}
+        <line x1={135} y1={4} x2={155} y2={4} stroke="#1d4ed8" strokeWidth={scenario === "real" ? 2.5 : 1.5} strokeDasharray="5 3" />
+        <circle cx={145} cy={4} r={2.5} fill="#1d4ed8" />
+        <text x={158} y={8} fontSize={9} fill="#1d4ed8" fontWeight={scenario === "real" ? "700" : "400"}>Real</text>
+        {/* Línea Optimista */}
+        <line x1={190} y1={4} x2={210} y2={4} stroke="#059669" strokeWidth={scenario === "optimista" ? 2.5 : 1.5} strokeDasharray="5 3" />
+        <circle cx={200} cy={4} r={2.5} fill="#059669" />
+        <text x={213} y={8} fontSize={9} fill="#059669" fontWeight={scenario === "optimista" ? "700" : "400"}>Optimista</text>
+        {/* Línea Pesimista */}
+        <line x1={268} y1={4} x2={288} y2={4} stroke="#dc2626" strokeWidth={scenario === "pesimista" ? 2.5 : 1.5} strokeDasharray="5 3" />
+        <circle cx={278} cy={4} r={2.5} fill="#dc2626" />
+        <text x={291} y={8} fontSize={9} fill="#dc2626" fontWeight={scenario === "pesimista" ? "700" : "400"}>Pesimista</text>
+      </g>
+
+      {/* Grid Y */}
+      {yTicks.map((v) => (
+        <g key={v}>
+          <line x1={PL} y1={ys(v)} x2={W - PR} y2={ys(v)} stroke="#f3f4f6" strokeWidth={1} />
+          <text x={PL - 6} y={ys(v) + 4} textAnchor="end" className="lim-chart-lbl">
+            {v === 0 ? "0" : fmt(v)}
+          </text>
+        </g>
+      ))}
+
+      {/* Fondo mes activo */}
+      <rect x={PL + activeMonth * slotW} y={PT} width={slotW} height={cH} fill={activeBg} opacity={0.9} />
+
+      {/* Barras — siempre el escenario seleccionado con animación ola */}
+      {animRows.map((r, i) => {
+        const cx = PL + i * slotW + slotW / 2;
+        const iH = Math.max((r.inflow / max) * cH, 0);
+        const oH = Math.max((r.outflow / max) * cH, 0);
+        return (
+          <g key={r.label}>
+            <rect x={cx - bW - 1} y={PT + cH - iH} width={bW} height={iH} fill={iColor} rx={2} opacity={0.9} />
+            <rect x={cx + 1} y={PT + cH - oH} width={bW} height={oH} fill={oColor} rx={2} opacity={0.9} />
+          </g>
+        );
+      })}
+
+      {/* ── Las 3 líneas de saldo siempre visibles ── */}
+
+      {/* Pesimista — rojo */}
+      <polyline
+        points={pesPts}
+        fill="none"
+        stroke="#dc2626"
+        strokeWidth={scenario === "pesimista" ? 2.5 : 1.2}
+        strokeDasharray="5 3"
+        strokeLinecap="round"
+        opacity={scenario === "pesimista" ? 1 : 0.45}
+      />
+      {pessimistaRows.map((r, i) => (
+        <circle
+          key={i}
+          cx={PL + i * slotW + slotW / 2}
+          cy={ys(r.balanceEnd)}
+          r={scenario === "pesimista" ? 3.5 : 2}
+          fill="#dc2626"
+          opacity={scenario === "pesimista" ? 1 : 0.4}
+        />
+      ))}
+
+      {/* Real — azul (siempre visible, siempre en primer plano si está activo) */}
+      <polyline
+        points={realPts}
+        fill="none"
+        stroke="#1d4ed8"
+        strokeWidth={scenario === "real" ? 2.5 : 1.5}
+        strokeDasharray="5 3"
+        strokeLinecap="round"
+        opacity={scenario === "real" ? 1 : 0.55}
+      />
+      {realRows.map((r, i) => (
+        <circle
+          key={i}
+          cx={PL + i * slotW + slotW / 2}
+          cy={ys(r.balanceEnd)}
+          r={scenario === "real" ? 3.5 : 2.5}
+          fill="#1d4ed8"
+          opacity={scenario === "real" ? 1 : 0.55}
+        />
+      ))}
+
+      {/* Optimista — verde */}
+      <polyline
+        points={optPts}
+        fill="none"
+        stroke="#059669"
+        strokeWidth={scenario === "optimista" ? 2.5 : 1.2}
+        strokeDasharray="5 3"
+        strokeLinecap="round"
+        opacity={scenario === "optimista" ? 1 : 0.45}
+      />
+      {optimistaRows.map((r, i) => (
+        <circle
+          key={i}
+          cx={PL + i * slotW + slotW / 2}
+          cy={ys(r.balanceEnd)}
+          r={scenario === "optimista" ? 3.5 : 2}
+          fill="#059669"
+          opacity={scenario === "optimista" ? 1 : 0.4}
+        />
+      ))}
+
+      {/* Etiquetas X */}
+      {realRows.map((r, i) => (
+        <text
+          key={i}
+          x={PL + i * slotW + slotW / 2}
+          y={H - 6}
+          textAnchor="middle"
+          className={`lim-chart-lbl${i === activeMonth ? " lim-chart-lbl--active" : ""}`}
+        >
+          {r.label.toUpperCase()}
+        </text>
+      ))}
+    </svg>
+  );
+}
+
+/* ─── Dashboard mini charts ─── */
+function BarChart2() {
+  // Valores en miles USD — reales con variación natural
+  const data = [
+    { l: "Ene", a: 1_312, f: 1_220 },
+    { l: "Feb", a: 974, f: 1_350 },
+    { l: "Mar", a: 1_438, f: 1_410 },
+    { l: "Abr", a: 2_183, f: 1_580 },
+    { l: "May", a: 1_726, f: 1_635 },
+    { l: "Jun", a: 1_149, f: 1_780 },
+  ];
+  const max = 2_400;
+  const W = 340, H = 170, PL = 42, PB = 30;
+  const cH = H - 14 - PB; const cW = W - PL - 10;
+  const sw = cW / data.length; const bw = sw * 0.34;
+  const yTicks = [0, 800, 1600, 2400];
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="lim-mini-svg" aria-hidden>
+      {yTicks.map((v) => (
+        <g key={v}>
+          <line x1={PL} y1={14 + cH - (v / max) * cH} x2={W - 10} y2={14 + cH - (v / max) * cH} stroke="#f3f4f6" strokeWidth={1} />
+          <text x={PL - 4} y={14 + cH - (v / max) * cH + 4} textAnchor="end" fontSize={8} fill="#9ca3af">${v === 0 ? "0" : `${v / 1000}M`}</text>
+        </g>
+      ))}
+      {data.map((d, i) => {
+        const cx = PL + i * sw + sw / 2;
+        return (
+          <g key={d.l}>
+            <rect x={cx - bw - 1} y={14 + cH - (d.a / max) * cH} width={bw} height={(d.a / max) * cH} fill="#1d4ed8" opacity={0.85} rx={1} />
+            <rect x={cx + 1} y={14 + cH - (d.f / max) * cH} width={bw} height={(d.f / max) * cH} fill="#93c5fd" opacity={0.85} rx={1} />
+            <text x={cx} y={H - 8} textAnchor="middle" fontSize={8.5} fill="#9ca3af">{d.l}</text>
+          </g>
+        );
+      })}
+      <g transform={`translate(${PL}, ${H - 4})`}>
+        <rect width={7} height={5} fill="#1d4ed8" />
+        <text x={9} y={5} fontSize={7.5} fill="#6b7280">Real</text>
+        <rect x={36} width={7} height={5} fill="#93c5fd" />
+        <text x={45} y={5} fontSize={7.5} fill="#6b7280">Forecast</text>
+      </g>
+    </svg>
+  );
+}
+
+function AreaChart() {
+  // Cobros mensuales en miles USD — variación realista, no lineal
+  const data = [842, 1_143, 978, 1_267, 1_093, 1_408, 1_312, 1_489, 1_376, 1_523, 1_289, 1_614];
+  const lbls = [{ l: "Ene", i: 0 }, { l: "Mar", i: 2 }, { l: "May", i: 4 }, { l: "Jul", i: 6 }, { l: "Sep", i: 8 }, { l: "Nov", i: 10 }];
+  const max = 1_800;
+  const W = 340, H = 170, PL = 40, PB = 30;
+  const cH = H - 14 - PB; const cW = W - PL - 10;
+  const sw = cW / (data.length - 1);
+  const xs = (i: number) => PL + i * sw;
+  const ys = (v: number) => 14 + cH - (v / max) * cH;
+  const pts = data.map((v, i) => `${xs(i)},${ys(v)}`).join(" ");
+  const area = `${xs(0)},${14 + cH} ${pts} ${xs(data.length - 1)},${14 + cH}`;
+  const yTicks = [0, 600, 1200, 1800];
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="lim-mini-svg" aria-hidden>
+      {yTicks.map((v) => (
+        <g key={v}>
+          <line x1={PL} y1={ys(v)} x2={W - 10} y2={ys(v)} stroke="#f3f4f6" strokeWidth={1} />
+          <text x={PL - 4} y={ys(v) + 3} textAnchor="end" fontSize={8} fill="#9ca3af">${v === 0 ? "0" : `${v}K`}</text>
+        </g>
+      ))}
+      <polygon points={area} fill="#bfdbfe" opacity={0.4} />
+      <polyline points={pts} fill="none" stroke="#2563eb" strokeWidth={1.8} strokeLinejoin="round" />
+      {data.map((v, i) => <circle key={i} cx={xs(i)} cy={ys(v)} r={2} fill="#2563eb" />)}
+      {lbls.map(({ l, i }) => (
+        <text key={l} x={xs(i)} y={H - 6} textAnchor="middle" fontSize={8.5} fill="#9ca3af">{l}</text>
+      ))}
+    </svg>
+  );
+}
+
+function DonutChart() {
+  const slices = [
+    { pct: 24.3, color: "#1e3a8a", label: "Mat. primas" },
+    { pct: 37.1, color: "#2563eb", label: "Salarios" },
+    { pct: 19.8, color: "#60a5fa", label: "F. externo" },
+    { pct: 18.8, color: "#bfdbfe", label: "Servicios" },
+  ];
+  const cx = 80, cy = 75, ro = 55, ri = 28;
+  const rad = (d: number) => (d * Math.PI) / 180;
+  let ang = -90;
+  const arcs = slices.map((s) => { const st = ang; ang += (s.pct / 100) * 360; return { ...s, st, en: ang }; });
+  const path = (st: number, en: number) => {
+    const lg = en - st > 180 ? 1 : 0;
+    const x1 = cx + ro * Math.cos(rad(st)); const y1 = cy + ro * Math.sin(rad(st));
+    const x2 = cx + ro * Math.cos(rad(en)); const y2 = cy + ro * Math.sin(rad(en));
+    const xi1 = cx + ri * Math.cos(rad(en)); const yi1 = cy + ri * Math.sin(rad(en));
+    const xi2 = cx + ri * Math.cos(rad(st)); const yi2 = cy + ri * Math.sin(rad(st));
+    return `M${x1},${y1} A${ro},${ro} 0 ${lg} 1 ${x2},${y2} L${xi1},${yi1} A${ri},${ri} 0 ${lg} 0 ${xi2},${yi2} Z`;
+  };
+  return (
+    <svg viewBox="0 0 280 160" className="lim-mini-svg" aria-hidden>
+      {arcs.map((a) => <path key={a.label} d={path(a.st, a.en)} fill={a.color} />)}
+      {arcs.map((a) => {
+        const mid = (a.st + a.en) / 2;
+        return <text key={a.label} x={cx + (ro + 14) * Math.cos(rad(mid))} y={cy + (ro + 14) * Math.sin(rad(mid))} textAnchor="middle" fontSize={8} fill="#374151">{a.pct}%</text>;
+      })}
+      {slices.map((s, i) => (
+        <g key={s.label} transform={`translate(168,${16 + i * 20})`}>
+          <rect width={10} height={10} fill={s.color} rx={2} />
+          <text x={14} y={9} fontSize={9} fill="#4b5563">{s.label}</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function StackedBarChart() {
+  // Salidas en miles USD: [proveedores, nómina, servicios] — variación mensual realista
+  const data = [
+    [487, 213, 94], [431, 218, 87], [523, 221, 103], [618, 226, 119],
+    [554, 219, 108], [641, 228, 131], [589, 224, 117], [563, 217, 104],
+    [512, 215, 98], [498, 221, 91], [571, 226, 113], [542, 219, 107],
+  ];
+  const lbls = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+  const colors = ["#1d4ed8", "#60a5fa", "#bfdbfe"];
+  const max = 850;
+  const W = 340, H = 170, PL = 8, PB = 30;
+  const cH = H - 14 - PB; const cW = W - PL - 8;
+  const sw = cW / data.length; const bw = sw * 0.68;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="lim-mini-svg" aria-hidden>
+      <line x1={PL} y1={14 + cH} x2={W - 8} y2={14 + cH} stroke="#e5e7eb" />
+      {data.map((d, i) => {
+        let sy = 14 + cH;
+        return (
+          <g key={lbls[i]}>
+            {d.map((v, j) => { const bH = (v / max) * cH; sy -= bH; return <rect key={j} x={PL + i * sw + (sw - bw) / 2} y={sy} width={bw} height={bH} fill={colors[j]} rx={j === 0 ? 1 : 0} />; })}
+            {i % 2 === 0 && <text x={PL + i * sw + sw / 2} y={H - 8} textAnchor="middle" fontSize={8} fill="#9ca3af">{lbls[i]}</text>}
+          </g>
+        );
+      })}
+      <g transform={`translate(${PL}, ${H - 4})`}>
+        <rect width={7} height={5} fill="#1d4ed8" /><text x={9} y={5} fontSize={7} fill="#6b7280">Proveedores</text>
+        <rect x={70} width={7} height={5} fill="#60a5fa" /><text x={79} y={5} fontSize={7} fill="#6b7280">Nómina</text>
+        <rect x={116} width={7} height={5} fill="#bfdbfe" /><text x={125} y={5} fontSize={7} fill="#6b7280">Servicios</text>
+      </g>
+    </svg>
+  );
+}
+
+/* ─── Main Screen ─── */
+export function LimScreen() {
+  const [activeTab, setActiveTab] = useState<MainTab>("cashflow");
+  const [scenario, setScenario] = useState<ScenarioId>("real");
+  const [optimisticMode, setOptimisticMode] = useState<OptimisticMode>("20");
+  const [viewMode, setViewMode] = useState<ViewMode>("mensual");
+  const [activeMonth, setActiveMonth] = useState(0);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set(["inflow", "outflow"]));
+
+  // Los 3 escenarios siempre calculados para el chart multi-línea
+  const realRows = useMemo(() => buildRows("real", "20"), []);
+  const optimistaRows = useMemo(() => buildRows("optimista", optimisticMode), [optimisticMode]);
+  const pessimistaRows = useMemo(() => buildRows("pesimista", "20"), []);
+
+  // Para la tabla, el escenario seleccionado
+  const rows = scenario === "optimista" ? optimistaRows
+    : scenario === "pesimista" ? pessimistaRows
+      : realRows;
+
+  const totals = useMemo(() => {
+    const totalInflow = rows.reduce((s, r) => s + r.inflow, 0);
+    const totalOutflow = rows.reduce((s, r) => s + r.outflow, 0);
+    return {
+      totalInflow,
+      totalOutflow,
+      balance: rows[rows.length - 1].balanceEnd,
+      adjustment: Math.round(totalInflow * 0.054),
+      investments: Math.round(totalInflow * 0.041),
+    };
+  }, [rows]);
+
+  const toggle = (key: string) =>
+    setExpanded((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+
+  const scenarioLabel =
+    scenario === "optimista" ? (optimisticMode === "20" ? "Escenario optimista +20%" : "Escenario optimista +5%")
+      : scenario === "pesimista" ? "Escenario pesimista -3%"
+        : "Escenario real";
+
+  const kpiValCls =
+    scenario === "optimista" ? "lim-kpi-val--opt"
+      : scenario === "pesimista" ? "lim-kpi-val--pes"
+        : "lim-kpi-val--blue";
+
+  const TABS: { id: MainTab; label: string; badge?: string }[] = [
+    { id: "cashflow", label: "Cashflow" },
+    { id: "bank", label: "Banco", badge: "12" },
+    { id: "expected", label: "Esperado", badge: "4" },
+    { id: "reconciliation", label: "Conciliación" },
+    { id: "financing", label: "Financiamiento" },
+    { id: "dashboard", label: "Dashboard" },
+  ];
 
   return (
     <div className="zelify-workspace-page">
       <ZelifyTopNavbar />
       <div className="zelify-workspace-page__scroll">
-        <div className="zelify-workspace-page__inner zelify-lim-wrap">
-          <div className="zelify-lim-title-wrap">
-            <h1 className="zelify-workspace-page__title zelify-lim-page-title">LIM — Liquidity Intelligence & Management</h1>
-          </div>
+        <div className="lim-root zelify-workspace-page__inner">
 
-          <div className="zelify-lim-tabs" role="tablist">
-            <button type="button" className={tab === "resumen" ? "is-active" : ""} onClick={() => setTab("resumen")}>
-              Resumen del servicio
-            </button>
-            <button type="button" className={tab === "simulador" ? "is-active" : ""} onClick={() => setTab("simulador")}>
-              Simulador de flujo
-            </button>
-            <button type="button" className={tab === "zelify" ? "is-active" : ""} onClick={() => setTab("zelify")}>
-              Zelify ↔ LIM
-            </button>
-          </div>
-
-          {tab === "resumen" ? (
-            <>
-              <section className="zelify-lim-hero">
-                <h2>Capa de inteligencia sobre el core</h2>
-                <p>
-                  LIM convierte la gestión de liquidez y depósitos de un modelo manual, reactivo y fragmentado en uno
-                  dinámico, en tiempo real y basado en analítica avanzada e IA — sin reemplazar el core bancario.
-                </p>
-                <LimArchitectureOverview />
-                <div className="zelify-lim-grid-2">
-                  <div className="zelify-lim-card">
-                    <h3>Objetivo central</h3>
-                    <ul>
-                      <li>Consolidar datos multi-producto, multi-moneda y multi-entidad.</li>
-                      <li>Generar insights accionables y escenarios.</li>
-                      <li>Habilitar decisiones más precisas en liquidez, pricing y crecimiento.</li>
-                    </ul>
-                  </div>
-                  <div className="zelify-lim-card">
-                    <h3>Principio clave</h3>
-                    <ul>
-                      <li>
-                        <strong>LIM orquesta decisiones; no ejecuta operaciones financieras.</strong>
-                      </li>
-                      <li>Modelos y decisión final en el banco.</li>
-                      <li>Proveedor habilita infraestructura, datos y marcos — no el “cerebro final”.</li>
-                    </ul>
-                  </div>
-                </div>
-              </section>
-
-              <div className="zelify-lim-grid-2">
-                <div className="zelify-lim-card">
-                  <h3>A. Arquitectura</h3>
-                  <ul>
-                    <li>Capa desacoplada (overlay) sobre sistemas existentes.</li>
-                    <li>Microservicios, cloud-ready, escalable por país/producto/segmento.</li>
-                    <li>MVP modular con expansión gradual.</li>
-                  </ul>
-                </div>
-                <div className="zelify-lim-card">
-                  <h3>B. Data layer</h3>
-                  <ul>
-                    <li>Ingesta batch + near real-time.</li>
-                    <li>Fuentes: balances, transacciones, pricing histórico, atributos de cliente.</li>
-                    <li>Pipelines robustos, calidad de datos y linaje (lineage).</li>
-                  </ul>
-                </div>
-                <div className="zelify-lim-card">
-                  <h3>C. Analytics &amp; AI</h3>
-                  <ul>
-                    <li>Comportamiento de depósitos, segmentación dinámica, detección de cambios.</li>
-                    <li>Marcos y señales; las decisiones finales quedan en el banco.</li>
-                  </ul>
-                </div>
-                <div className="zelify-lim-card">
-                  <h3>D. Decisioning &amp; insights</h3>
-                  <ul>
-                    <li>Recomendaciones, alertas tempranas, escenarios.</li>
-                    <li>Integración con tesorería, comercial y herramientas existentes.</li>
-                  </ul>
-                </div>
-                <div className="zelify-lim-card">
-                  <h3>E. Visualización</h3>
-                  <ul>
-                    <li>Dashboards ejecutivos y operativos.</li>
-                    <li>Exportación a BI, CRM y herramientas de pricing.</li>
-                  </ul>
-                </div>
-                <div className="zelify-lim-card">
-                  <h3>F. Seguridad y gobierno</h3>
-                  <ul>
-                    <li>Control por roles, auditabilidad.</li>
-                    <li>Separación clara: proveedor (infra) / banco (decisiones).</li>
-                  </ul>
-                </div>
-              </div>
-
-              <div className="zelify-lim-card" style={{ marginTop: 12 }}>
-                <h3>G. Workflows (valor central)</h3>
-                <ul>
-                  <li>
-                    <strong>Transactional:</strong> onboarding, repricing, renovaciones.
-                  </li>
-                  <li>
-                    <strong>Commercial:</strong> leads, campañas, next best action.
-                  </li>
-                  <li>
-                    <strong>Analytical:</strong> forecasting, escenarios de liquidez.
-                  </li>
-                  <li>
-                    <strong>Orquestación:</strong> motor de workflows, eventos y triggers, routing inteligente, trazabilidad.
-                  </li>
-                </ul>
-              </div>
-
-              <div className="zelify-lim-disclaimer">
-                Lectura estratégica: el cliente busca un constructor de la capa tecnológica (tipo “inteligencia para
-                liquidez”), no un sustituto del core ni un dictado de política de precios.
-              </div>
-            </>
-          ) : null}
-
-          {tab === "simulador" ? (
-            <>
-              <div className="zelify-lim-simtop">
-                <div className="zelify-lim-card zelify-lim-card--grow">
-                  <h3>Simulación interactiva end-to-end</h3>
-                  <p className="zelify-lim-lead">
-                    Usa <strong>reproducción automática</strong> o <strong>siguiente paso</strong>. El rail muestra en qué etapa va el pipeline; a la
-                    derecha, gráficos y enrutamiento reaccionan al avanzar.
-                  </p>
-                  <div className="zelify-lim-toolbar">
-                    <div className="zelify-lim-toolbar__field">
-                      <label htmlFor="lim-scenario">Escenario</label>
-                      <AppSelect
-                        id="lim-scenario"
-                        value={scenario}
-                        onChange={(e) => {
-                          resetSimulation();
-                          setScenario(e.target.value as ScenarioId);
-                        }}
-                        disabled={!canChangeScenario}
-                      >
-                        <option value="withdrawal">{SCENARIOS.withdrawal.label}</option>
-                        <option value="repricing">{SCENARIOS.repricing.label}</option>
-                        <option value="liquidity">{SCENARIOS.liquidity.label}</option>
-                      </AppSelect>
-                    </div>
-                    <AppButton tone="primary" onClick={runAuto} disabled={isPlaying}>
-                      {isPlaying ? "Reproduciendo…" : "Automático"}
-                    </AppButton>
-                    <AppButton tone="secondary" onClick={nextManualStep} disabled={isPlaying || stepIndex >= PHASE_ORDER.length - 1}>
-                      Siguiente paso
-                    </AppButton>
-                    <AppButton tone="neutral" onClick={resetSimulation} disabled={isPlaying}>
-                      Reiniciar
-                    </AppButton>
-                  </div>
-                  <div className="zelify-lim-progress-wrap">
-                    <div className="zelify-lim-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPct}>
-                      <div className="zelify-lim-progress__fill" style={{ width: `${progressPct}%` }} />
-                    </div>
-                    <span className="zelify-lim-progress__lbl">
-                      {phaseLabelFromIndex(stepIndex)} · {progressPct}%
-                    </span>
-                  </div>
-                  <LimPipelineRail stepIndex={stepIndex} isPlaying={isPlaying} onJumpTo={goToStep} />
-                </div>
-              </div>
-
-              <div className="zelify-lim-simgrid">
-                <LimScenarioCharts scenario={scenario} stepIndex={stepIndex} />
-                <LimRoutingDeck stepIndex={stepIndex} primary={cfg.workflowPrimary} secondary={cfg.workflowSecondary} scenario={scenario} />
-              </div>
-
-              <div className="zelify-lim-step">
-                <h4>Registro del pipeline (consola)</h4>
-                <div className="zelify-lim-log" role="log">
-                  {logLines.length === 0 ? (
-                    <span className="muted">Pulsa “Automático” o “Siguiente paso” para llenar el log.</span>
-                  ) : (
-                    logLines.map((line, i) => (
-                      <div key={`${i}-${line.slice(0, 28)}`}>{line.startsWith("[done]") ? <span className="ok">{line}</span> : line}</div>
-                    ))
+          {/* ── Top tab bar ── */}
+          <div className="lim-topbar">
+            <nav className="lim-tabs" role="tablist">
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === t.id}
+                  className={`lim-tab${activeTab === t.id ? " lim-tab--active" : ""}`}
+                  onClick={() => setActiveTab(t.id)}
+                >
+                  {t.label}
+                  {t.badge && (
+                    <span className="lim-tab-badge">{t.badge}</span>
                   )}
+                </button>
+              ))}
+            </nav>
+            <div className="lim-topbar-right">
+              <span className="lim-system-pill">Sistema activo</span>
+            </div>
+          </div>
+
+          {/* ── Sub-controls bar (cashflow & expected tabs) ── */}
+          {(activeTab === "cashflow" || activeTab === "expected") && (
+            <div className="lim-subbar">
+              <div className="lim-subbar-left">
+                <select className="lim-sel">
+                  <option>Todos los proyectos</option>
+                </select>
+                <select className="lim-sel">
+                  <option>May → Abr</option>
+                  <option>Ene → Dic</option>
+                </select>
+                <select
+                  className={`lim-sel lim-sel--scenario${scenario === "optimista" ? " lim-sel--opt" : scenario === "pesimista" ? " lim-sel--pes" : ""}`}
+                  value={scenario}
+                  onChange={(e) => setScenario(e.target.value as ScenarioId)}
+                >
+                  <option value="real">Escenario real</option>
+                  <option value="optimista">Escenario optimista</option>
+                  <option value="pesimista">Escenario pesimista</option>
+                </select>
+                {scenario === "optimista" && (
+                  <select className="lim-sel" value={optimisticMode} onChange={(e) => setOptimisticMode(e.target.value as OptimisticMode)}>
+                    <option value="20">+20% mensual</option>
+                    <option value="5">+5% mensual</option>
+                  </select>
+                )}
+                <select className="lim-sel" value={viewMode} onChange={(e) => setViewMode(e.target.value as ViewMode)}>
+                  <option value="mensual">Vista consolidada</option>
+                  <option value="trimestral">Vista trimestral</option>
+                  <option value="semestral">Vista semestral</option>
+                  <option value="anual">Vista anual</option>
+                </select>
+              </div>
+              <div className="lim-subbar-right">
+                <button className="lim-btn-ghost" type="button">Actualizar cálculo</button>
+                <button className="lim-btn-ghost" type="button">··· Opciones</button>
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════ CASHFLOW TAB ══════════════ */}
+          {activeTab === "cashflow" && (
+            <div className="lim-cf-layout">
+              {/* KPI sidebar */}
+              <aside className="lim-kpi-side">
+                <div className="lim-kpi-primary">
+                  <span className={`lim-kpi-val ${kpiValCls}`}>{fmt(totals.balance)}</span>
+                  <span className={`lim-kpi-pill${scenario === "optimista" ? " lim-kpi-pill--opt" : scenario === "pesimista" ? " lim-kpi-pill--pes" : " lim-kpi-pill--blue"}`}>● Saldo de caja</span>
+                </div>
+                <div className="lim-kpi-item">
+                  <span className="lim-kpi-val lim-kpi-val--sm">+{fmt(totals.adjustment)}</span>
+                  <span className="lim-kpi-sub">Ajuste ⓘ</span>
+                </div>
+                <div className="lim-kpi-item">
+                  <span className="lim-kpi-val lim-kpi-val--sm">+{fmt(totals.investments)}</span>
+                  <span className="lim-kpi-sub">Inversiones ⓘ</span>
+                </div>
+                <div className="lim-kpi-sep" />
+                <div className="lim-kpi-item">
+                  <span className="lim-kpi-pill lim-kpi-pill--purple">● Total</span>
+                  <span className="lim-kpi-val lim-kpi-val--sm">+{fmt(totals.balance + totals.adjustment + totals.investments)}</span>
+                </div>
+              </aside>
+
+              {/* chart + table */}
+              <div className="lim-cf-main">
+                <div className="lim-chart-wrap">
+                  <CashflowChart
+                    realRows={realRows}
+                    optimistaRows={optimistaRows}
+                    pessimistaRows={pessimistaRows}
+                    activeMonth={activeMonth}
+                    scenario={scenario}
+                  />
+                </div>
+
+                {/* Scenario banner */}
+                {scenario !== "real" && (
+                  <div className={`lim-scenario-banner${scenario === "optimista" ? " lim-scenario-banner--opt" : " lim-scenario-banner--pes"}`}>
+                    <span className="lim-scenario-banner__dot" />
+                    <strong>{scenarioLabel}</strong>
+                    <span>— Los valores proyectados se muestran en {scenario === "optimista" ? "verde" : "rojo"}</span>
+                  </div>
+                )}
+
+                <div className="lim-tbl-scroll">
+                  <table className="lim-tbl" data-scenario={scenario}>
+                    <thead>
+                      <tr>
+                        <th className="lim-th-label">
+                          <input className="lim-search" placeholder="Buscar…" type="search" />
+                        </th>
+                        {rows.map((r, i) => (
+                          <th
+                            key={r.label}
+                            className={`lim-th-month${i === activeMonth ? " lim-th-month--active" : ""}`}
+                            onClick={() => setActiveMonth(i)}
+                          >
+                            {r.label.toUpperCase()}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* Saldo inicial */}
+                      <tr className="lim-tr-section">
+                        <td className="lim-td-lbl"><span className="lim-dot lim-dot--blue" />Saldo inicial de caja</td>
+                        {rows.map((r, i) => (
+                          <td key={r.label} className={`lim-td-n${i === activeMonth ? " lim-td-n--active" : ""}`}>{fmtFull(r.balanceStart)}</td>
+                        ))}
+                      </tr>
+
+                      {/* Entradas */}
+                      <tr className="lim-tr-group" onClick={() => toggle("inflow")}>
+                        <td className="lim-td-lbl lim-td-lbl--group">
+                          <span className={`lim-arrow${expanded.has("inflow") ? " lim-arrow--open" : ""}`}>▶</span>
+                          <span className="lim-dot lim-dot--green" />Entradas de efectivo
+                        </td>
+                        {rows.map((r, i) => (
+                          <td key={r.label} className={`lim-td-n lim-td-n--bold${i === activeMonth ? " lim-td-n--active lim-td-n--green" : ""}`}>
+                            {fmtFull(r.inflow)}
+                            {i === activeMonth && <span className="lim-pct"> {Math.round((r.inflow / totals.totalInflow) * 12 * 100)}%</span>}
+                          </td>
+                        ))}
+                      </tr>
+                      {expanded.has("inflow") && (
+                        <>
+                          {[
+                            { key: "inflowAR", label: "Cobros clientes A/R" },
+                            { key: "inflowServices", label: "Ingresos por servicios" },
+                            { key: "inflowOther", label: "Otros ingresos" },
+                          ].map(({ key, label }) => (
+                            <tr key={key} className="lim-tr-sub">
+                              <td className="lim-td-lbl lim-td-lbl--sub">{label}</td>
+                              {rows.map((r, i) => (
+                                <td key={r.label} className={`lim-td-n lim-td-n--sub${i === activeMonth ? " lim-td-n--active" : ""}`}>
+                                  {fmtFull(r[key as keyof MonthRow] as number)}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </>
+                      )}
+
+                      {/* Salidas */}
+                      <tr className="lim-tr-group" onClick={() => toggle("outflow")}>
+                        <td className="lim-td-lbl lim-td-lbl--group">
+                          <span className={`lim-arrow${expanded.has("outflow") ? " lim-arrow--open" : ""}`}>▶</span>
+                          <span className="lim-dot lim-dot--red" />Salidas de efectivo
+                        </td>
+                        {rows.map((r, i) => (
+                          <td key={r.label} className={`lim-td-n lim-td-n--bold${i === activeMonth ? " lim-td-n--active lim-td-n--red" : ""}`}>
+                            {fmtFull(r.outflow)}
+                            {i === activeMonth && <span className="lim-pct"> {Math.round((r.outflow / totals.totalOutflow) * 12 * 100)}%</span>}
+                          </td>
+                        ))}
+                      </tr>
+                      {expanded.has("outflow") && (
+                        <>
+                          {[
+                            { key: "outflowSuppliers", label: "Pago proveedores" },
+                            { key: "outflowPayroll", label: "Nómina" },
+                          ].map(({ key, label }) => (
+                            <tr key={key} className="lim-tr-sub">
+                              <td className="lim-td-lbl lim-td-lbl--sub">{label}</td>
+                              {rows.map((r, i) => (
+                                <td key={r.label} className={`lim-td-n lim-td-n--sub${i === activeMonth ? " lim-td-n--active" : ""}`}>
+                                  {fmtFull(r[key as keyof MonthRow] as number)}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </>
+                      )}
+
+                      {/* Saldo final */}
+                      <tr className="lim-tr-section">
+                        <td className="lim-td-lbl"><span className="lim-dot lim-dot--blue" />Saldo final del mes</td>
+                        {rows.map((r, i) => (
+                          <td key={r.label} className={`lim-td-n lim-td-n--bold${i === activeMonth ? " lim-td-n--active" : ""}`}>{fmtFull(r.balanceEnd)}</td>
+                        ))}
+                      </tr>
+
+                      {/* KPIs */}
+                      <tr className="lim-tr-group" onClick={() => toggle("kpi")}>
+                        <td className="lim-td-lbl lim-td-lbl--group">
+                          <span className={`lim-arrow${expanded.has("kpi") ? " lim-arrow--open" : ""}`}>▶</span>
+                          <span className="lim-dot lim-dot--orange" />Indicadores clave
+                        </td>
+                        {rows.map((r, i) => {
+                          const net = r.inflow - r.outflow;
+                          return (
+                            <td key={r.label} className={`lim-td-n lim-td-n--bold${net >= 0 ? " lim-td-n--green" : " lim-td-n--red"}${i === activeMonth ? " lim-td-n--active" : ""}`}>
+                              {net >= 0 ? "+" : ""}{fmtFull(net)}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                      {expanded.has("kpi") && (
+                        <>
+                          <tr className="lim-tr-sub">
+                            <td className="lim-td-lbl lim-td-lbl--sub">Saldo EOM <span className="lim-kpi-acronym">End of Month</span></td>
+                            {rows.map((r, i) => (
+                              <td key={r.label} className={`lim-td-n lim-td-n--sub lim-td-n--blue${i === activeMonth ? " lim-td-n--active" : ""}`}>
+                                {fmtFull(r.balanceEnd)}
+                              </td>
+                            ))}
+                          </tr>
+                          <tr className="lim-tr-sub">
+                            <td className="lim-td-lbl lim-td-lbl--sub">Burn rate mensual</td>
+                            {rows.map((r, i) => (
+                              <td key={r.label} className={`lim-td-n lim-td-n--sub${i === activeMonth ? " lim-td-n--active" : ""}`}>
+                                {fmtFull(r.outflow)}
+                              </td>
+                            ))}
+                          </tr>
+                          <tr className="lim-tr-sub">
+                            <td className="lim-td-lbl lim-td-lbl--sub">Caja neta acumulada</td>
+                            {(() => {
+                              let acc = 0;
+                              return rows.map((r, i) => {
+                                acc += r.inflow - r.outflow;
+                                return (
+                                  <td key={r.label} className={`lim-td-n lim-td-n--sub${acc >= 0 ? " lim-td-n--green" : " lim-td-n--red"}${i === activeMonth ? " lim-td-n--active" : ""}`}>
+                                    {acc >= 0 ? "+" : ""}{fmtFull(acc)}
+                                  </td>
+                                );
+                              });
+                            })()}
+                          </tr>
+                        </>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════ BANCO TAB ══════════════ */}
+          {activeTab === "bank" && (
+            <div className="lim-panel">
+              <div className="lim-section-head">Posición consolidada multi-banco · Tiempo real</div>
+              <table className="lim-tbl lim-tbl--list">
+                <thead>
+                  <tr>
+                    {["Banco", "Cuenta", "Moneda", "Saldo actual", "Últ. sync", "Estado"].map((h) => (
+                      <th key={h}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {BANKS_DATA.map((b) => (
+                    <tr key={b.account}>
+                      <td>{b.name}</td>
+                      <td className="lim-td-mono">{b.account}</td>
+                      <td>{b.currency}</td>
+                      <td className="lim-td-n lim-td-n--bold">${fmtFull(b.balance)}</td>
+                      <td className="lim-td-muted">hace {b.syncAgo}</td>
+                      <td><span className={`lim-pill${b.status === "Online" ? " lim-pill--green" : " lim-pill--yellow"}`}>{b.status}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="lim-kpi-row-3">
+                {[
+                  { label: "Total USD consolidado", val: "$4.82M" },
+                  { label: "Equivalente EUR", val: "$182.4K" },
+                  { label: "Cuentas sincronizadas", val: "12 / 12", sub: "100% conectadas" },
+                ].map((k) => (
+                  <article key={k.label} className="lim-kpi-card">
+                    <span>{k.label}</span>
+                    <strong>{k.val}</strong>
+                    {k.sub && <small>{k.sub}</small>}
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════ ESPERADO TAB ══════════════ */}
+          {activeTab === "expected" && (
+            <div className="lim-panel">
+              <div className="lim-section-head">Flujos esperados — Próximos 30 días</div>
+              <div className="lim-kpi-row-3">
+                <article className="lim-kpi-card"><span>Entradas proyectadas 30d</span><strong className="lim-val-up">$3.10M</strong></article>
+                <article className="lim-kpi-card"><span>Salidas proyectadas 30d</span><strong>$1.87M</strong></article>
+                <article className="lim-kpi-card"><span>Gap neto</span><strong className="lim-val-up">+$1.23M</strong></article>
+              </div>
+              <table className="lim-tbl lim-tbl--list">
+                <thead>
+                  <tr>{["Concepto", "Tipo", "Monto est.", "Prob.", "Estado"].map((h) => <th key={h}>{h}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {[
+                    { c: "Cobros clientes A/R", t: "Entrada", m: 890_000, p: "95%", e: "Confirmado" },
+                    { c: "Nómina quincenal", t: "Salida", m: 240_000, p: "100%", e: "Fijo" },
+                    { c: "Pago proveedores", t: "Salida", m: 610_000, p: "80%", e: "Estimado" },
+                    { c: "Vencimiento CDT", t: "Entrada", m: 450_000, p: "100%", e: "Confirmado" },
+                    { c: "Impuestos SRI", t: "Salida", m: 180_000, p: "100%", e: "Fijo" },
+                  ].map((item) => (
+                    <tr key={item.c}>
+                      <td>{item.c}</td>
+                      <td className={item.t === "Entrada" ? "lim-val-up" : "lim-val-down"}>{item.t}</td>
+                      <td className="lim-td-n">${fmtFull(item.m)}</td>
+                      <td>{item.p}</td>
+                      <td><span className={`lim-pill${item.e === "Confirmado" ? " lim-pill--green" : item.e === "Fijo" ? " lim-pill--red" : " lim-pill--yellow"}`}>{item.e}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* ══════════════ CONCILIACIÓN TAB ══════════════ */}
+          {activeTab === "reconciliation" && (
+            <div className="lim-panel">
+              <div className="lim-section-head">Conciliación automática multi-banco</div>
+              <div className="lim-recon-kpis">
+                <div className="lim-recon-kpi">
+                  <span className="lim-recon-kpi-val lim-val-up">1,248</span>
+                  <span className="lim-recon-kpi-lbl">Transacciones conciliadas</span>
+                </div>
+                <div className="lim-recon-kpi">
+                  <span className="lim-recon-kpi-val lim-val-warn">17</span>
+                  <span className="lim-recon-kpi-lbl">Pendientes de revisión</span>
+                </div>
+                <div className="lim-recon-kpi">
+                  <span className="lim-recon-kpi-val lim-val-down">3</span>
+                  <span className="lim-recon-kpi-lbl">Diferencias detectadas</span>
+                </div>
+                <div className="lim-recon-kpi">
+                  <span className="lim-recon-kpi-val lim-val-up">97.8%</span>
+                  <span className="lim-recon-kpi-lbl">Tasa de conciliación</span>
+                </div>
+              </div>
+              <div className="lim-section-head" style={{ marginTop: 8 }}>Diferencias pendientes</div>
+              <table className="lim-tbl lim-tbl--list">
+                <thead><tr>{["Banco", "Fecha", "Concepto", "Diferencia", "Estado"].map((h) => <th key={h}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {[
+                    { b: "Banco Bolivariano", f: "06 May 2026", c: "Transferencia interna", d: "$2,340", e: "Pendiente" },
+                    { b: "Produbanco", f: "05 May 2026", c: "Cargo no identificado", d: "$180", e: "Revisión" },
+                    { b: "Banco Pichincha", f: "04 May 2026", c: "Comisión bancaria", d: "$45", e: "Pendiente" },
+                  ].map((item) => (
+                    <tr key={item.c}>
+                      <td>{item.b}</td>
+                      <td className="lim-td-muted">{item.f}</td>
+                      <td>{item.c}</td>
+                      <td className="lim-td-n lim-val-down">{item.d}</td>
+                      <td><span className="lim-pill lim-pill--yellow">{item.e}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* ══════════════ FINANCIAMIENTO TAB ══════════════ */}
+          {activeTab === "financing" && (
+            <div className="lim-panel">
+              <div className="lim-section-head">Gestión de inversiones y crédito</div>
+              <div className="lim-section-subhead">Efectivo total disponible para invertir: <strong style={{ color: "#111827" }}>$2,180,000</strong></div>
+
+              <table className="lim-tbl lim-tbl--list">
+                <thead><tr>{["Instrumento", "Plazo", "Monto", "Rendimiento", "Vencimiento"].map((h) => <th key={h}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {[
+                    { i: "Money Market AAA", p: "30 días", m: 680_000, r: "5.1% TNA", v: "07 Jun 2026" },
+                    { i: "Fondo Liquidez Plus", p: "7 días", m: 320_000, r: "4.2% TNA", v: "15 May 2026" },
+                    { i: "Repo Overnight", p: "1 día", m: 190_000, r: "3.8% TNA", v: "09 May 2026" },
+                    { i: "Línea Crédito Pichincha", p: "Revolving", m: 2_000_000, r: "8.5%", v: "Dic 2026" },
+                  ].map((item) => (
+                    <tr key={item.i}>
+                      <td><strong>{item.i}</strong></td>
+                      <td>{item.p}</td>
+                      <td className="lim-td-n">${fmtFull(item.m)}</td>
+                      <td className="lim-val-up">{item.r}</td>
+                      <td className="lim-td-muted">{item.v}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="lim-section-head" style={{ marginTop: 8 }}>Oportunidades por plazo</div>
+              <table className="lim-tbl lim-tbl--list">
+                <thead><tr>{["Plazo", "Efectivo disponible", "Tasa", "Ingreso potencial"].map((h) => <th key={h}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {[
+                    { p: "6 meses", e: "$11,000,000", t: "2.9% TNA", ip: "$317,315" },
+                    { p: "3 meses", e: "$1,200,000", t: "2.4% TNA", ip: "$28,101" },
+                    { p: "1 mes", e: "$800,000", t: "2.2% TNA", ip: "$17,446" },
+                  ].map((item) => (
+                    <tr key={item.p}>
+                      <td>{item.p}</td>
+                      <td className="lim-td-n">{item.e}</td>
+                      <td>{item.t}</td>
+                      <td className="lim-td-n lim-val-up">{item.ip}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* ── Panel IA ── */}
+              <div className="lim-ai-panel">
+                <div className="lim-ai-header">
+                  <span className="lim-ai-badge">IA</span>
+                  <span className="lim-ai-header-title">Análisis y recomendaciones · <span className="lim-ai-header-ts">Actualizado hace 2 min</span></span>
+                  <button className="lim-btn-ghost lim-ai-regen" type="button">↺ Regenerar</button>
+                </div>
+                <div className="lim-ai-cards">
+                  <div className="lim-ai-card lim-ai-card--green">
+                    <span className="lim-ai-tag lim-ai-tag--green">Oportunidad</span>
+                    <div className="lim-ai-card-title">Optimizar Money Market</div>
+                    <div className="lim-ai-card-body">Con $2.18M disponibles, redirigir $680K del Repo Overnight al Money Market AAA (30 días, 5.1% TNA) genera <strong>$3,468 adicionales</strong> en el período frente a la tasa actual.</div>
+                    <button className="lim-ai-action" type="button">Aplicar →</button>
+                  </div>
+                  <div className="lim-ai-card lim-ai-card--yellow">
+                    <span className="lim-ai-tag lim-ai-tag--yellow">Alerta</span>
+                    <div className="lim-ai-card-title">Vencimiento en 24 h</div>
+                    <div className="lim-ai-card-body">El <strong>Repo Overnight $190K</strong> vence el 09 May 2026. Se recomienda renovar o redirigir al Fondo Liquidez Plus para mantener liquidez operativa sin corte de cobertura.</div>
+                    <button className="lim-ai-action" type="button">Revisar →</button>
+                  </div>
+                  <div className="lim-ai-card lim-ai-card--blue">
+                    <span className="lim-ai-tag lim-ai-tag--blue">Estrategia</span>
+                    <div className="lim-ai-card-title">Línea Revolving sin utilizar</div>
+                    <div className="lim-ai-card-body">La línea de crédito Pichincha ($2M, 8.5%) tiene margen completo disponible. Mantenerla sin utilizar mejora el índice de cobertura. Activar solo si <strong>DSO supera 45 días</strong> o el saldo EOM cae bajo $1.2M.</div>
+                    <button className="lim-ai-action" type="button">Configurar alerta →</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════ DASHBOARD TAB ══════════════ */}
+          {activeTab === "dashboard" && (
+            <div className="lim-dashboard">
+              <div className="lim-dash-head">
+                <h2>Vista general de métricas clave</h2>
+                <div className="lim-dash-actions">
+                  <button className="lim-btn-ghost" type="button">Biblioteca</button>
+                  <button className="lim-btn-ghost" type="button">+ Agregar</button>
+                  <button className="lim-btn-ghost" type="button">··· Opciones</button>
                 </div>
               </div>
 
-              {insightVisible ? (
-                <div className="zelify-lim-card zelify-lim-insight">
-                  <h3>Vista de insights</h3>
-                  <p className="zelify-lim-insight__title">{cfg.insightTitle}</p>
-                  <p className="zelify-lim-insight__body">{cfg.insightBody}</p>
-                </div>
-              ) : null}
-            </>
-          ) : null}
+              <div className="lim-dash-kpis">
+                <article className="lim-dash-kpi">
+                  <div className="lim-dash-kpi-title">Comisiones bancarias</div>
+                  <div className="lim-dash-kpi-range">1 Ene → 31 Dic · Umbral $3,500</div>
+                  <div className="lim-dash-kpi-val">$4,753 <span className="lim-dash-kpi-flag">↑</span></div>
+                  <div className="lim-dash-kpi-note">+$1,253 sobre el umbral</div>
+                </article>
 
-          {tab === "zelify" ? (
-            <>
-              <div className="zelify-lim-card" style={{ marginBottom: 12 }}>
-                <h3>Cómo Zelify se alinea con LIM</h3>
-                <p style={{ margin: "0 0 10px", color: "#64748b", fontSize: 14, lineHeight: 1.55 }}>
-                  Zelify puede posicionarse como{" "}
-                  <strong>The Intelligence &amp; Orchestration Layer for Financial Institutions</strong>: infraestructura
-                  financiera real, motor de eventos, capa de IA/analytics y APIs — el banco conserva el modelo de negocio
-                  y las decisiones finales.
-                </p>
-                <LimArchitectureOverview />
+                <article className="lim-dash-kpi">
+                  <div className="lim-dash-kpi-title">A/R vencidas</div>
+                  <div className="lim-dash-kpi-range">1 Ene → 31 Dic · Meta &lt; $350,000</div>
+                  <div className="lim-dash-kpi-val">$349,253</div>
+                  <div className="lim-dash-kpi-note">A/R — Cuentas por cobrar</div>
+                </article>
+
+                <article className="lim-dash-kpi">
+                  <div className="lim-dash-kpi-title">Saldo EOM de caja</div>
+                  <div className="lim-dash-kpi-range">1 Ene → 31 Dic · Meta &gt; $1,200,000</div>
+                  <div className="lim-dash-kpi-val">{fmt(totals.balance)}</div>
+                  <div className="lim-dash-kpi-note">EOM — End of Month</div>
+                </article>
+
+                <article className="lim-dash-kpi">
+                  <div className="lim-dash-kpi-title">DSO promedio</div>
+                  <div className="lim-dash-kpi-range">1 Ene → 31 Dic · Meta &lt; 45 días</div>
+                  <div className="lim-dash-kpi-val">38 días</div>
+                  <div className="lim-dash-kpi-note">DSO — Days Sales Outstanding</div>
+                </article>
               </div>
-              <div className="zelify-lim-mapping">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Requerimiento LIM</th>
-                      <th>Aporte Zelify</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>Arquitectura cloud, APIs, multi-país</td>
-                      <td>Core BaaS modular, integraciones bancarias existentes</td>
-                    </tr>
-                    <tr>
-                      <td>Data pipelines e integración</td>
-                      <td>Ingesta de eventos financieros; normalización multi-país</td>
-                    </tr>
-                    <tr>
-                      <td>Analytics &amp; AI (marco)</td>
-                      <td>Capa Cortex / Aetherion — señales, scoring, segmentación (sin decisión final)</td>
-                    </tr>
-                    <tr>
-                      <td>Workflow orchestration</td>
-                      <td>Eventos en tiempo real, triggers, routing hacia tesorería/comercial/CRM</td>
-                    </tr>
-                    <tr>
-                      <td>Gobierno y cumplimiento</td>
-                      <td>KYC/KYB, auditoría, controles multi-jurisdicción</td>
-                    </tr>
-                  </tbody>
-                </table>
+
+              <div className="lim-dash-charts">
+                <article className="lim-dash-chart">
+                  <h3>Real vs. Forecast</h3>
+                  <p className="lim-chart-range">1 Ene → 30 Jun</p>
+                  <BarChart2 />
+                </article>
+                <article className="lim-dash-chart">
+                  <h3>Evolución de cobros</h3>
+                  <p className="lim-chart-range">1 Ene → 31 Dic</p>
+                  <AreaChart />
+                </article>
+                <article className="lim-dash-chart">
+                  <h3>Distribución de salidas (anual)</h3>
+                  <p className="lim-chart-range">1 Ene → 31 Dic</p>
+                  <DonutChart />
+                </article>
+                <article className="lim-dash-chart">
+                  <h3>Salidas por mes</h3>
+                  <p className="lim-chart-range">1 Ene → 31 Dic</p>
+                  <StackedBarChart />
+                </article>
               </div>
-              <div className="zelify-lim-disclaimer" style={{ marginTop: 14 }}>
-                Mensaje tipo pitch: una plataforma que combina infraestructura financiera + inteligencia + orquestación
-                permite desplegar soluciones tipo LIM <strong>sin reconstruir el core</strong>.
-              </div>
-            </>
-          ) : null}
+            </div>
+          )}
+
         </div>
       </div>
     </div>
