@@ -7,17 +7,17 @@ import "./lim-screen.css";
 
 type MainTab = "cashflow" | "bank" | "expected" | "reconciliation" | "financing" | "dashboard";
 type ScenarioId = "real" | "optimista" | "pesimista";
-type OptimisticMode = "5" | "20";
+type ScenarioOverlayId = "optimista" | "pesimista";
 type ViewMode = "mensual" | "trimestral" | "semestral" | "anual";
 
 const MONTHS = ["May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic", "Ene", "Feb", "Mar", "Abr"];
 
 const BANKS_DATA = [
-  { name: "Banco Pichincha", account: "****4821", currency: "USD", balance: 1_420_300, syncAgo: "3 min", status: "Online" },
-  { name: "Produbanco", account: "****9034", currency: "USD", balance: 892_540, syncAgo: "5 min", status: "Online" },
-  { name: "Banco Guayaquil", account: "****2210", currency: "USD", balance: 673_100, syncAgo: "12 min", status: "Online" },
-  { name: "Banco Bolivariano", account: "****3381", currency: "USD", balance: 1_834_060, syncAgo: "9 min", status: "Online" },
-  { name: "Banco del Pacífico", account: "****8803", currency: "USD", balance: 182_400, syncAgo: "15 min", status: "Online" },
+  { name: "Banco Pichincha", account: "****4821", currency: "USD", balance: 1_360_000, syncAgo: "3 min", status: "Online" },
+  { name: "Produbanco", account: "****9034", currency: "USD", balance: 910_000, syncAgo: "5 min", status: "Online" },
+  { name: "Banco Guayaquil", account: "****2210", currency: "USD", balance: 640_000, syncAgo: "12 min", status: "Online" },
+  { name: "Banco Bolivariano", account: "****3381", currency: "USD", balance: 1_730_000, syncAgo: "9 min", status: "Online" },
+  { name: "Banco del Pacífico", account: "****8803", currency: "USD", balance: 180_000, syncAgo: "15 min", status: "Online" },
 ];
 
 function fmt(v: number): string {
@@ -42,12 +42,13 @@ type MonthRow = {
   balanceEnd: number;
 };
 
-function buildRows(scenario: ScenarioId, optimisticMode: OptimisticMode): MonthRow[] {
-  const growth =
-    scenario === "optimista" ? (optimisticMode === "20" ? 0.2 : 0.05) : scenario === "pesimista" ? -0.03 : 0.01;
+function buildRows(scenario: ScenarioId): MonthRow[] {
+  const annualGrowth =
+    scenario === "optimista" ? 0.25 : scenario === "pesimista" ? -0.4 : 0.03;
+  const growth = Math.pow(1 + annualGrowth, 1 / 12) - 1;
 
-  let inflow = 1_395_000;
-  let outflow = 730_000;
+  let inflow = 1_180_000;
+  let outflow = 1_020_000;
   let bal = 4_820_000;
   const rows: MonthRow[] = [];
 
@@ -76,6 +77,35 @@ function buildRows(scenario: ScenarioId, optimisticMode: OptimisticMode): MonthR
   return rows;
 }
 
+function aggregateRows(rows: MonthRow[], viewMode: ViewMode): MonthRow[] {
+  if (viewMode === "mensual") return rows;
+
+  const size = viewMode === "trimestral" ? 3 : viewMode === "semestral" ? 6 : rows.length;
+  const out: MonthRow[] = [];
+
+  for (let i = 0; i < rows.length; i += size) {
+    const chunk = rows.slice(i, i + size);
+    if (chunk.length === 0) continue;
+    const first = chunk[0];
+    const last = chunk[chunk.length - 1];
+
+    out.push({
+      label: viewMode === "anual" ? "Anual" : `${first.label}-${last.label}`,
+      balanceStart: first.balanceStart,
+      inflow: chunk.reduce((s, r) => s + r.inflow, 0),
+      inflowAR: chunk.reduce((s, r) => s + r.inflowAR, 0),
+      inflowServices: chunk.reduce((s, r) => s + r.inflowServices, 0),
+      inflowOther: chunk.reduce((s, r) => s + r.inflowOther, 0),
+      outflow: chunk.reduce((s, r) => s + r.outflow, 0),
+      outflowSuppliers: chunk.reduce((s, r) => s + r.outflowSuppliers, 0),
+      outflowPayroll: chunk.reduce((s, r) => s + r.outflowPayroll, 0),
+      balanceEnd: last.balanceEnd,
+    });
+  }
+
+  return out;
+}
+
 /* ─── SVG Cashflow Chart — siempre muestra Real + escenarios seleccionados ─── */
 function CashflowChart({
   realRows,
@@ -83,14 +113,18 @@ function CashflowChart({
   pessimistaRows,
   activeMonth,
   scenario,
+  showOptimista,
+  showPesimista,
 }: {
   realRows: MonthRow[];
   optimistaRows: MonthRow[];
   pessimistaRows: MonthRow[];
   activeMonth: number;
   scenario: ScenarioId;
+  showOptimista: boolean;
+  showPesimista: boolean;
 }) {
-  const W = 860, H = 248, PL = 62, PR = 12, PT = 32, PB = 28;
+  const W = 860, H = 360, PL = 62, PR = 12, PT = 36, PB = 38;
   const cW = W - PL - PR;
   const cH = H - PT - PB;
 
@@ -134,11 +168,12 @@ function CashflowChart({
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [targetRows]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [targetRows]);
 
   // Escala Y: máximo global entre los 3 escenarios para que las líneas sean comparables
   const max = Math.max(
     ...optimistaRows.map((r) => r.balanceEnd),
+    ...pessimistaRows.map((r) => r.balanceEnd),
     ...realRows.map((r) => Math.max(r.inflow, r.balanceEnd)),
     1,
   );
@@ -172,13 +207,13 @@ function CashflowChart({
         <circle cx={145} cy={4} r={2.5} fill="#1d4ed8" />
         <text x={158} y={8} fontSize={9} fill="#1d4ed8" fontWeight={scenario === "real" ? "700" : "400"}>Real</text>
         {/* Línea Optimista */}
-        <line x1={190} y1={4} x2={210} y2={4} stroke="#059669" strokeWidth={scenario === "optimista" ? 2.5 : 1.5} strokeDasharray="5 3" />
+        <line x1={190} y1={4} x2={210} y2={4} stroke="#059669" strokeWidth={scenario === "optimista" ? 2.5 : 1.5} strokeDasharray="5 3" opacity={showOptimista ? 1 : 0.25} />
         <circle cx={200} cy={4} r={2.5} fill="#059669" />
-        <text x={213} y={8} fontSize={9} fill="#059669" fontWeight={scenario === "optimista" ? "700" : "400"}>Optimista</text>
+        <text x={213} y={8} fontSize={9} fill="#059669" fontWeight={scenario === "optimista" ? "700" : "400"} opacity={showOptimista ? 1 : 0.35}>Optimista</text>
         {/* Línea Pesimista */}
-        <line x1={268} y1={4} x2={288} y2={4} stroke="#dc2626" strokeWidth={scenario === "pesimista" ? 2.5 : 1.5} strokeDasharray="5 3" />
+        <line x1={268} y1={4} x2={288} y2={4} stroke="#dc2626" strokeWidth={scenario === "pesimista" ? 2.5 : 1.5} strokeDasharray="5 3" opacity={showPesimista ? 1 : 0.25} />
         <circle cx={278} cy={4} r={2.5} fill="#dc2626" />
-        <text x={291} y={8} fontSize={9} fill="#dc2626" fontWeight={scenario === "pesimista" ? "700" : "400"}>Pesimista</text>
+        <text x={291} y={8} fontSize={9} fill="#dc2626" fontWeight={scenario === "pesimista" ? "700" : "400"} opacity={showPesimista ? 1 : 0.35}>Pesimista</text>
       </g>
 
       {/* Grid Y */}
@@ -210,25 +245,29 @@ function CashflowChart({
       {/* ── Las 3 líneas de saldo siempre visibles ── */}
 
       {/* Pesimista — rojo */}
-      <polyline
-        points={pesPts}
-        fill="none"
-        stroke="#dc2626"
-        strokeWidth={scenario === "pesimista" ? 2.5 : 1.2}
-        strokeDasharray="5 3"
-        strokeLinecap="round"
-        opacity={scenario === "pesimista" ? 1 : 0.45}
-      />
-      {pessimistaRows.map((r, i) => (
-        <circle
-          key={i}
-          cx={PL + i * slotW + slotW / 2}
-          cy={ys(r.balanceEnd)}
-          r={scenario === "pesimista" ? 3.5 : 2}
-          fill="#dc2626"
-          opacity={scenario === "pesimista" ? 1 : 0.4}
-        />
-      ))}
+      {showPesimista && (
+        <>
+          <polyline
+            points={pesPts}
+            fill="none"
+            stroke="#dc2626"
+            strokeWidth={scenario === "pesimista" ? 2.5 : 1.2}
+            strokeDasharray="5 3"
+            strokeLinecap="round"
+            opacity={scenario === "pesimista" ? 1 : 0.45}
+          />
+          {pessimistaRows.map((r, i) => (
+            <circle
+              key={i}
+              cx={PL + i * slotW + slotW / 2}
+              cy={ys(r.balanceEnd)}
+              r={scenario === "pesimista" ? 3.5 : 2}
+              fill="#dc2626"
+              opacity={scenario === "pesimista" ? 1 : 0.4}
+            />
+          ))}
+        </>
+      )}
 
       {/* Real — azul (siempre visible, siempre en primer plano si está activo) */}
       <polyline
@@ -252,25 +291,29 @@ function CashflowChart({
       ))}
 
       {/* Optimista — verde */}
-      <polyline
-        points={optPts}
-        fill="none"
-        stroke="#059669"
-        strokeWidth={scenario === "optimista" ? 2.5 : 1.2}
-        strokeDasharray="5 3"
-        strokeLinecap="round"
-        opacity={scenario === "optimista" ? 1 : 0.45}
-      />
-      {optimistaRows.map((r, i) => (
-        <circle
-          key={i}
-          cx={PL + i * slotW + slotW / 2}
-          cy={ys(r.balanceEnd)}
-          r={scenario === "optimista" ? 3.5 : 2}
-          fill="#059669"
-          opacity={scenario === "optimista" ? 1 : 0.4}
-        />
-      ))}
+      {showOptimista && (
+        <>
+          <polyline
+            points={optPts}
+            fill="none"
+            stroke="#059669"
+            strokeWidth={scenario === "optimista" ? 2.5 : 1.2}
+            strokeDasharray="5 3"
+            strokeLinecap="round"
+            opacity={scenario === "optimista" ? 1 : 0.45}
+          />
+          {optimistaRows.map((r, i) => (
+            <circle
+              key={i}
+              cx={PL + i * slotW + slotW / 2}
+              cy={ys(r.balanceEnd)}
+              r={scenario === "optimista" ? 3.5 : 2}
+              fill="#059669"
+              opacity={scenario === "optimista" ? 1 : 0.4}
+            />
+          ))}
+        </>
+      )}
 
       {/* Etiquetas X */}
       {realRows.map((r, i) => (
@@ -436,21 +479,32 @@ function StackedBarChart() {
 /* ─── Main Screen ─── */
 export function LimScreen() {
   const [activeTab, setActiveTab] = useState<MainTab>("cashflow");
-  const [scenario, setScenario] = useState<ScenarioId>("real");
-  const [optimisticMode, setOptimisticMode] = useState<OptimisticMode>("20");
+  const [scenarioFilters, setScenarioFilters] = useState<Set<ScenarioOverlayId>>(new Set());
   const [viewMode, setViewMode] = useState<ViewMode>("mensual");
   const [activeMonth, setActiveMonth] = useState(0);
   const [expanded, setExpanded] = useState<Set<string>>(new Set(["inflow", "outflow"]));
 
   // Los 3 escenarios siempre calculados para el chart multi-línea
-  const realRows = useMemo(() => buildRows("real", "20"), []);
-  const optimistaRows = useMemo(() => buildRows("optimista", optimisticMode), [optimisticMode]);
-  const pessimistaRows = useMemo(() => buildRows("pesimista", "20"), []);
+  const realRowsBase = useMemo(() => buildRows("real"), []);
+  const optimistaRowsBase = useMemo(() => buildRows("optimista"), []);
+  const pessimistaRowsBase = useMemo(() => buildRows("pesimista"), []);
+
+  const realRows = useMemo(() => aggregateRows(realRowsBase, viewMode), [realRowsBase, viewMode]);
+  const optimistaRows = useMemo(() => aggregateRows(optimistaRowsBase, viewMode), [optimistaRowsBase, viewMode]);
+  const pessimistaRows = useMemo(() => aggregateRows(pessimistaRowsBase, viewMode), [pessimistaRowsBase, viewMode]);
 
   // Para la tabla, el escenario seleccionado
+  const showOptimista = scenarioFilters.has("optimista");
+  const showPesimista = scenarioFilters.has("pesimista");
+  const scenario: ScenarioId =
+    showOptimista && !showPesimista ? "optimista"
+      : showPesimista && !showOptimista ? "pesimista"
+        : "real";
+
   const rows = scenario === "optimista" ? optimistaRows
     : scenario === "pesimista" ? pessimistaRows
       : realRows;
+  const safeActiveMonth = Math.min(activeMonth, Math.max(rows.length - 1, 0));
 
   const totals = useMemo(() => {
     const totalInflow = rows.reduce((s, r) => s + r.inflow, 0);
@@ -465,12 +519,26 @@ export function LimScreen() {
   }, [rows]);
 
   const toggle = (key: string) =>
-    setExpanded((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+    setExpanded((prev) => {
+      const n = new Set(prev);
+      if (n.has(key)) n.delete(key);
+      else n.add(key);
+      return n;
+    });
+
+  const chartAnimKey = `${viewMode}-${showOptimista ? "1" : "0"}-${showPesimista ? "1" : "0"}`;
 
   const scenarioLabel =
-    scenario === "optimista" ? (optimisticMode === "20" ? "Escenario optimista +20%" : "Escenario optimista +5%")
-      : scenario === "pesimista" ? "Escenario pesimista -3%"
-        : "Escenario real";
+    showOptimista && showPesimista ? "Escenarios activos: Optimista +25% anual y Pesimista -40% anual"
+      : scenario === "optimista" ? "Escenario optimista +25% anual"
+        : scenario === "pesimista" ? "Escenario pesimista -40% anual"
+          : "Escenario real";
+
+  const scenarioSelectLabel =
+    showOptimista && showPesimista ? "Real + Optimista + Pesimista"
+      : showOptimista ? "Real + Optimista"
+        : showPesimista ? "Real + Pesimista"
+          : "Real";
 
   const kpiValCls =
     scenario === "optimista" ? "lim-kpi-val--opt"
@@ -524,24 +592,46 @@ export function LimScreen() {
                   <option>Todos los proyectos</option>
                 </select>
                 <select className="lim-sel">
-                  <option>May → Abr</option>
+                  <option>Abr → May</option>
                   <option>Ene → Dic</option>
                 </select>
-                <select
-                  className={`lim-sel lim-sel--scenario${scenario === "optimista" ? " lim-sel--opt" : scenario === "pesimista" ? " lim-sel--pes" : ""}`}
-                  value={scenario}
-                  onChange={(e) => setScenario(e.target.value as ScenarioId)}
-                >
-                  <option value="real">Escenario real</option>
-                  <option value="optimista">Escenario optimista</option>
-                  <option value="pesimista">Escenario pesimista</option>
-                </select>
-                {scenario === "optimista" && (
-                  <select className="lim-sel" value={optimisticMode} onChange={(e) => setOptimisticMode(e.target.value as OptimisticMode)}>
-                    <option value="20">+20% mensual</option>
-                    <option value="5">+5% mensual</option>
-                  </select>
-                )}
+                <details className={`lim-scenario-select${scenario === "optimista" ? " lim-scenario-select--opt" : scenario === "pesimista" ? " lim-scenario-select--pes" : ""}`}>
+                  <summary className="lim-scenario-select__summary">{scenarioSelectLabel}</summary>
+                  <div className="lim-scenario-select__menu">
+                    <label className="lim-scenario-select__item">
+                      <input type="checkbox" checked readOnly />
+                      <span>Real</span>
+                    </label>
+                    <label className="lim-scenario-select__item">
+                      <input
+                        type="checkbox"
+                        checked={showOptimista}
+                        onChange={(e) =>
+                          setScenarioFilters((prev) => {
+                            const next = new Set(prev);
+                            if (e.target.checked) next.add("optimista");
+                            else next.delete("optimista");
+                            return next;
+                          })}
+                      />
+                      <span>Optimista</span>
+                    </label>
+                    <label className="lim-scenario-select__item">
+                      <input
+                        type="checkbox"
+                        checked={showPesimista}
+                        onChange={(e) =>
+                          setScenarioFilters((prev) => {
+                            const next = new Set(prev);
+                            if (e.target.checked) next.add("pesimista");
+                            else next.delete("pesimista");
+                            return next;
+                          })}
+                      />
+                      <span>Pesimista</span>
+                    </label>
+                  </div>
+                </details>
                 <select className="lim-sel" value={viewMode} onChange={(e) => setViewMode(e.target.value as ViewMode)}>
                   <option value="mensual">Vista consolidada</option>
                   <option value="trimestral">Vista trimestral</option>
@@ -582,22 +672,24 @@ export function LimScreen() {
 
               {/* chart + table */}
               <div className="lim-cf-main">
-                <div className="lim-chart-wrap">
+                <div key={chartAnimKey} className="lim-chart-wrap lim-chart-wrap--scenario-swap">
                   <CashflowChart
                     realRows={realRows}
                     optimistaRows={optimistaRows}
                     pessimistaRows={pessimistaRows}
-                    activeMonth={activeMonth}
+                    activeMonth={safeActiveMonth}
                     scenario={scenario}
+                    showOptimista={showOptimista}
+                    showPesimista={showPesimista}
                   />
                 </div>
 
                 {/* Scenario banner */}
-                {scenario !== "real" && (
-                  <div className={`lim-scenario-banner${scenario === "optimista" ? " lim-scenario-banner--opt" : " lim-scenario-banner--pes"}`}>
+                {(showOptimista || showPesimista) && (
+                  <div className={`lim-scenario-banner${scenario === "pesimista" && !showOptimista ? " lim-scenario-banner--pes" : " lim-scenario-banner--opt"}`}>
                     <span className="lim-scenario-banner__dot" />
                     <strong>{scenarioLabel}</strong>
-                    <span>— Los valores proyectados se muestran en {scenario === "optimista" ? "verde" : "rojo"}</span>
+                    <span>— Los valores proyectados se muestran en {showOptimista && showPesimista ? "verde y rojo" : scenario === "optimista" ? "verde" : "rojo"}</span>
                   </div>
                 )}
 
@@ -611,7 +703,7 @@ export function LimScreen() {
                         {rows.map((r, i) => (
                           <th
                             key={r.label}
-                            className={`lim-th-month${i === activeMonth ? " lim-th-month--active" : ""}`}
+                            className={`lim-th-month${i === safeActiveMonth ? " lim-th-month--active" : ""}`}
                             onClick={() => setActiveMonth(i)}
                           >
                             {r.label.toUpperCase()}
@@ -624,7 +716,7 @@ export function LimScreen() {
                       <tr className="lim-tr-section">
                         <td className="lim-td-lbl"><span className="lim-dot lim-dot--blue" />Saldo inicial de caja</td>
                         {rows.map((r, i) => (
-                          <td key={r.label} className={`lim-td-n${i === activeMonth ? " lim-td-n--active" : ""}`}>{fmtFull(r.balanceStart)}</td>
+                          <td key={r.label} className={`lim-td-n${i === safeActiveMonth ? " lim-td-n--active" : ""}`}>{fmtFull(r.balanceStart)}</td>
                         ))}
                       </tr>
 
@@ -635,9 +727,8 @@ export function LimScreen() {
                           <span className="lim-dot lim-dot--green" />Entradas de efectivo
                         </td>
                         {rows.map((r, i) => (
-                          <td key={r.label} className={`lim-td-n lim-td-n--bold${i === activeMonth ? " lim-td-n--active lim-td-n--green" : ""}`}>
+                          <td key={r.label} className={`lim-td-n lim-td-n--bold${i === safeActiveMonth ? " lim-td-n--active lim-td-n--green" : ""}`}>
                             {fmtFull(r.inflow)}
-                            {i === activeMonth && <span className="lim-pct"> {Math.round((r.inflow / totals.totalInflow) * 12 * 100)}%</span>}
                           </td>
                         ))}
                       </tr>
@@ -651,7 +742,7 @@ export function LimScreen() {
                             <tr key={key} className="lim-tr-sub">
                               <td className="lim-td-lbl lim-td-lbl--sub">{label}</td>
                               {rows.map((r, i) => (
-                                <td key={r.label} className={`lim-td-n lim-td-n--sub${i === activeMonth ? " lim-td-n--active" : ""}`}>
+                                <td key={r.label} className={`lim-td-n lim-td-n--sub${i === safeActiveMonth ? " lim-td-n--active" : ""}`}>
                                   {fmtFull(r[key as keyof MonthRow] as number)}
                                 </td>
                               ))}
@@ -667,9 +758,8 @@ export function LimScreen() {
                           <span className="lim-dot lim-dot--red" />Salidas de efectivo
                         </td>
                         {rows.map((r, i) => (
-                          <td key={r.label} className={`lim-td-n lim-td-n--bold${i === activeMonth ? " lim-td-n--active lim-td-n--red" : ""}`}>
+                          <td key={r.label} className={`lim-td-n lim-td-n--bold${i === safeActiveMonth ? " lim-td-n--active lim-td-n--red" : ""}`}>
                             {fmtFull(r.outflow)}
-                            {i === activeMonth && <span className="lim-pct"> {Math.round((r.outflow / totals.totalOutflow) * 12 * 100)}%</span>}
                           </td>
                         ))}
                       </tr>
@@ -682,7 +772,7 @@ export function LimScreen() {
                             <tr key={key} className="lim-tr-sub">
                               <td className="lim-td-lbl lim-td-lbl--sub">{label}</td>
                               {rows.map((r, i) => (
-                                <td key={r.label} className={`lim-td-n lim-td-n--sub${i === activeMonth ? " lim-td-n--active" : ""}`}>
+                                <td key={r.label} className={`lim-td-n lim-td-n--sub${i === safeActiveMonth ? " lim-td-n--active" : ""}`}>
                                   {fmtFull(r[key as keyof MonthRow] as number)}
                                 </td>
                               ))}
@@ -695,7 +785,7 @@ export function LimScreen() {
                       <tr className="lim-tr-section">
                         <td className="lim-td-lbl"><span className="lim-dot lim-dot--blue" />Saldo final del mes</td>
                         {rows.map((r, i) => (
-                          <td key={r.label} className={`lim-td-n lim-td-n--bold${i === activeMonth ? " lim-td-n--active" : ""}`}>{fmtFull(r.balanceEnd)}</td>
+                          <td key={r.label} className={`lim-td-n lim-td-n--bold${i === safeActiveMonth ? " lim-td-n--active" : ""}`}>{fmtFull(r.balanceEnd)}</td>
                         ))}
                       </tr>
 
@@ -708,7 +798,7 @@ export function LimScreen() {
                         {rows.map((r, i) => {
                           const net = r.inflow - r.outflow;
                           return (
-                            <td key={r.label} className={`lim-td-n lim-td-n--bold${net >= 0 ? " lim-td-n--green" : " lim-td-n--red"}${i === activeMonth ? " lim-td-n--active" : ""}`}>
+                            <td key={r.label} className={`lim-td-n lim-td-n--bold${net >= 0 ? " lim-td-n--green" : " lim-td-n--red"}${i === safeActiveMonth ? " lim-td-n--active" : ""}`}>
                               {net >= 0 ? "+" : ""}{fmtFull(net)}
                             </td>
                           );
@@ -719,7 +809,7 @@ export function LimScreen() {
                           <tr className="lim-tr-sub">
                             <td className="lim-td-lbl lim-td-lbl--sub">Saldo EOM <span className="lim-kpi-acronym">End of Month</span></td>
                             {rows.map((r, i) => (
-                              <td key={r.label} className={`lim-td-n lim-td-n--sub lim-td-n--blue${i === activeMonth ? " lim-td-n--active" : ""}`}>
+                              <td key={r.label} className={`lim-td-n lim-td-n--sub lim-td-n--blue${i === safeActiveMonth ? " lim-td-n--active" : ""}`}>
                                 {fmtFull(r.balanceEnd)}
                               </td>
                             ))}
@@ -727,7 +817,7 @@ export function LimScreen() {
                           <tr className="lim-tr-sub">
                             <td className="lim-td-lbl lim-td-lbl--sub">Burn rate mensual</td>
                             {rows.map((r, i) => (
-                              <td key={r.label} className={`lim-td-n lim-td-n--sub${i === activeMonth ? " lim-td-n--active" : ""}`}>
+                              <td key={r.label} className={`lim-td-n lim-td-n--sub${i === safeActiveMonth ? " lim-td-n--active" : ""}`}>
                                 {fmtFull(r.outflow)}
                               </td>
                             ))}
@@ -739,7 +829,7 @@ export function LimScreen() {
                               return rows.map((r, i) => {
                                 acc += r.inflow - r.outflow;
                                 return (
-                                  <td key={r.label} className={`lim-td-n lim-td-n--sub${acc >= 0 ? " lim-td-n--green" : " lim-td-n--red"}${i === activeMonth ? " lim-td-n--active" : ""}`}>
+                                  <td key={r.label} className={`lim-td-n lim-td-n--sub${acc >= 0 ? " lim-td-n--green" : " lim-td-n--red"}${i === safeActiveMonth ? " lim-td-n--active" : ""}`}>
                                     {acc >= 0 ? "+" : ""}{fmtFull(acc)}
                                   </td>
                                 );
@@ -801,9 +891,9 @@ export function LimScreen() {
             <div className="lim-panel">
               <div className="lim-section-head">Flujos esperados — Próximos 30 días</div>
               <div className="lim-kpi-row-3">
-                <article className="lim-kpi-card"><span>Entradas proyectadas 30d</span><strong className="lim-val-up">$3.10M</strong></article>
-                <article className="lim-kpi-card"><span>Salidas proyectadas 30d</span><strong>$1.87M</strong></article>
-                <article className="lim-kpi-card"><span>Gap neto</span><strong className="lim-val-up">+$1.23M</strong></article>
+                <article className="lim-kpi-card"><span>Entradas proyectadas 30d</span><strong className="lim-val-up">$1.34M</strong></article>
+                <article className="lim-kpi-card"><span>Salidas proyectadas 30d</span><strong>$1.03M</strong></article>
+                <article className="lim-kpi-card"><span>Gap neto</span><strong className="lim-val-up">+$0.31M</strong></article>
               </div>
               <table className="lim-tbl lim-tbl--list">
                 <thead>
@@ -812,17 +902,17 @@ export function LimScreen() {
                 <tbody>
                   {[
                     { c: "Cobros clientes A/R", t: "Entrada", m: 890_000, p: "95%", e: "Confirmado" },
-                    { c: "Nómina quincenal", t: "Salida", m: 240_000, p: "100%", e: "Fijo" },
+                    { c: "Nómina quincenal", t: "Salida", m: 240_000, p: "100%", e: "Pendiente" },
                     { c: "Pago proveedores", t: "Salida", m: 610_000, p: "80%", e: "Estimado" },
                     { c: "Vencimiento CDT", t: "Entrada", m: 450_000, p: "100%", e: "Confirmado" },
-                    { c: "Impuestos SRI", t: "Salida", m: 180_000, p: "100%", e: "Fijo" },
+                    { c: "Impuestos SRI", t: "Salida", m: 180_000, p: "100%", e: "Pendiente" },
                   ].map((item) => (
                     <tr key={item.c}>
                       <td>{item.c}</td>
                       <td className={item.t === "Entrada" ? "lim-val-up" : "lim-val-down"}>{item.t}</td>
                       <td className="lim-td-n">${fmtFull(item.m)}</td>
                       <td>{item.p}</td>
-                      <td><span className={`lim-pill${item.e === "Confirmado" ? " lim-pill--green" : item.e === "Fijo" ? " lim-pill--red" : " lim-pill--yellow"}`}>{item.e}</span></td>
+                      <td><span className={`lim-pill${item.e === "Confirmado" ? " lim-pill--green" : item.e === "Pendiente" ? " lim-pill--red" : " lim-pill--yellow"}`}>{item.e}</span></td>
                     </tr>
                   ))}
                 </tbody>
@@ -878,7 +968,7 @@ export function LimScreen() {
           {activeTab === "financing" && (
             <div className="lim-panel">
               <div className="lim-section-head">Gestión de inversiones y crédito</div>
-              <div className="lim-section-subhead">Efectivo total disponible para invertir: <strong style={{ color: "#111827" }}>$2,180,000</strong></div>
+              <div className="lim-section-subhead">Efectivo total disponible para invertir: <strong style={{ color: "#111827" }}>$1,190,000</strong></div>
 
               <table className="lim-tbl lim-tbl--list">
                 <thead><tr>{["Instrumento", "Plazo", "Monto", "Rendimiento", "Vencimiento"].map((h) => <th key={h}>{h}</th>)}</tr></thead>
@@ -905,9 +995,9 @@ export function LimScreen() {
                 <thead><tr>{["Plazo", "Efectivo disponible", "Tasa", "Ingreso potencial"].map((h) => <th key={h}>{h}</th>)}</tr></thead>
                 <tbody>
                   {[
-                    { p: "6 meses", e: "$11,000,000", t: "2.9% TNA", ip: "$317,315" },
-                    { p: "3 meses", e: "$1,200,000", t: "2.4% TNA", ip: "$28,101" },
-                    { p: "1 mes", e: "$800,000", t: "2.2% TNA", ip: "$17,446" },
+                    { p: "6 meses", e: "$600,000", t: "2.9% TNA", ip: "$8,700" },
+                    { p: "3 meses", e: "$350,000", t: "2.4% TNA", ip: "$2,100" },
+                    { p: "1 mes", e: "$240,000", t: "2.2% TNA", ip: "$440" },
                   ].map((item) => (
                     <tr key={item.p}>
                       <td>{item.p}</td>
