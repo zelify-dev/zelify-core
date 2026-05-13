@@ -5,20 +5,12 @@ import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-nav
 import "@/components/ui/templates/workspace-page.css";
 import "./lim-screen.css";
 
-type MainTab = "cashflow" | "bank" | "expected" | "reconciliation" | "financing" | "dashboard";
+type MainTab = "cashflow" | "expected" | "financing" | "dashboard";
 type ScenarioId = "real" | "optimista" | "pesimista";
 type ScenarioOverlayId = "optimista" | "pesimista";
 type ViewMode = "mensual" | "trimestral" | "semestral" | "anual";
 
 const MONTHS = ["May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic", "Ene", "Feb", "Mar", "Abr"];
-
-const BANKS_DATA = [
-  { name: "Banco Pichincha", account: "****4821", currency: "USD", balance: 1_360_000, syncAgo: "3 min", status: "Online" },
-  { name: "Produbanco", account: "****9034", currency: "USD", balance: 910_000, syncAgo: "5 min", status: "Online" },
-  { name: "Banco Guayaquil", account: "****2210", currency: "USD", balance: 640_000, syncAgo: "12 min", status: "Online" },
-  { name: "Banco Bolivariano", account: "****3381", currency: "USD", balance: 1_730_000, syncAgo: "9 min", status: "Online" },
-  { name: "Banco del Pacífico", account: "****8803", currency: "USD", balance: 180_000, syncAgo: "15 min", status: "Online" },
-];
 
 function fmt(v: number): string {
   if (Math.abs(v) >= 1_000_000) return `$${(v / 1_000_000).toFixed(2)}M`;
@@ -331,151 +323,6 @@ function CashflowChart({
   );
 }
 
-/* ─── Dashboard mini charts ─── */
-function BarChart2() {
-  // Valores en miles USD — reales con variación natural
-  const data = [
-    { l: "Ene", a: 1_312, f: 1_220 },
-    { l: "Feb", a: 974, f: 1_350 },
-    { l: "Mar", a: 1_438, f: 1_410 },
-    { l: "Abr", a: 2_183, f: 1_580 },
-    { l: "May", a: 1_726, f: 1_635 },
-    { l: "Jun", a: 1_149, f: 1_780 },
-  ];
-  const max = 2_400;
-  const W = 340, H = 170, PL = 42, PB = 30;
-  const cH = H - 14 - PB; const cW = W - PL - 10;
-  const sw = cW / data.length; const bw = sw * 0.34;
-  const yTicks = [0, 800, 1600, 2400];
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="lim-mini-svg" aria-hidden>
-      {yTicks.map((v) => (
-        <g key={v}>
-          <line x1={PL} y1={14 + cH - (v / max) * cH} x2={W - 10} y2={14 + cH - (v / max) * cH} stroke="#f3f4f6" strokeWidth={1} />
-          <text x={PL - 4} y={14 + cH - (v / max) * cH + 4} textAnchor="end" fontSize={8} fill="#9ca3af">${v === 0 ? "0" : `${v / 1000}M`}</text>
-        </g>
-      ))}
-      {data.map((d, i) => {
-        const cx = PL + i * sw + sw / 2;
-        return (
-          <g key={d.l}>
-            <rect x={cx - bw - 1} y={14 + cH - (d.a / max) * cH} width={bw} height={(d.a / max) * cH} fill="#1d4ed8" opacity={0.85} rx={1} />
-            <rect x={cx + 1} y={14 + cH - (d.f / max) * cH} width={bw} height={(d.f / max) * cH} fill="#93c5fd" opacity={0.85} rx={1} />
-            <text x={cx} y={H - 8} textAnchor="middle" fontSize={8.5} fill="#9ca3af">{d.l}</text>
-          </g>
-        );
-      })}
-      <g transform={`translate(${PL}, ${H - 4})`}>
-        <rect width={7} height={5} fill="#1d4ed8" />
-        <text x={9} y={5} fontSize={7.5} fill="#6b7280">Real</text>
-        <rect x={36} width={7} height={5} fill="#93c5fd" />
-        <text x={45} y={5} fontSize={7.5} fill="#6b7280">Forecast</text>
-      </g>
-    </svg>
-  );
-}
-
-function AreaChart() {
-  // Cobros mensuales en miles USD — variación realista, no lineal
-  const data = [842, 1_143, 978, 1_267, 1_093, 1_408, 1_312, 1_489, 1_376, 1_523, 1_289, 1_614];
-  const lbls = [{ l: "Ene", i: 0 }, { l: "Mar", i: 2 }, { l: "May", i: 4 }, { l: "Jul", i: 6 }, { l: "Sep", i: 8 }, { l: "Nov", i: 10 }];
-  const max = 1_800;
-  const W = 340, H = 170, PL = 40, PB = 30;
-  const cH = H - 14 - PB; const cW = W - PL - 10;
-  const sw = cW / (data.length - 1);
-  const xs = (i: number) => PL + i * sw;
-  const ys = (v: number) => 14 + cH - (v / max) * cH;
-  const pts = data.map((v, i) => `${xs(i)},${ys(v)}`).join(" ");
-  const area = `${xs(0)},${14 + cH} ${pts} ${xs(data.length - 1)},${14 + cH}`;
-  const yTicks = [0, 600, 1200, 1800];
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="lim-mini-svg" aria-hidden>
-      {yTicks.map((v) => (
-        <g key={v}>
-          <line x1={PL} y1={ys(v)} x2={W - 10} y2={ys(v)} stroke="#f3f4f6" strokeWidth={1} />
-          <text x={PL - 4} y={ys(v) + 3} textAnchor="end" fontSize={8} fill="#9ca3af">${v === 0 ? "0" : `${v}K`}</text>
-        </g>
-      ))}
-      <polygon points={area} fill="#bfdbfe" opacity={0.4} />
-      <polyline points={pts} fill="none" stroke="#2563eb" strokeWidth={1.8} strokeLinejoin="round" />
-      {data.map((v, i) => <circle key={i} cx={xs(i)} cy={ys(v)} r={2} fill="#2563eb" />)}
-      {lbls.map(({ l, i }) => (
-        <text key={l} x={xs(i)} y={H - 6} textAnchor="middle" fontSize={8.5} fill="#9ca3af">{l}</text>
-      ))}
-    </svg>
-  );
-}
-
-function DonutChart() {
-  const slices = [
-    { pct: 24.3, color: "#1e3a8a", label: "Mat. primas" },
-    { pct: 37.1, color: "#2563eb", label: "Salarios" },
-    { pct: 19.8, color: "#60a5fa", label: "F. externo" },
-    { pct: 18.8, color: "#bfdbfe", label: "Servicios" },
-  ];
-  const cx = 80, cy = 75, ro = 55, ri = 28;
-  const rad = (d: number) => (d * Math.PI) / 180;
-  let ang = -90;
-  const arcs = slices.map((s) => { const st = ang; ang += (s.pct / 100) * 360; return { ...s, st, en: ang }; });
-  const path = (st: number, en: number) => {
-    const lg = en - st > 180 ? 1 : 0;
-    const x1 = cx + ro * Math.cos(rad(st)); const y1 = cy + ro * Math.sin(rad(st));
-    const x2 = cx + ro * Math.cos(rad(en)); const y2 = cy + ro * Math.sin(rad(en));
-    const xi1 = cx + ri * Math.cos(rad(en)); const yi1 = cy + ri * Math.sin(rad(en));
-    const xi2 = cx + ri * Math.cos(rad(st)); const yi2 = cy + ri * Math.sin(rad(st));
-    return `M${x1},${y1} A${ro},${ro} 0 ${lg} 1 ${x2},${y2} L${xi1},${yi1} A${ri},${ri} 0 ${lg} 0 ${xi2},${yi2} Z`;
-  };
-  return (
-    <svg viewBox="0 0 280 160" className="lim-mini-svg" aria-hidden>
-      {arcs.map((a) => <path key={a.label} d={path(a.st, a.en)} fill={a.color} />)}
-      {arcs.map((a) => {
-        const mid = (a.st + a.en) / 2;
-        return <text key={a.label} x={cx + (ro + 14) * Math.cos(rad(mid))} y={cy + (ro + 14) * Math.sin(rad(mid))} textAnchor="middle" fontSize={8} fill="#374151">{a.pct}%</text>;
-      })}
-      {slices.map((s, i) => (
-        <g key={s.label} transform={`translate(168,${16 + i * 20})`}>
-          <rect width={10} height={10} fill={s.color} rx={2} />
-          <text x={14} y={9} fontSize={9} fill="#4b5563">{s.label}</text>
-        </g>
-      ))}
-    </svg>
-  );
-}
-
-function StackedBarChart() {
-  // Salidas en miles USD: [proveedores, nómina, servicios] — variación mensual realista
-  const data = [
-    [487, 213, 94], [431, 218, 87], [523, 221, 103], [618, 226, 119],
-    [554, 219, 108], [641, 228, 131], [589, 224, 117], [563, 217, 104],
-    [512, 215, 98], [498, 221, 91], [571, 226, 113], [542, 219, 107],
-  ];
-  const lbls = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-  const colors = ["#1d4ed8", "#60a5fa", "#bfdbfe"];
-  const max = 850;
-  const W = 340, H = 170, PL = 8, PB = 30;
-  const cH = H - 14 - PB; const cW = W - PL - 8;
-  const sw = cW / data.length; const bw = sw * 0.68;
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="lim-mini-svg" aria-hidden>
-      <line x1={PL} y1={14 + cH} x2={W - 8} y2={14 + cH} stroke="#e5e7eb" />
-      {data.map((d, i) => {
-        let sy = 14 + cH;
-        return (
-          <g key={lbls[i]}>
-            {d.map((v, j) => { const bH = (v / max) * cH; sy -= bH; return <rect key={j} x={PL + i * sw + (sw - bw) / 2} y={sy} width={bw} height={bH} fill={colors[j]} rx={j === 0 ? 1 : 0} />; })}
-            {i % 2 === 0 && <text x={PL + i * sw + sw / 2} y={H - 8} textAnchor="middle" fontSize={8} fill="#9ca3af">{lbls[i]}</text>}
-          </g>
-        );
-      })}
-      <g transform={`translate(${PL}, ${H - 4})`}>
-        <rect width={7} height={5} fill="#1d4ed8" /><text x={9} y={5} fontSize={7} fill="#6b7280">Proveedores</text>
-        <rect x={70} width={7} height={5} fill="#60a5fa" /><text x={79} y={5} fontSize={7} fill="#6b7280">Nómina</text>
-        <rect x={116} width={7} height={5} fill="#bfdbfe" /><text x={125} y={5} fontSize={7} fill="#6b7280">Servicios</text>
-      </g>
-    </svg>
-  );
-}
-
 /* ─── Main Screen ─── */
 export function LimScreen() {
   const [activeTab, setActiveTab] = useState<MainTab>("cashflow");
@@ -513,10 +360,47 @@ export function LimScreen() {
       totalInflow,
       totalOutflow,
       balance: rows[rows.length - 1].balanceEnd,
-      adjustment: Math.round(totalInflow * 0.054),
-      investments: Math.round(totalInflow * 0.041),
     };
   }, [rows]);
+
+  const liquidityImmediate = 250_000;
+  const investMoneyMarket6m = 500_000;
+  const investFondo3m = 300_000;
+  const investCete90d = 90_000;
+  const investCete28d = 50_000;
+  const investRepo1d = 140_000;
+  const investedTotal = investMoneyMarket6m + investFondo3m + investCete90d + investCete28d + investRepo1d;
+
+  const bucket1d = investRepo1d;
+  const bucket30d = investCete28d;
+  const bucket90d = investCete90d;
+
+  const projectedOutflows30d = 1_030_000;
+  const recognizedInflows30d = 410_000;
+  const netCashOutflows30d = projectedOutflows30d - recognizedInflows30d;
+
+  const hqla = liquidityImmediate + investCete90d + investCete28d;
+  const lcr = hqla / netCashOutflows30d;
+
+  const cashEquivalents = liquidityImmediate + bucket1d + bucket30d;
+  const currentLiabilities = 900_000;
+  const cashRatio = cashEquivalents / currentLiabilities;
+
+  const avgMonthlyInflow = Math.round(totals.totalInflow / rows.length);
+  const avgMonthlyOutflow = Math.round(totals.totalOutflow / rows.length);
+  const monthlyNetCashflow = avgMonthlyInflow - avgMonthlyOutflow;
+  const scenarioLiquidityImmediate = Math.max(liquidityImmediate + Math.round(monthlyNetCashflow * 0.35), 100_000);
+  const scenarioOutflows30d = Math.round(avgMonthlyOutflow * 1.05);
+  const scenarioRecognizedInflows30d = Math.round(avgMonthlyInflow * 0.35);
+  const scenarioNetOutflows30d = Math.max(scenarioOutflows30d - scenarioRecognizedInflows30d, 1);
+  const scenarioHqla = scenarioLiquidityImmediate + investCete90d + investCete28d;
+  const scenarioLcr = scenarioHqla / scenarioNetOutflows30d;
+  const scenarioCurrentLiabilities =
+    scenario === "optimista" ? Math.round(currentLiabilities * 0.95)
+      : scenario === "pesimista" ? Math.round(currentLiabilities * 1.12)
+        : currentLiabilities;
+  const scenarioCashEquivalents = scenarioLiquidityImmediate + bucket1d + bucket30d;
+  const scenarioCashRatio = scenarioCashEquivalents / scenarioCurrentLiabilities;
 
   const toggle = (key: string) =>
     setExpanded((prev) => {
@@ -546,12 +430,11 @@ export function LimScreen() {
         : "lim-kpi-val--blue";
 
   const TABS: { id: MainTab; label: string; badge?: string }[] = [
-    { id: "cashflow", label: "Cashflow" },
-    { id: "bank", label: "Banco", badge: "12" },
-    { id: "expected", label: "Esperado", badge: "4" },
-    { id: "reconciliation", label: "Conciliación" },
-    { id: "financing", label: "Financiamiento" },
     { id: "dashboard", label: "Dashboard" },
+    { id: "cashflow", label: "Cashflow" },
+    { id: "expected", label: "Flujo Esperado", badge: "4" },
+    { id: "financing", label: "Financiamiento" },
+  
   ];
 
   return (
@@ -640,8 +523,9 @@ export function LimScreen() {
                 </select>
               </div>
               <div className="lim-subbar-right">
-                <button className="lim-btn-ghost" type="button">Actualizar cálculo</button>
-                <button className="lim-btn-ghost" type="button">··· Opciones</button>
+                {activeTab === "cashflow" && (
+                  <button className="lim-btn-ghost" type="button">Actualizar cálculo</button>
+                )}
               </div>
             </div>
           )}
@@ -656,17 +540,23 @@ export function LimScreen() {
                   <span className={`lim-kpi-pill${scenario === "optimista" ? " lim-kpi-pill--opt" : scenario === "pesimista" ? " lim-kpi-pill--pes" : " lim-kpi-pill--blue"}`}>● Saldo de caja</span>
                 </div>
                 <div className="lim-kpi-item">
-                  <span className="lim-kpi-val lim-kpi-val--sm">+{fmt(totals.adjustment)}</span>
-                  <span className="lim-kpi-sub">Ajuste ⓘ</span>
+                  <span className="lim-kpi-val lim-kpi-val--sm">{fmt(scenarioLiquidityImmediate)}</span>
+                  <span className="lim-kpi-sub">Liquidez inmediata ⓘ</span>
                 </div>
                 <div className="lim-kpi-item">
-                  <span className="lim-kpi-val lim-kpi-val--sm">+{fmt(totals.investments)}</span>
-                  <span className="lim-kpi-sub">Inversiones ⓘ</span>
+                  <span className={`lim-kpi-val lim-kpi-val--sm ${monthlyNetCashflow >= 0 ? "lim-kpi-val--opt" : "lim-kpi-val--pes"}`}>
+                    {monthlyNetCashflow >= 0 ? "+" : ""}{fmt(monthlyNetCashflow)}
+                  </span>
+                  <span className="lim-kpi-sub">Flujo neto mensual ⓘ</span>
                 </div>
                 <div className="lim-kpi-sep" />
                 <div className="lim-kpi-item">
-                  <span className="lim-kpi-pill lim-kpi-pill--purple">● Total</span>
-                  <span className="lim-kpi-val lim-kpi-val--sm">+{fmt(totals.balance + totals.adjustment + totals.investments)}</span>
+                  <span className="lim-kpi-pill lim-kpi-pill--purple">● LCR</span>
+                  <span className="lim-kpi-val lim-kpi-val--sm">{(scenarioLcr * 100).toFixed(1)}%</span>
+                </div>
+                <div className="lim-kpi-item">
+                  <span className="lim-kpi-pill lim-kpi-pill--purple">● Cash Ratio</span>
+                  <span className="lim-kpi-val lim-kpi-val--sm">{scenarioCashRatio.toFixed(2)}x</span>
                 </div>
               </aside>
 
@@ -845,47 +735,6 @@ export function LimScreen() {
             </div>
           )}
 
-          {/* ══════════════ BANCO TAB ══════════════ */}
-          {activeTab === "bank" && (
-            <div className="lim-panel">
-              <div className="lim-section-head">Posición consolidada multi-banco · Tiempo real</div>
-              <table className="lim-tbl lim-tbl--list">
-                <thead>
-                  <tr>
-                    {["Banco", "Cuenta", "Moneda", "Saldo actual", "Últ. sync", "Estado"].map((h) => (
-                      <th key={h}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {BANKS_DATA.map((b) => (
-                    <tr key={b.account}>
-                      <td>{b.name}</td>
-                      <td className="lim-td-mono">{b.account}</td>
-                      <td>{b.currency}</td>
-                      <td className="lim-td-n lim-td-n--bold">${fmtFull(b.balance)}</td>
-                      <td className="lim-td-muted">hace {b.syncAgo}</td>
-                      <td><span className={`lim-pill${b.status === "Online" ? " lim-pill--green" : " lim-pill--yellow"}`}>{b.status}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="lim-kpi-row-3">
-                {[
-                  { label: "Total USD consolidado", val: "$4.82M" },
-                  { label: "Equivalente EUR", val: "$182.4K" },
-                  { label: "Cuentas sincronizadas", val: "12 / 12", sub: "100% conectadas" },
-                ].map((k) => (
-                  <article key={k.label} className="lim-kpi-card">
-                    <span>{k.label}</span>
-                    <strong>{k.val}</strong>
-                    {k.sub && <small>{k.sub}</small>}
-                  </article>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* ══════════════ ESPERADO TAB ══════════════ */}
           {activeTab === "expected" && (
             <div className="lim-panel">
@@ -895,68 +744,23 @@ export function LimScreen() {
                 <article className="lim-kpi-card"><span>Salidas proyectadas 30d</span><strong>$1.03M</strong></article>
                 <article className="lim-kpi-card"><span>Gap neto</span><strong className="lim-val-up">+$0.31M</strong></article>
               </div>
-              <table className="lim-tbl lim-tbl--list">
+              <table className="lim-tbl lim-tbl--list lim-financing-instruments-table">
                 <thead>
-                  <tr>{["Concepto", "Tipo", "Monto est.", "Prob.", "Estado"].map((h) => <th key={h}>{h}</th>)}</tr>
+                  <tr>{["Concepto", "Tipo", "Monto est.", "Estado"].map((h) => <th key={h}>{h}</th>)}</tr>
                 </thead>
                 <tbody>
                   {[
-                    { c: "Cobros clientes A/R", t: "Entrada", m: 890_000, p: "95%", e: "Confirmado" },
-                    { c: "Nómina quincenal", t: "Salida", m: 240_000, p: "100%", e: "Pendiente" },
-                    { c: "Pago proveedores", t: "Salida", m: 610_000, p: "80%", e: "Estimado" },
-                    { c: "Vencimiento CDT", t: "Entrada", m: 450_000, p: "100%", e: "Confirmado" },
-                    { c: "Impuestos SRI", t: "Salida", m: 180_000, p: "100%", e: "Pendiente" },
+                    { c: "Cobros clientes A/R", t: "Entrada", m: 890_000, e: "Confirmado" },
+                    { c: "Nómina quincenal", t: "Salida", m: 240_000, e: "Pendiente" },
+                    { c: "Pago proveedores", t: "Salida", m: 610_000, e: "Estimado" },
+                    { c: "Vencimiento CDT", t: "Entrada", m: 450_000, e: "Confirmado" },
+                    { c: "Impuestos SRI", t: "Salida", m: 180_000, e: "Pendiente" },
                   ].map((item) => (
                     <tr key={item.c}>
                       <td>{item.c}</td>
                       <td className={item.t === "Entrada" ? "lim-val-up" : "lim-val-down"}>{item.t}</td>
                       <td className="lim-td-n">${fmtFull(item.m)}</td>
-                      <td>{item.p}</td>
                       <td><span className={`lim-pill${item.e === "Confirmado" ? " lim-pill--green" : item.e === "Pendiente" ? " lim-pill--red" : " lim-pill--yellow"}`}>{item.e}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* ══════════════ CONCILIACIÓN TAB ══════════════ */}
-          {activeTab === "reconciliation" && (
-            <div className="lim-panel">
-              <div className="lim-section-head">Conciliación automática multi-banco</div>
-              <div className="lim-recon-kpis">
-                <div className="lim-recon-kpi">
-                  <span className="lim-recon-kpi-val lim-val-up">1,248</span>
-                  <span className="lim-recon-kpi-lbl">Transacciones conciliadas</span>
-                </div>
-                <div className="lim-recon-kpi">
-                  <span className="lim-recon-kpi-val lim-val-warn">17</span>
-                  <span className="lim-recon-kpi-lbl">Pendientes de revisión</span>
-                </div>
-                <div className="lim-recon-kpi">
-                  <span className="lim-recon-kpi-val lim-val-down">3</span>
-                  <span className="lim-recon-kpi-lbl">Diferencias detectadas</span>
-                </div>
-                <div className="lim-recon-kpi">
-                  <span className="lim-recon-kpi-val lim-val-up">97.8%</span>
-                  <span className="lim-recon-kpi-lbl">Tasa de conciliación</span>
-                </div>
-              </div>
-              <div className="lim-section-head" style={{ marginTop: 8 }}>Diferencias pendientes</div>
-              <table className="lim-tbl lim-tbl--list">
-                <thead><tr>{["Banco", "Fecha", "Concepto", "Diferencia", "Estado"].map((h) => <th key={h}>{h}</th>)}</tr></thead>
-                <tbody>
-                  {[
-                    { b: "Banco Bolivariano", f: "06 May 2026", c: "Transferencia interna", d: "$2,340", e: "Pendiente" },
-                    { b: "Produbanco", f: "05 May 2026", c: "Cargo no identificado", d: "$180", e: "Revisión" },
-                    { b: "Banco Pichincha", f: "04 May 2026", c: "Comisión bancaria", d: "$45", e: "Pendiente" },
-                  ].map((item) => (
-                    <tr key={item.c}>
-                      <td>{item.b}</td>
-                      <td className="lim-td-muted">{item.f}</td>
-                      <td>{item.c}</td>
-                      <td className="lim-td-n lim-val-down">{item.d}</td>
-                      <td><span className="lim-pill lim-pill--yellow">{item.e}</span></td>
                     </tr>
                   ))}
                 </tbody>
@@ -975,9 +779,9 @@ export function LimScreen() {
                 <tbody>
                   {[
                     { i: "Money Market AAA", p: "30 días", m: 680_000, r: "5.1% TNA", v: "07 Jun 2026" },
-                    { i: "Fondo Liquidez Plus", p: "7 días", m: 320_000, r: "4.2% TNA", v: "15 May 2026" },
+                    { i: "Pagaré", p: "7 días", m: 320_000, r: "4.2% TNA", v: "15 May 2026" },
                     { i: "Repo Overnight", p: "1 día", m: 190_000, r: "3.8% TNA", v: "09 May 2026" },
-                    { i: "Línea Crédito Pichincha", p: "Revolving", m: 2_000_000, r: "8.5%", v: "Dic 2026" },
+                   
                   ].map((item) => (
                     <tr key={item.i}>
                       <td><strong>{item.i}</strong></td>
@@ -990,25 +794,6 @@ export function LimScreen() {
                 </tbody>
               </table>
 
-              <div className="lim-section-head" style={{ marginTop: 8 }}>Oportunidades por plazo</div>
-              <table className="lim-tbl lim-tbl--list">
-                <thead><tr>{["Plazo", "Efectivo disponible", "Tasa", "Ingreso potencial"].map((h) => <th key={h}>{h}</th>)}</tr></thead>
-                <tbody>
-                  {[
-                    { p: "6 meses", e: "$600,000", t: "2.9% TNA", ip: "$8,700" },
-                    { p: "3 meses", e: "$350,000", t: "2.4% TNA", ip: "$2,100" },
-                    { p: "1 mes", e: "$240,000", t: "2.2% TNA", ip: "$440" },
-                  ].map((item) => (
-                    <tr key={item.p}>
-                      <td>{item.p}</td>
-                      <td className="lim-td-n">{item.e}</td>
-                      <td>{item.t}</td>
-                      <td className="lim-td-n lim-val-up">{item.ip}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
               {/* ── Panel IA ── */}
               <div className="lim-ai-panel">
                 <div className="lim-ai-header">
@@ -1016,11 +801,38 @@ export function LimScreen() {
                   <span className="lim-ai-header-title">Análisis y recomendaciones · <span className="lim-ai-header-ts">Actualizado hace 2 min</span></span>
                   <button className="lim-btn-ghost lim-ai-regen" type="button">↺ Regenerar</button>
                 </div>
+                <div className="lim-section-head" style={{ marginTop: 8 }}>Oportunidad de inversión recomendada</div>
+                <div className="lim-section-subhead">
+                  Total disponible: <strong style={{ color: "#111827" }}>$1,190,000</strong> ·
+                  Reserva de liquidez inmediata: <strong style={{ color: "#111827" }}>$250,000</strong> ·
+                  Monto sugerido a invertir: <strong style={{ color: "#111827" }}>$940,000</strong>
+                </div>
+                <table className="lim-tbl lim-tbl--list">
+                  <thead><tr>{["Instrumento", "Plazo recomendado", "Monto sugerido", "Tasa estimada", "Retorno potencial"].map((h) => <th key={h}>{h}</th>)}</tr></thead>
+                  <tbody>
+                    {[
+                      { i: "Money Market AAA", p: "6 meses", e: "$500,000", t: "2.9% TNA", ip: "$7,250" },
+                      { i: "Fondo Liquidez Plus", p: "3 meses", e: "$300,000", t: "2.4% TNA", ip: "$1,800" },
+                      { i: "CETE", p: "90 días", e: "$90,000", t: "6.67% TNA", ip: "$1,502" },
+                      { i: "CETE", p: "28 días", e: "$50,000", t: "6.54% TNA", ip: "$272" },
+                      { i: "Repo Overnight", p: "1 día", e: "$140,000", t: "2.2% TNA", ip: "$257" },
+                    ].map((item) => (
+                      <tr key={item.p}>
+                        <td><strong>{item.i}</strong></td>
+                        <td>{item.p}</td>
+                        <td className="lim-td-n">{item.e}</td>
+                        <td>{item.t}</td>
+                        <td className="lim-td-n lim-val-up">{item.ip}</td>
+                      </tr>
+                    ))}
+
+                  </tbody>
+                </table>
                 <div className="lim-ai-cards">
                   <div className="lim-ai-card lim-ai-card--green">
                     <span className="lim-ai-tag lim-ai-tag--green">Oportunidad</span>
                     <div className="lim-ai-card-title">Optimizar Money Market</div>
-                    <div className="lim-ai-card-body">Con $2.18M disponibles, redirigir $680K del Repo Overnight al Money Market AAA (30 días, 5.1% TNA) genera <strong>$3,468 adicionales</strong> en el período frente a la tasa actual.</div>
+                    <div className="lim-ai-card-body">Con $1.19M disponibles, la IA sugiere invertir $940K y mantener $250K como liquidez inmediata para cubrir operación diaria sin usar línea de crédito.</div>
                     <button className="lim-ai-action" type="button">Aplicar →</button>
                   </div>
                   <div className="lim-ai-card lim-ai-card--yellow">
@@ -1044,66 +856,59 @@ export function LimScreen() {
           {activeTab === "dashboard" && (
             <div className="lim-dashboard">
               <div className="lim-dash-head">
-                <h2>Vista general de métricas clave</h2>
-                <div className="lim-dash-actions">
-                  <button className="lim-btn-ghost" type="button">Biblioteca</button>
-                  <button className="lim-btn-ghost" type="button">+ Agregar</button>
-                  <button className="lim-btn-ghost" type="button">··· Opciones</button>
-                </div>
+                <h2>Dashboard de Liquidez</h2>
               </div>
 
               <div className="lim-dash-kpis">
                 <article className="lim-dash-kpi">
-                  <div className="lim-dash-kpi-title">Comisiones bancarias</div>
-                  <div className="lim-dash-kpi-range">1 Ene → 31 Dic · Umbral $3,500</div>
-                  <div className="lim-dash-kpi-val">$4,753 <span className="lim-dash-kpi-flag">↑</span></div>
-                  <div className="lim-dash-kpi-note">+$1,253 sobre el umbral</div>
+                  <div className="lim-dash-kpi-title">Liquidez inmediata (Caja disponible)</div>
+                  <div className="lim-dash-kpi-range">Efectivo operativo disponible hoy</div>
+                  <div className="lim-dash-kpi-val">${fmtFull(liquidityImmediate)}</div>
                 </article>
 
                 <article className="lim-dash-kpi">
-                  <div className="lim-dash-kpi-title">A/R vencidas</div>
-                  <div className="lim-dash-kpi-range">1 Ene → 31 Dic · Meta &lt; $350,000</div>
-                  <div className="lim-dash-kpi-val">$349,253</div>
-                  <div className="lim-dash-kpi-note">A/R — Cuentas por cobrar</div>
+                  <div className="lim-dash-kpi-title">Flujo neto mensual de efectivo</div>
+                  <div className="lim-dash-kpi-range">Entradas mensuales - salidas mensuales</div>
+                  <div className="lim-dash-kpi-val">+${fmtFull(Math.round(totals.totalInflow / rows.length - totals.totalOutflow / rows.length))}</div>
                 </article>
 
                 <article className="lim-dash-kpi">
-                  <div className="lim-dash-kpi-title">Saldo EOM de caja</div>
-                  <div className="lim-dash-kpi-range">1 Ene → 31 Dic · Meta &gt; $1,200,000</div>
-                  <div className="lim-dash-kpi-val">{fmt(totals.balance)}</div>
-                  <div className="lim-dash-kpi-note">EOM — End of Month</div>
+                  <div className="lim-dash-kpi-title">LCR (Liquidity Coverage Ratio)</div>
+                  <div className="lim-dash-kpi-range">LCR = HQLA / Salidas netas 30d</div>
+                  <div className="lim-dash-kpi-val">{(lcr * 100).toFixed(1)}%</div>
                 </article>
 
                 <article className="lim-dash-kpi">
-                  <div className="lim-dash-kpi-title">DSO promedio</div>
-                  <div className="lim-dash-kpi-range">1 Ene → 31 Dic · Meta &lt; 45 días</div>
-                  <div className="lim-dash-kpi-val">38 días</div>
-                  <div className="lim-dash-kpi-note">DSO — Days Sales Outstanding</div>
+                  <div className="lim-dash-kpi-title">Cash Ratio (Razón de efectivo)</div>
+                  <div className="lim-dash-kpi-range">(Efectivo + equivalentes) / Pasivo circulante</div>
+                  <div className="lim-dash-kpi-val">{cashRatio.toFixed(2)}x</div>
                 </article>
               </div>
 
-              <div className="lim-dash-charts">
-                <article className="lim-dash-chart">
-                  <h3>Real vs. Forecast</h3>
-                  <p className="lim-chart-range">1 Ene → 30 Jun</p>
-                  <BarChart2 />
-                </article>
-                <article className="lim-dash-chart">
-                  <h3>Evolución de cobros</h3>
-                  <p className="lim-chart-range">1 Ene → 31 Dic</p>
-                  <AreaChart />
-                </article>
-                <article className="lim-dash-chart">
-                  <h3>Distribución de salidas (anual)</h3>
-                  <p className="lim-chart-range">1 Ene → 31 Dic</p>
-                  <DonutChart />
-                </article>
-                <article className="lim-dash-chart">
-                  <h3>Salidas por mes</h3>
-                  <p className="lim-chart-range">1 Ene → 31 Dic</p>
-                  <StackedBarChart />
-                </article>
+              <div className="lim-section-head">Activos líquidos por bucket de vencimiento</div>
+              <div className="lim-section-subhead">
+                Monto total invertido recomendado: <strong style={{ color: "#111827" }}>${fmtFull(investedTotal)}</strong>
               </div>
+              <table className="lim-tbl lim-tbl--list">
+                <thead><tr>{["Bucket", "Monto invertido", "Instrumentos incluidos"].map((h) => <th key={h}>{h}</th>)}</tr></thead>
+                <tbody>
+                  <tr>
+                    <td>1 día</td>
+                    <td className="lim-td-n">${fmtFull(bucket1d)}</td>
+                    <td>Repo Overnight</td>
+                  </tr>
+                  <tr>
+                    <td>30 días</td>
+                    <td className="lim-td-n">${fmtFull(bucket30d)}</td>
+                    <td>CETE</td>
+                  </tr>
+                  <tr>
+                    <td>90 días</td>
+                    <td className="lim-td-n">${fmtFull(bucket90d)}</td>
+                    <td>CETE</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           )}
 

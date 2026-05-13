@@ -464,7 +464,7 @@
   font-weight: 700;
   color: #6b7280;
   white-space: nowrap;
-  text-align: right;
+  text-align: center;
 }
 
 .lim-th-label {
@@ -526,7 +526,7 @@
 
 .lim-td-n {
   padding: 6px 10px;
-  text-align: right;
+  text-align: center;
   color: #374151;
   white-space: nowrap;
   font-size: 12px;
@@ -670,7 +670,7 @@
 .lim-tbl--list { min-width: 500px; }
 
 .lim-tbl--list th {
-  text-align: left;
+  text-align: center;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -686,12 +686,17 @@
   border-bottom: 1px solid #f3f4f6;
   font-size: 13px;
   color: #374151;
-  text-align: left;
+  text-align: center;
 }
 
 .lim-tbl--list .lim-td-n {
-  text-align: right;
+  text-align: center;
   font-size: 13px;
+}
+
+.lim-financing-instruments-table th:first-child,
+.lim-financing-instruments-table td:first-child {
+  text-align: left;
 }
 
 .lim-val-up   { color: #059669; font-weight: 700; }
@@ -947,6 +952,19 @@
 .lim-ai-regen {
   font-size: 11px;
   margin-left: auto;
+}
+
+.lim-ai-panel .lim-section-head {
+  margin: 14px 16px 0;
+}
+
+.lim-ai-panel .lim-section-subhead {
+  margin: 10px 16px 0;
+}
+
+.lim-ai-panel .lim-tbl--list {
+  margin: 10px 16px 0;
+  width: calc(100% - 32px);
 }
 
 .lim-ai-cards {
