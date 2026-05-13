@@ -116,9 +116,10 @@ function CashflowChart({
   showOptimista: boolean;
   showPesimista: boolean;
 }) {
-  const W = 860, H = 360, PL = 62, PR = 12, PT = 36, PB = 38;
+  const W = 860, H = 500, PL = 62, PR = 12, PT = 40, PB = 46;
   const cW = W - PL - PR;
   const cH = H - PT - PB;
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   // Barras siempre animadas hacia el escenario activo
   const targetRows =
@@ -180,14 +181,41 @@ function CashflowChart({
   const realPts = pts(realRows);
   const optPts = pts(optimistaRows);
   const pesPts = pts(pessimistaRows);
+  const tooltipIndex = hoveredIndex;
+  const tooltipRow = tooltipIndex !== null ? realRows[tooltipIndex] : null;
+  const tooltipReal = tooltipIndex !== null ? realRows[tooltipIndex].balanceEnd : 0;
+  const tooltipOpt = tooltipIndex !== null ? optimistaRows[tooltipIndex].balanceEnd : 0;
+  const tooltipPes = tooltipIndex !== null ? pessimistaRows[tooltipIndex].balanceEnd : 0;
+  const tooltipXBase = tooltipIndex !== null ? PL + tooltipIndex * slotW + slotW / 2 : 0;
+  const tooltipRows = [
+    { label: "Real", value: tooltipReal, color: "#1d4ed8" },
+    ...(showOptimista ? [{ label: "Optimista", value: tooltipOpt, color: "#059669" }] : []),
+    ...(showPesimista ? [{ label: "Pesimista", value: tooltipPes, color: "#dc2626" }] : []),
+  ];
+  const tooltipW = 246;
+  const tooltipH = 46 + tooltipRows.length * 22;
+  const tooltipX = Math.max(PL, Math.min(tooltipXBase - tooltipW / 2, W - PR - tooltipW));
+  const tooltipY = PT + 8;
 
   // Colores de barras del escenario activo
-  const iColor = scenario === "optimista" ? "#34d399" : scenario === "pesimista" ? "#fcd34d" : "#86efac";
-  const oColor = scenario === "optimista" ? "#6ee7b7" : scenario === "pesimista" ? "#f87171" : "#fca5a5";
+  const iColor = scenario === "optimista" ? "#10b981" : scenario === "pesimista" ? "#f59e0b" : "#3b82f6";
+  const oColor = scenario === "optimista" ? "#34d399" : scenario === "pesimista" ? "#ef4444" : "#6366f1";
   const activeBg = scenario === "optimista" ? "#f0fdf4" : scenario === "pesimista" ? "#fef2f2" : "#eff6ff";
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="lim-chart-svg" aria-hidden>
+    <svg viewBox={`0 0 ${W} ${H}`} className="lim-chart-svg" aria-hidden onMouseLeave={() => setHoveredIndex(null)}>
+      <defs>
+        <filter id="lim-cashflow-shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2.5" floodColor="#0f172a" floodOpacity="0.14" />
+        </filter>
+        <linearGradient id="lim-tooltip-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#ffffff" />
+          <stop offset="100%" stopColor="#f9fafb" />
+        </linearGradient>
+        <filter id="lim-tooltip-shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="#020617" floodOpacity="0.35" />
+        </filter>
+      </defs>
       {/* Leyenda en la parte superior */}
       <g transform={`translate(${PL}, 10)`}>
         <rect width={9} height={9} fill="#86efac" rx={1} />
@@ -228,8 +256,8 @@ function CashflowChart({
         const oH = Math.max((r.outflow / max) * cH, 0);
         return (
           <g key={r.label}>
-            <rect x={cx - bW - 1} y={PT + cH - iH} width={bW} height={iH} fill={iColor} rx={2} opacity={0.9} />
-            <rect x={cx + 1} y={PT + cH - oH} width={bW} height={oH} fill={oColor} rx={2} opacity={0.9} />
+            <rect x={cx - bW - 1} y={PT + cH - iH} width={bW} height={iH} fill={iColor} rx={3} opacity={0.92} filter="url(#lim-cashflow-shadow)" />
+            <rect x={cx + 1} y={PT + cH - oH} width={bW} height={oH} fill={oColor} rx={3} opacity={0.92} filter="url(#lim-cashflow-shadow)" />
           </g>
         );
       })}
@@ -249,14 +277,24 @@ function CashflowChart({
             opacity={scenario === "pesimista" ? 1 : 0.45}
           />
           {pessimistaRows.map((r, i) => (
-            <circle
-              key={i}
-              cx={PL + i * slotW + slotW / 2}
-              cy={ys(r.balanceEnd)}
-              r={scenario === "pesimista" ? 3.5 : 2}
-              fill="#dc2626"
-              opacity={scenario === "pesimista" ? 1 : 0.4}
-            />
+            <g key={i}>
+              <circle
+                cx={PL + i * slotW + slotW / 2}
+                cy={ys(r.balanceEnd)}
+                r={scenario === "pesimista" ? 3.5 : 2}
+                fill="#dc2626"
+                opacity={scenario === "pesimista" ? 1 : 0.4}
+              />
+              <circle
+                cx={PL + i * slotW + slotW / 2}
+                cy={ys(r.balanceEnd)}
+                r={10}
+                fill="transparent"
+                onMouseEnter={() => setHoveredIndex(i)}
+              >
+                <title>{`Pesimista · ${r.label}: $${fmtFull(r.balanceEnd)}`}</title>
+              </circle>
+            </g>
           ))}
         </>
       )}
@@ -272,14 +310,22 @@ function CashflowChart({
         opacity={scenario === "real" ? 1 : 0.55}
       />
       {realRows.map((r, i) => (
-        <circle
-          key={i}
-          cx={PL + i * slotW + slotW / 2}
-          cy={ys(r.balanceEnd)}
-          r={scenario === "real" ? 3.5 : 2.5}
-          fill="#1d4ed8"
-          opacity={scenario === "real" ? 1 : 0.55}
-        />
+        <g key={i}>
+          <circle
+            cx={PL + i * slotW + slotW / 2}
+            cy={ys(r.balanceEnd)}
+            r={scenario === "real" ? 3.5 : 2.5}
+            fill="#1d4ed8"
+            opacity={scenario === "real" ? 1 : 0.55}
+          />
+          <circle
+            cx={PL + i * slotW + slotW / 2}
+            cy={ys(r.balanceEnd)}
+            r={10}
+            fill="transparent"
+            onMouseEnter={() => setHoveredIndex(i)}
+          />
+        </g>
       ))}
 
       {/* Optimista — verde */}
@@ -295,14 +341,24 @@ function CashflowChart({
             opacity={scenario === "optimista" ? 1 : 0.45}
           />
           {optimistaRows.map((r, i) => (
-            <circle
-              key={i}
-              cx={PL + i * slotW + slotW / 2}
-              cy={ys(r.balanceEnd)}
-              r={scenario === "optimista" ? 3.5 : 2}
-              fill="#059669"
-              opacity={scenario === "optimista" ? 1 : 0.4}
-            />
+            <g key={i}>
+              <circle
+                cx={PL + i * slotW + slotW / 2}
+                cy={ys(r.balanceEnd)}
+                r={scenario === "optimista" ? 3.5 : 2}
+                fill="#059669"
+                opacity={scenario === "optimista" ? 1 : 0.4}
+              />
+              <circle
+                cx={PL + i * slotW + slotW / 2}
+                cy={ys(r.balanceEnd)}
+                r={10}
+                fill="transparent"
+                onMouseEnter={() => setHoveredIndex(i)}
+              >
+                <title>{`Optimista · ${r.label}: $${fmtFull(r.balanceEnd)}`}</title>
+              </circle>
+            </g>
           ))}
         </>
       )}
@@ -319,6 +375,116 @@ function CashflowChart({
           {r.label.toUpperCase()}
         </text>
       ))}
+
+      {/* Tooltip saldo por mes */}
+      {tooltipRow && (
+        <g pointerEvents="none">
+          <rect
+            x={tooltipX}
+            y={tooltipY}
+            width={tooltipW}
+            height={tooltipH}
+            rx={12}
+            fill="url(#lim-tooltip-bg)"
+            stroke="#e5e2d8"
+            strokeWidth={1}
+            filter="url(#lim-tooltip-shadow)"
+          />
+          <text x={tooltipX + 14} y={tooltipY + 18} fontSize={10} fill="#475569" fontWeight="700">
+            {tooltipRow.label.toUpperCase()} · SALDO
+          </text>
+          <line x1={tooltipX + 12} y1={tooltipY + 24} x2={tooltipX + tooltipW - 12} y2={tooltipY + 24} stroke="#e7e5dd" />
+          {tooltipRows.map((row, i) => {
+            const y = tooltipY + 40 + i * 22;
+            return (
+              <g key={row.label}>
+                <circle cx={tooltipX + 16} cy={y - 4} r={4} fill={row.color} />
+                <text x={tooltipX + 26} y={y} fontSize={11} fill={row.color} fontWeight="600">{row.label}</text>
+                <text x={tooltipX + tooltipW - 12} y={y} fontSize={11} fill="#1f2937" textAnchor="end" fontWeight="700">
+                  ${fmtFull(row.value)}
+                </text>
+              </g>
+            );
+          })}
+        </g>
+      )}
+    </svg>
+  );
+}
+
+function IncomeUseChart({
+  suppliers,
+  payroll,
+  net,
+}: {
+  suppliers: number;
+  payroll: number;
+  net: number;
+}) {
+  const W = 980, H = 320;
+  const cx = 260, cy = 160, ro = 112, ri = 62;
+  const positiveNet = Math.max(net, 0);
+  const data = [
+    { label: "Proveedores", value: Math.max(suppliers, 0), color: "#3b82f6" },
+    { label: "Nómina", value: Math.max(payroll, 0), color: "#6366f1" },
+    { label: "Flujo neto", value: positiveNet, color: "#10b981" },
+  ];
+  const total = Math.max(data.reduce((s, d) => s + d.value, 0), 1);
+  const rad = (deg: number) => (deg * Math.PI) / 180;
+
+  let angle = -90;
+  const arcs = data.map((d) => {
+    const start = angle;
+    angle += (d.value / total) * 360;
+    return { ...d, start, end: angle, pct: (d.value / total) * 100 };
+  });
+
+  const path = (start: number, end: number) => {
+    const gap = 1.2;
+    const s = start + gap;
+    const e = end - gap;
+    if (e <= s) return "";
+    const large = e - s > 180 ? 1 : 0;
+    const x1 = cx + ro * Math.cos(rad(s));
+    const y1 = cy + ro * Math.sin(rad(s));
+    const x2 = cx + ro * Math.cos(rad(e));
+    const y2 = cy + ro * Math.sin(rad(e));
+    const xi1 = cx + ri * Math.cos(rad(e));
+    const yi1 = cy + ri * Math.sin(rad(e));
+    const xi2 = cx + ri * Math.cos(rad(s));
+    const yi2 = cy + ri * Math.sin(rad(s));
+    return `M${x1},${y1} A${ro},${ro} 0 ${large} 1 ${x2},${y2} L${xi1},${yi1} A${ri},${ri} 0 ${large} 0 ${xi2},${yi2} Z`;
+  };
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="lim-income-use-svg" aria-hidden>
+      <defs>
+        <filter id="lim-donut-shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#111827" floodOpacity="0.18" />
+        </filter>
+      </defs>
+
+      <circle cx={cx} cy={cy} r={ro + 8} fill="#f8fafc" />
+      {arcs.map((a) => (
+        <path key={a.label} d={path(a.start, a.end)} fill={a.color} filter="url(#lim-donut-shadow)" />
+      ))}
+      <circle cx={cx} cy={cy} r={ri - 3} fill="#ffffff" />
+
+      <text x={cx} y={146} textAnchor="middle" fontSize={11} fill="#6b7280">Uso del ingreso</text>
+      <text x={cx} y={166} textAnchor="middle" fontSize={18} fill="#0f172a" fontWeight="700">${fmtFull(total)}</text>
+      <text x={cx} y={184} textAnchor="middle" fontSize={10} fill="#94a3b8">Promedio mensual</text>
+
+      <g transform="translate(520,78)">
+        {arcs.map((a, i) => (
+          <g key={a.label} transform={`translate(0, ${i * 46})`}>
+            <rect width={300} height={34} rx={8} fill="#f8fafc" stroke="#e5e7eb" />
+            <rect x={10} y={10} width={12} height={12} rx={3} fill={a.color} />
+            <text x={30} y={22} fontSize={13} fill="#334155" fontWeight="600">{a.label}</text>
+            <text x={232} y={22} fontSize={13} fill="#0f172a" textAnchor="end" fontWeight="700">${fmtFull(a.value)}</text>
+            <text x={288} y={22} fontSize={12} fill="#64748b" textAnchor="end">{a.pct.toFixed(1)}%</text>
+          </g>
+        ))}
+      </g>
     </svg>
   );
 }
@@ -389,11 +555,28 @@ export function LimScreen() {
   const avgMonthlyInflow = Math.round(totals.totalInflow / rows.length);
   const avgMonthlyOutflow = Math.round(totals.totalOutflow / rows.length);
   const monthlyNetCashflow = avgMonthlyInflow - avgMonthlyOutflow;
-  const scenarioLiquidityImmediate = Math.max(liquidityImmediate + Math.round(monthlyNetCashflow * 0.35), 100_000);
-  const scenarioOutflows30d = Math.round(avgMonthlyOutflow * 1.05);
-  const scenarioRecognizedInflows30d = Math.round(avgMonthlyInflow * 0.35);
+  const avgMonthlySuppliers = Math.round(rows.reduce((s, r) => s + r.outflowSuppliers, 0) / rows.length);
+  const avgMonthlyPayroll = Math.round(rows.reduce((s, r) => s + r.outflowPayroll, 0) / rows.length);
+  const scenarioLiquidityImmediate = Math.max(liquidityImmediate + Math.round(monthlyNetCashflow * 0.3), 100_000);
+
+  const outflowStress =
+    scenario === "optimista" ? 0.94
+      : scenario === "pesimista" ? 1.18
+        : 1;
+  const inflowRecognitionStress =
+    scenario === "optimista" ? 1.1
+      : scenario === "pesimista" ? 0.82
+        : 1;
+  const hqlaStress =
+    scenario === "optimista" ? 1.08
+      : scenario === "pesimista" ? 0.82
+        : 1;
+
+  const scenarioOutflows30d = Math.round(projectedOutflows30d * outflowStress);
+  const scenarioRecognizedInflows30d = Math.round(recognizedInflows30d * inflowRecognitionStress);
   const scenarioNetOutflows30d = Math.max(scenarioOutflows30d - scenarioRecognizedInflows30d, 1);
-  const scenarioHqla = scenarioLiquidityImmediate + investCete90d + investCete28d;
+  const scenarioHqlaBase = scenarioLiquidityImmediate + investCete90d + investCete28d;
+  const scenarioHqla = Math.round(scenarioHqlaBase * hqlaStress);
   const scenarioLcr = scenarioHqla / scenarioNetOutflows30d;
   const scenarioCurrentLiabilities =
     scenario === "optimista" ? Math.round(currentLiabilities * 0.95)
@@ -754,7 +937,7 @@ export function LimScreen() {
                     { c: "Nómina quincenal", t: "Salida", m: 240_000, e: "Pendiente" },
                     { c: "Pago proveedores", t: "Salida", m: 610_000, e: "Estimado" },
                     { c: "Vencimiento CDT", t: "Entrada", m: 450_000, e: "Confirmado" },
-                    { c: "Impuestos SRI", t: "Salida", m: 180_000, e: "Pendiente" },
+                    { c: "Impuestos ISR", t: "Salida", m: 180_000, e: "Pendiente" },
                   ].map((item) => (
                     <tr key={item.c}>
                       <td>{item.c}</td>
@@ -856,7 +1039,7 @@ export function LimScreen() {
           {activeTab === "dashboard" && (
             <div className="lim-dashboard">
               <div className="lim-dash-head">
-                <h2>Dashboard de Liquidez</h2>
+                <h2>Liquidity Control Center Dashboard</h2>
               </div>
 
               <div className="lim-dash-kpis">
@@ -884,6 +1067,16 @@ export function LimScreen() {
                   <div className="lim-dash-kpi-val">{cashRatio.toFixed(2)}x</div>
                 </article>
               </div>
+
+              <div className="lim-section-head" style={{ marginTop: 14 }}>Ingresos vs uso del ingreso mensual</div>
+              <div className="lim-section-subhead">
+                Muestra cuánto ingresa en promedio y en qué se utiliza: proveedores, nómina y flujo neto.
+              </div>
+              <IncomeUseChart
+                suppliers={avgMonthlySuppliers}
+                payroll={avgMonthlyPayroll}
+                net={monthlyNetCashflow}
+              />
 
               <div className="lim-section-head">Activos líquidos por bucket de vencimiento</div>
               <div className="lim-section-subhead">

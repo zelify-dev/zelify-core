@@ -66,7 +66,7 @@ export const en = {
       groups: "Groups",
       loans: "Loans",
       deposits: "Deposits",
-      lim: "LIM",
+      lim: "LCC",
       loanTransactions: "Loan Transactions",
       depositTransactions: "Deposit Transactions",
       activities: "Activities",

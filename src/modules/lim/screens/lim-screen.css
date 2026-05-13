@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════
-   LIM — Liquidity Intelligence & Management
+   LCC — Liquidity Control Center
    ═══════════════════════════════════════════ */
 
 .lim-root {
@@ -258,7 +258,7 @@
    ═══════════════════════════════════════════ */
 .lim-cf-layout {
   display: grid;
-  grid-template-columns: 188px 1fr;
+  grid-template-columns: 152px 1fr;
   background: #fff;
   flex: 1;
   min-height: 0;
@@ -267,10 +267,10 @@
 /* ─── KPI sidebar ─── */
 .lim-kpi-side {
   border-right: 1px solid #e5e7eb;
-  padding: 16px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
 
 .lim-kpi-primary {
@@ -331,9 +331,11 @@
 
 /* ─── SVG Chart ─── */
 .lim-chart-wrap {
-  border-bottom: 1px solid #e5e7eb;
-  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   overflow: hidden;
+  margin: 8px 10px 0;
 }
 
 .lim-chart-wrap--scenario-swap {
@@ -353,7 +355,7 @@
 
 .lim-chart-svg {
   width: 100%;
-  height: 360px;
+  height: 500px;
   display: block;
 }
 
@@ -864,6 +866,17 @@
   width: 100%;
   height: 160px;
   display: block;
+}
+
+.lim-income-use-svg {
+  width: 100%;
+  height: 320px;
+  display: block;
+  margin-top: 8px;
+  margin-bottom: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
 }
 
 /* ─── Conciliación KPIs compactos ─── */
