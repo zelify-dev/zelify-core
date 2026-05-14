@@ -291,6 +291,7 @@ function CashflowChart({
                 r={10}
                 fill="transparent"
                 onMouseEnter={() => setHoveredIndex(i)}
+                onMouseLeave={() => setHoveredIndex(null)}
               >
                 <title>{`Pesimista · ${r.label}: $${fmtFull(r.balanceEnd)}`}</title>
               </circle>
@@ -324,6 +325,7 @@ function CashflowChart({
             r={10}
             fill="transparent"
             onMouseEnter={() => setHoveredIndex(i)}
+            onMouseLeave={() => setHoveredIndex(null)}
           />
         </g>
       ))}
@@ -355,6 +357,7 @@ function CashflowChart({
                 r={10}
                 fill="transparent"
                 onMouseEnter={() => setHoveredIndex(i)}
+                onMouseLeave={() => setHoveredIndex(null)}
               >
                 <title>{`Optimista · ${r.label}: $${fmtFull(r.balanceEnd)}`}</title>
               </circle>
@@ -995,7 +998,7 @@ export function LimScreen() {
                   <tbody>
                     {[
                       { i: "Money Market AAA", p: "6 meses", e: "$500,000", t: "2.9% TNA", ip: "$7,250" },
-                      { i: "Fondo Liquidez Plus", p: "3 meses", e: "$300,000", t: "2.4% TNA", ip: "$1,800" },
+                     
                       { i: "CETE", p: "90 días", e: "$90,000", t: "6.67% TNA", ip: "$1,502" },
                       { i: "CETE", p: "28 días", e: "$50,000", t: "6.54% TNA", ip: "$272" },
                       { i: "Repo Overnight", p: "1 día", e: "$140,000", t: "2.2% TNA", ip: "$257" },
@@ -1021,7 +1024,7 @@ export function LimScreen() {
                   <div className="lim-ai-card lim-ai-card--yellow">
                     <span className="lim-ai-tag lim-ai-tag--yellow">Alerta</span>
                     <div className="lim-ai-card-title">Vencimiento en 24 h</div>
-                    <div className="lim-ai-card-body">El <strong>Repo Overnight $190K</strong> vence el 09 May 2026. Se recomienda renovar o redirigir al Fondo Liquidez Plus para mantener liquidez operativa sin corte de cobertura.</div>
+                    <div className="lim-ai-card-body">El <strong>Repo Overnight $190K</strong> vence el 09 May 2026. Se recomienda renovar o redirigir al CETE para mantener liquidez operativa sin corte de cobertura.</div>
                     <button className="lim-ai-action" type="button">Revisar →</button>
                   </div>
                   <div className="lim-ai-card lim-ai-card--blue">
