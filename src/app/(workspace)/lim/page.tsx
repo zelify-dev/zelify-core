@@ -1,5 +1,5 @@
-import { LimScreen } from "@/modules/lim/screens/lim-screen";
+import { redirect } from "next/navigation";
 
 export default function LimPage() {
-  return <LimScreen />;
+  redirect("/lcc");
 }
