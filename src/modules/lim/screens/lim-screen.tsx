@@ -11,6 +11,13 @@ type ScenarioOverlayId = "optimista" | "pesimista";
 type ViewMode = "mensual" | "trimestral" | "semestral" | "anual";
 
 const MONTHS = ["May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic", "Ene", "Feb", "Mar", "Abr"];
+const INITIAL_CASH_BALANCE = 2_469_770;
+const LIQUIDITY_RESERVE_RATIO = 250_000 / INITIAL_CASH_BALANCE;
+const BASE_INVEST_MONEY_MARKET_6M = 700_000;
+const BASE_INVEST_FONDO_3M = 400_000;
+const BASE_INVEST_CETE_90D = 180_000;
+const BASE_INVEST_CETE_28D = 100_000;
+const BASE_INVEST_REPO_1D = 120_000;
 
 function fmt(v: number): string {
   if (Math.abs(v) >= 1_000_000) return `$${(v / 1_000_000).toFixed(2)}M`;
@@ -41,7 +48,7 @@ function buildRows(scenario: ScenarioId): MonthRow[] {
 
   let inflow = 1_180_000;
   let outflow = 1_020_000;
-  let bal = 4_820_000;
+  let bal = INITIAL_CASH_BALANCE;
   const rows: MonthRow[] = [];
 
   for (let i = 0; i < MONTHS.length; i++) {
@@ -532,17 +539,29 @@ export function LimScreen() {
     };
   }, [rows]);
 
-  const liquidityImmediate = 250_000;
-  const investMoneyMarket6m = 500_000;
-  const investFondo3m = 300_000;
-  const investCete90d = 90_000;
-  const investCete28d = 50_000;
-  const investRepo1d = 140_000;
-  const investedTotal = investMoneyMarket6m + investFondo3m + investCete90d + investCete28d + investRepo1d;
+  const liquidityImmediate = Math.round((rows[0]?.balanceStart ?? INITIAL_CASH_BALANCE) * LIQUIDITY_RESERVE_RATIO);
+  const investmentScenarioFactor =
+    scenario === "optimista" ? 1.1
+      : scenario === "pesimista" ? 0.72
+        : 1;
+  const investMoneyMarket6m = Math.round(BASE_INVEST_MONEY_MARKET_6M * investmentScenarioFactor);
+  const investFondo3m = Math.round(BASE_INVEST_FONDO_3M * investmentScenarioFactor);
+  const investCete90d = Math.round(BASE_INVEST_CETE_90D * investmentScenarioFactor);
+  const investCete28d = Math.round(BASE_INVEST_CETE_28D * investmentScenarioFactor);
+  const investRepo1d = Math.round(BASE_INVEST_REPO_1D * investmentScenarioFactor);
+  const investedTotalBase = investMoneyMarket6m + investFondo3m + investCete90d + investCete28d + investRepo1d;
+  const investmentMonthlyDrift =
+    scenario === "optimista" ? 0.005
+      : scenario === "pesimista" ? -0.015
+        : 0.002;
+  const investedTotalSeries = rows.map((_, i) =>
+    Math.max(Math.round(investedTotalBase * Math.pow(1 + investmentMonthlyDrift, i)), 0)
+  );
+  const investedTotalCurrent = investedTotalSeries[safeActiveMonth] ?? investedTotalBase;
 
-  const bucket1d = investRepo1d;
-  const bucket30d = investCete28d;
-  const bucket90d = investCete90d;
+  const bucket1d = Math.round(investRepo1d * (investedTotalCurrent / Math.max(investedTotalBase, 1)));
+  const bucket30d = Math.round(investCete28d * (investedTotalCurrent / Math.max(investedTotalBase, 1)));
+  const bucket90d = Math.round(investCete90d * (investedTotalCurrent / Math.max(investedTotalBase, 1)));
 
   const projectedOutflows30d = 1_030_000;
   const recognizedInflows30d = 410_000;
@@ -865,6 +884,16 @@ export function LimScreen() {
                         ))}
                       </tr>
 
+                      {/* Activos líquidos */}
+                      <tr className="lim-tr-section">
+                        <td className="lim-td-lbl"><span className="lim-dot lim-dot--blue" />Activos líquidos</td>
+                        {rows.map((r, i) => (
+                          <td key={r.label} className={`lim-td-n lim-td-n--bold${i === safeActiveMonth ? " lim-td-n--active" : ""}`}>
+                            {fmtFull(investedTotalSeries[i] ?? investedTotalCurrent)}
+                          </td>
+                        ))}
+                      </tr>
+
                       {/* KPIs */}
                       <tr className="lim-tr-group" onClick={() => toggle("kpi")}>
                         <td className="lim-td-lbl lim-td-lbl--group">
@@ -958,15 +987,19 @@ export function LimScreen() {
           {activeTab === "financing" && (
             <div className="lim-panel">
               <div className="lim-section-head">Gestión de inversiones y crédito</div>
-              <div className="lim-section-subhead">Efectivo total disponible para invertir: <strong style={{ color: "#111827" }}>$1,190,000</strong></div>
+              <div className="lim-section-subhead">
+                Efectivo total disponible para invertir: <strong style={{ color: "#111827" }}>${fmtFull(investedTotalCurrent)}</strong>
+              </div>
 
               <table className="lim-tbl lim-tbl--list">
                 <thead><tr>{["Instrumento", "Plazo", "Monto", "Rendimiento", "Vencimiento"].map((h) => <th key={h}>{h}</th>)}</tr></thead>
                 <tbody>
                   {[
-                    { i: "Money Market AAA", p: "30 días", m: 680_000, r: "5.1% TNA", v: "07 Jun 2026" },
-                    { i: "Pagaré", p: "7 días", m: 320_000, r: "4.2% TNA", v: "15 May 2026" },
-                    { i: "Repo Overnight", p: "1 día", m: 190_000, r: "3.8% TNA", v: "09 May 2026" },
+                    { i: "Money Market AAA", p: "30 días", m: investMoneyMarket6m, r: "5.1% TNA", v: "07 Jun 2026" },
+                    { i: "Fondo Liquidez Plus", p: "7 días", m: investFondo3m, r: "4.2% TNA", v: "15 May 2026" },
+                    { i: "CETE 90 días", p: "90 días", m: investCete90d, r: "6.67% TNA", v: "12 Ago 2026" },
+                    { i: "CETE 28 días", p: "28 días", m: investCete28d, r: "6.54% TNA", v: "11 Jun 2026" },
+                    { i: "Repo Overnight", p: "1 día", m: investRepo1d, r: "3.8% TNA", v: "15 May 2026" },
                    
                   ].map((item) => (
                     <tr key={item.i}>
@@ -989,19 +1022,19 @@ export function LimScreen() {
                 </div>
                 <div className="lim-section-head" style={{ marginTop: 8 }}>Oportunidad de inversión recomendada</div>
                 <div className="lim-section-subhead">
-                  Total disponible: <strong style={{ color: "#111827" }}>$1,190,000</strong> ·
-                  Reserva de liquidez inmediata: <strong style={{ color: "#111827" }}>$250,000</strong> ·
-                  Monto sugerido a invertir: <strong style={{ color: "#111827" }}>$940,000</strong>
+                  Total disponible: <strong style={{ color: "#111827" }}>${fmtFull(investedTotalCurrent + liquidityImmediate)}</strong> ·
+                  Reserva de liquidez inmediata: <strong style={{ color: "#111827" }}>${fmtFull(liquidityImmediate)}</strong> ·
+                  Monto sugerido a invertir: <strong style={{ color: "#111827" }}>${fmtFull(investedTotalCurrent)}</strong>
                 </div>
                 <table className="lim-tbl lim-tbl--list">
                   <thead><tr>{["Instrumento", "Plazo recomendado", "Monto sugerido", "Tasa estimada", "Retorno potencial"].map((h) => <th key={h}>{h}</th>)}</tr></thead>
                   <tbody>
                     {[
-                      { i: "Money Market AAA", p: "6 meses", e: "$500,000", t: "2.9% TNA", ip: "$7,250" },
-                     
-                      { i: "CETE", p: "90 días", e: "$90,000", t: "6.67% TNA", ip: "$1,502" },
-                      { i: "CETE", p: "28 días", e: "$50,000", t: "6.54% TNA", ip: "$272" },
-                      { i: "Repo Overnight", p: "1 día", e: "$140,000", t: "2.2% TNA", ip: "$257" },
+                      { i: "Money Market AAA", p: "6 meses", e: `$${fmtFull(investMoneyMarket6m)}`, t: "2.9% TNA", ip: "$10,150" },
+                      { i: "Fondo Liquidez Plus", p: "3 meses", e: `$${fmtFull(investFondo3m)}`, t: "2.4% TNA", ip: "$2,400" },
+                      { i: "CETE", p: "90 días", e: `$${fmtFull(investCete90d)}`, t: "6.67% TNA", ip: "$3,003" },
+                      { i: "CETE", p: "28 días", e: `$${fmtFull(investCete28d)}`, t: "6.54% TNA", ip: "$544" },
+                      { i: "Repo Overnight", p: "1 día", e: `$${fmtFull(investRepo1d)}`, t: "2.2% TNA", ip: "$220" },
                     ].map((item) => (
                       <tr key={item.p}>
                         <td><strong>{item.i}</strong></td>
@@ -1018,7 +1051,7 @@ export function LimScreen() {
                   <div className="lim-ai-card lim-ai-card--green">
                     <span className="lim-ai-tag lim-ai-tag--green">Oportunidad</span>
                     <div className="lim-ai-card-title">Optimizar Money Market</div>
-                    <div className="lim-ai-card-body">Con $1.19M disponibles, la IA sugiere invertir $940K y mantener $250K como liquidez inmediata para cubrir operación diaria sin usar línea de crédito.</div>
+                    <div className="lim-ai-card-body">Con {fmt(investedTotalCurrent + liquidityImmediate)} disponibles, la IA sugiere asignar {fmt(investedTotalCurrent)} a inversiones y mantener {fmt(liquidityImmediate)} como liquidez inmediata para cubrir operación diaria.</div>
                     <button className="lim-ai-action" type="button">Aplicar →</button>
                   </div>
                   <div className="lim-ai-card lim-ai-card--yellow">
@@ -1083,7 +1116,7 @@ export function LimScreen() {
 
               <div className="lim-section-head">Activos líquidos por bucket de vencimiento</div>
               <div className="lim-section-subhead">
-                Monto total invertido recomendado: <strong style={{ color: "#111827" }}>${fmtFull(investedTotal)}</strong>
+                Monto total invertido recomendado: <strong style={{ color: "#111827" }}>${fmtFull(investedTotalCurrent)}</strong>
               </div>
               <table className="lim-tbl lim-tbl--list">
                 <thead><tr>{["Bucket", "Monto invertido", "Instrumentos incluidos"].map((h) => <th key={h}>{h}</th>)}</tr></thead>
@@ -1102,6 +1135,11 @@ export function LimScreen() {
                     <td>90 días</td>
                     <td className="lim-td-n">${fmtFull(bucket90d)}</td>
                     <td>CETE</td>
+                  </tr>
+                  <tr>
+                    <td>Activos líquidos</td>
+                    <td className="lim-td-n">${fmtFull(investedTotalCurrent)}</td>
+                    <td>Total invertido del escenario activo</td>
                   </tr>
                 </tbody>
               </table>
