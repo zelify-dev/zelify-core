@@ -996,7 +996,6 @@ export function LimScreen() {
                 <tbody>
                   {[
                     { i: "Money Market AAA", p: "30 días", m: investMoneyMarket6m, r: "5.1% TNA", v: "07 Jun 2026" },
-                    { i: "Fondo Liquidez Plus", p: "7 días", m: investFondo3m, r: "4.2% TNA", v: "15 May 2026" },
                     { i: "CETE 90 días", p: "90 días", m: investCete90d, r: "6.67% TNA", v: "12 Ago 2026" },
                     { i: "CETE 28 días", p: "28 días", m: investCete28d, r: "6.54% TNA", v: "11 Jun 2026" },
                     { i: "Repo Overnight", p: "1 día", m: investRepo1d, r: "3.8% TNA", v: "15 May 2026" },
@@ -1031,7 +1030,6 @@ export function LimScreen() {
                   <tbody>
                     {[
                       { i: "Money Market AAA", p: "6 meses", e: `$${fmtFull(investMoneyMarket6m)}`, t: "2.9% TNA", ip: "$10,150" },
-                      { i: "Fondo Liquidez Plus", p: "3 meses", e: `$${fmtFull(investFondo3m)}`, t: "2.4% TNA", ip: "$2,400" },
                       { i: "CETE", p: "90 días", e: `$${fmtFull(investCete90d)}`, t: "6.67% TNA", ip: "$3,003" },
                       { i: "CETE", p: "28 días", e: `$${fmtFull(investCete28d)}`, t: "6.54% TNA", ip: "$544" },
                       { i: "Repo Overnight", p: "1 día", e: `$${fmtFull(investRepo1d)}`, t: "2.2% TNA", ip: "$220" },
