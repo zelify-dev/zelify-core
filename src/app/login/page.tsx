@@ -8,6 +8,8 @@ import InputGroup from "@/components/form-elements/input-group";
 import { login, verifyDashboardOtp, persistAuthSession, AuthError, syncMe, type AuthSuccessResponse } from "@/lib/auth-api";
 import { getLoginAuthErrorDisplay } from "@/lib/auth-error-messages";
 import { getDefaultDashboardPath } from "@/lib/dashboard-routing";
+import { seedScotiaDemoStorage } from "@/modules/lim/hooks/use-lim-demo-store";
+import { seedScotiaCreditStorage } from "@/modules/cortex/hooks/use-credit-demo-store";
 
 const DEMO_BYPASS_EMAIL = "demo@zwippe.com";
 const DEMO_BYPASS_PASSWORD = "image.png";
@@ -16,6 +18,8 @@ const DEMO_BYPASS_STORAGE_KEY = "zelify_demo_bypass";
 // ============================================================================
 // TRANSLATIONS
 // ============================================================================
+
+
 const TRANSLATIONS = {
   en: {
     welcome: "Welcome back",
@@ -399,6 +403,8 @@ export default function LoginPage() {
       persistAuthSession(demoAuthSession);
       if (typeof window !== "undefined") {
         sessionStorage.setItem(DEMO_BYPASS_STORAGE_KEY, "true");
+        seedScotiaDemoStorage(true);
+        seedScotiaCreditStorage(true);
       }
       setLoading(false);
       window.location.href = getDefaultDashboardPath(demoAuthSession.roles);

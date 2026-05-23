@@ -1,0 +1,297 @@
+.cortex-rules-panel {
+  background: #fff;
+  border: 1px solid rgba(26, 39, 64, 0.1);
+  border-radius: 14px;
+  padding: 20px 22px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.cortex-rules-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(26, 39, 64, 0.08);
+}
+
+.cortex-rules-panel__eyebrow {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.cortex-rules-panel__title {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.cortex-rules-panel__subtitle {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #64748b;
+  max-width: 52ch;
+}
+
+.cortex-rules-panel__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.cortex-rules-panel__total {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.cortex-rules-panel__groups {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cortex-rules-group {
+  border: 1px solid rgba(26, 39, 64, 0.08);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fafbfc;
+}
+
+.cortex-rules-group__head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  background: #f1f5f9;
+  border-bottom: 1px solid rgba(26, 39, 64, 0.06);
+}
+
+.cortex-rules-group__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid rgba(26, 39, 64, 0.1);
+  color: #334155;
+}
+
+.cortex-rules-group__head h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cortex-rules-group__head p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.cortex-rules-group__count {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+}
+
+.cortex-rules-group__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.cortex-rule-item {
+  border-top: 1px solid rgba(26, 39, 64, 0.06);
+  background: #fff;
+  transition: background 120ms ease;
+}
+
+.cortex-rule-item:first-child {
+  border-top: none;
+}
+
+.cortex-rule-item--on {
+  background: #fcfdfc;
+}
+
+.cortex-rule-item__checkbox {
+  width: 100%;
+  padding: 12px 14px;
+  align-items: flex-start;
+}
+
+.cortex-rule-item__checkbox .zelify-checkbox__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.cortex-rule-item__content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cortex-rule-item__main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.cortex-rule-item__main strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.cortex-rule-item__desc {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #64748b;
+}
+
+@media (max-width: 720px) {
+  .cortex-rules-panel__header {
+    flex-direction: column;
+  }
+
+  .cortex-rules-panel__meta {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.cortex-ai-panel {
+  background: #fff;
+  border: 1px solid rgba(26, 39, 64, 0.1);
+  border-radius: 14px;
+  padding: 20px 22px;
+}
+
+.cortex-ai-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.cortex-ai-panel__eyebrow {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.cortex-ai-panel__header h3 {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cortex-ai-panel__hint,
+.cortex-ai-panel__rec,
+.cortex-ai-panel__summary {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.cortex-ai-panel__rec {
+  margin-bottom: 14px;
+}
+
+.cortex-ai-panel__metric {
+  text-align: right;
+}
+
+.cortex-ai-panel__metric span {
+  display: block;
+  font-size: 11px;
+  color: #94a3b8;
+  margin-bottom: 2px;
+}
+
+.cortex-ai-panel__metric strong {
+  font-size: 22px;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.cortex-ai-panel__actions {
+  margin-bottom: 14px;
+}
+
+.cortex-ai-panel__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.cortex-ai-panel__table th,
+.cortex-ai-panel__table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid rgba(26, 39, 64, 0.08);
+}
+
+.cortex-ai-panel__table th {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  background: #f8fafc;
+}
+
+.cortex-ai-panel__summary {
+  margin-top: 10px;
+}
+
+.scotia-data-layer--compact {
+  padding: 14px 18px;
+}
+
+.scotia-card__head--minimal h3 {
+  font-size: 14px;
+}
+
+.scotia-data-flow--compact {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.scotia-data-flow--compact span:nth-child(odd) {
+  padding: 4px 10px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  color: #334155;
+  font-weight: 600;
+}
+
+.scotia-card--flat {
+  box-shadow: none;
+  border: 1px solid rgba(26, 39, 64, 0.08);
+}

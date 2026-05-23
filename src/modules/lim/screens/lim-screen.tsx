@@ -2,31 +2,35 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
+import {
+  ScotiaDemoSection,
+  ScotiaDemoTourHost,
+  isScotiaDemoTab,
+  useScotiaDemoMode,
+  type CreditProductCategory,
+  type ScotiaDemoTab,
+} from "@/modules/lim/components/lim-scotiabank-demo";
+import { CATEGORY_SHORT_LABELS } from "@/modules/cortex/data/credit-catalog";
+import {
+  LCC_EXPECTED_30D_BASE,
+  LCC_FLOW_30D_BASE,
+  LCC_INVEST_BASE,
+  LCC_LEGACY_BASE_CASH_MXN,
+  LCC_LIQUIDITY_RESERVE_BASE_MXN,
+  LCC_MONTHLY_INFLOW_BASE_MXN,
+  LCC_MONTHLY_OUTFLOW_BASE_MXN,
+  scaleToPortfolio,
+} from "@/modules/scotia/constants/lcc-demo.constants";
+import { formatMxnCompact, formatMxnFull } from "@/modules/scotia/utils/format-mxn";
 import "@/components/ui/templates/workspace-page.css";
 import "./lim-screen.css";
 
-type MainTab = "cashflow" | "expected" | "financing" | "dashboard";
+type MainTab = ScotiaDemoTab | "cashflow" | "expected" | "financing" | "dashboard";
 type ScenarioId = "real" | "optimista" | "pesimista";
 type ScenarioOverlayId = "optimista" | "pesimista";
 type ViewMode = "mensual" | "trimestral" | "semestral" | "anual";
 
 const MONTHS = ["May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic", "Ene", "Feb", "Mar", "Abr"];
-const INITIAL_CASH_BALANCE = 2_469_770;
-const LIQUIDITY_RESERVE_RATIO = 250_000 / INITIAL_CASH_BALANCE;
-const BASE_INVEST_MONEY_MARKET_6M = 700_000;
-const BASE_INVEST_FONDO_3M = 400_000;
-const BASE_INVEST_CETE_90D = 180_000;
-const BASE_INVEST_CETE_28D = 100_000;
-const BASE_INVEST_REPO_1D = 120_000;
-
-function fmt(v: number): string {
-  if (Math.abs(v) >= 1_000_000) return `$${(v / 1_000_000).toFixed(2)}M`;
-  if (Math.abs(v) >= 1_000) return `$${Math.round(v / 1_000)}K`;
-  return `$${v}`;
-}
-function fmtFull(v: number): string {
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(v);
-}
 
 type MonthRow = {
   label: string;
@@ -41,14 +45,15 @@ type MonthRow = {
   balanceEnd: number;
 };
 
-function buildRows(scenario: ScenarioId): MonthRow[] {
+function buildRows(scenario: ScenarioId, portfolioBalanceMxn: number): MonthRow[] {
   const annualGrowth =
     scenario === "optimista" ? 0.25 : scenario === "pesimista" ? -0.4 : 0.03;
   const growth = Math.pow(1 + annualGrowth, 1 / 12) - 1;
 
-  let inflow = 1_180_000;
-  let outflow = 1_020_000;
-  let bal = INITIAL_CASH_BALANCE;
+  const base = portfolioBalanceMxn > 0 ? portfolioBalanceMxn : LCC_LEGACY_BASE_CASH_MXN;
+  let inflow = scaleToPortfolio(LCC_MONTHLY_INFLOW_BASE_MXN, base);
+  let outflow = scaleToPortfolio(LCC_MONTHLY_OUTFLOW_BASE_MXN, base);
+  let bal = base;
   const rows: MonthRow[] = [];
 
   for (let i = 0; i < MONTHS.length; i++) {
@@ -248,7 +253,7 @@ function CashflowChart({
         <g key={v}>
           <line x1={PL} y1={ys(v)} x2={W - PR} y2={ys(v)} stroke="#f3f4f6" strokeWidth={1} />
           <text x={PL - 6} y={ys(v) + 4} textAnchor="end" className="lim-chart-lbl">
-            {v === 0 ? "0" : fmt(v)}
+            {v === 0 ? "0" : formatMxnCompact(v)}
           </text>
         </g>
       ))}
@@ -300,7 +305,7 @@ function CashflowChart({
                 onMouseEnter={() => setHoveredIndex(i)}
                 onMouseLeave={() => setHoveredIndex(null)}
               >
-                <title>{`Pesimista · ${r.label}: $${fmtFull(r.balanceEnd)}`}</title>
+                <title>{`Pesimista · ${r.label}: ${formatMxnFull(r.balanceEnd)}`}</title>
               </circle>
             </g>
           ))}
@@ -366,7 +371,7 @@ function CashflowChart({
                 onMouseEnter={() => setHoveredIndex(i)}
                 onMouseLeave={() => setHoveredIndex(null)}
               >
-                <title>{`Optimista · ${r.label}: $${fmtFull(r.balanceEnd)}`}</title>
+                <title>{`Optimista · ${r.label}: ${formatMxnFull(r.balanceEnd)}`}</title>
               </circle>
             </g>
           ))}
@@ -411,7 +416,7 @@ function CashflowChart({
                 <circle cx={tooltipX + 16} cy={y - 4} r={4} fill={row.color} />
                 <text x={tooltipX + 26} y={y} fontSize={11} fill={row.color} fontWeight="600">{row.label}</text>
                 <text x={tooltipX + tooltipW - 12} y={y} fontSize={11} fill="#1f2937" textAnchor="end" fontWeight="700">
-                  ${fmtFull(row.value)}
+                  {formatMxnFull(row.value)}
                 </text>
               </g>
             );
@@ -481,7 +486,7 @@ function IncomeUseChart({
       <circle cx={cx} cy={cy} r={ri - 3} fill="#ffffff" />
 
       <text x={cx} y={146} textAnchor="middle" fontSize={11} fill="#6b7280">Uso del ingreso</text>
-      <text x={cx} y={166} textAnchor="middle" fontSize={18} fill="#0f172a" fontWeight="700">${fmtFull(total)}</text>
+      <text x={cx} y={166} textAnchor="middle" fontSize={18} fill="#0f172a" fontWeight="700">{formatMxnFull(total)}</text>
       <text x={cx} y={184} textAnchor="middle" fontSize={10} fill="#94a3b8">Promedio mensual</text>
 
       <g transform="translate(520,78)">
@@ -490,7 +495,7 @@ function IncomeUseChart({
             <rect width={300} height={34} rx={8} fill="#f8fafc" stroke="#e5e7eb" />
             <rect x={10} y={10} width={12} height={12} rx={3} fill={a.color} />
             <text x={30} y={22} fontSize={13} fill="#334155" fontWeight="600">{a.label}</text>
-            <text x={232} y={22} fontSize={13} fill="#0f172a" textAnchor="end" fontWeight="700">${fmtFull(a.value)}</text>
+            <text x={232} y={22} fontSize={13} fill="#0f172a" textAnchor="end" fontWeight="700">{formatMxnFull(a.value)}</text>
             <text x={288} y={22} fontSize={12} fill="#64748b" textAnchor="end">{a.pct.toFixed(1)}%</text>
           </g>
         ))}
@@ -501,16 +506,31 @@ function IncomeUseChart({
 
 /* ─── Main Screen ─── */
 export function LimScreen() {
-  const [activeTab, setActiveTab] = useState<MainTab>("cashflow");
+  const scotia = useScotiaDemoMode();
+  const [activeTab, setActiveTab] = useState<MainTab>("credito-admin");
+  const [legacyTab, setLegacyTab] = useState<Extract<MainTab, "cashflow" | "expected" | "financing" | "dashboard">>("cashflow");
+  const isScotiaTab = isScotiaDemoTab(activeTab);
+  const isCreditTab = activeTab === "credito-admin" || activeTab === "credito-cotizacion";
+  const effectiveLegacyTab = isScotiaTab ? legacyTab : activeTab;
   const [scenarioFilters, setScenarioFilters] = useState<Set<ScenarioOverlayId>>(new Set());
   const [viewMode, setViewMode] = useState<ViewMode>("mensual");
   const [activeMonth, setActiveMonth] = useState(0);
   const [expanded, setExpanded] = useState<Set<string>>(new Set(["inflow", "outflow"]));
 
+  // Saldo cartera LIM · base del Cashflow y módulos legacy
+  const portfolioBalanceMxn = scotia.limStore.hydrated
+    ? scotia.limStore.treasury.totalBalance
+    : LCC_LEGACY_BASE_CASH_MXN;
+
+  const liquidityReserveRatio =
+    portfolioBalanceMxn > 0
+      ? scaleToPortfolio(LCC_LIQUIDITY_RESERVE_BASE_MXN, portfolioBalanceMxn) / portfolioBalanceMxn
+      : LCC_LIQUIDITY_RESERVE_BASE_MXN / LCC_LEGACY_BASE_CASH_MXN;
+
   // Los 3 escenarios siempre calculados para el chart multi-línea
-  const realRowsBase = useMemo(() => buildRows("real"), []);
-  const optimistaRowsBase = useMemo(() => buildRows("optimista"), []);
-  const pessimistaRowsBase = useMemo(() => buildRows("pesimista"), []);
+  const realRowsBase = useMemo(() => buildRows("real", portfolioBalanceMxn), [portfolioBalanceMxn]);
+  const optimistaRowsBase = useMemo(() => buildRows("optimista", portfolioBalanceMxn), [portfolioBalanceMxn]);
+  const pessimistaRowsBase = useMemo(() => buildRows("pesimista", portfolioBalanceMxn), [portfolioBalanceMxn]);
 
   const realRows = useMemo(() => aggregateRows(realRowsBase, viewMode), [realRowsBase, viewMode]);
   const optimistaRows = useMemo(() => aggregateRows(optimistaRowsBase, viewMode), [optimistaRowsBase, viewMode]);
@@ -539,16 +559,26 @@ export function LimScreen() {
     };
   }, [rows]);
 
-  const liquidityImmediate = Math.round((rows[0]?.balanceStart ?? INITIAL_CASH_BALANCE) * LIQUIDITY_RESERVE_RATIO);
+  const liquidityImmediate = Math.round((rows[0]?.balanceStart ?? portfolioBalanceMxn) * liquidityReserveRatio);
   const investmentScenarioFactor =
     scenario === "optimista" ? 1.1
       : scenario === "pesimista" ? 0.72
         : 1;
-  const investMoneyMarket6m = Math.round(BASE_INVEST_MONEY_MARKET_6M * investmentScenarioFactor);
-  const investFondo3m = Math.round(BASE_INVEST_FONDO_3M * investmentScenarioFactor);
-  const investCete90d = Math.round(BASE_INVEST_CETE_90D * investmentScenarioFactor);
-  const investCete28d = Math.round(BASE_INVEST_CETE_28D * investmentScenarioFactor);
-  const investRepo1d = Math.round(BASE_INVEST_REPO_1D * investmentScenarioFactor);
+  const investMoneyMarket6m = Math.round(
+    scaleToPortfolio(LCC_INVEST_BASE.moneyMarket6m, portfolioBalanceMxn) * investmentScenarioFactor,
+  );
+  const investFondo3m = Math.round(
+    scaleToPortfolio(LCC_INVEST_BASE.fondo3m, portfolioBalanceMxn) * investmentScenarioFactor,
+  );
+  const investCete90d = Math.round(
+    scaleToPortfolio(LCC_INVEST_BASE.cete90d, portfolioBalanceMxn) * investmentScenarioFactor,
+  );
+  const investCete28d = Math.round(
+    scaleToPortfolio(LCC_INVEST_BASE.cete28d, portfolioBalanceMxn) * investmentScenarioFactor,
+  );
+  const investRepo1d = Math.round(
+    scaleToPortfolio(LCC_INVEST_BASE.repo1d, portfolioBalanceMxn) * investmentScenarioFactor,
+  );
   const investedTotalBase = investMoneyMarket6m + investFondo3m + investCete90d + investCete28d + investRepo1d;
   const investmentMonthlyDrift =
     scenario === "optimista" ? 0.005
@@ -563,15 +593,15 @@ export function LimScreen() {
   const bucket30d = Math.round(investCete28d * (investedTotalCurrent / Math.max(investedTotalBase, 1)));
   const bucket90d = Math.round(investCete90d * (investedTotalCurrent / Math.max(investedTotalBase, 1)));
 
-  const projectedOutflows30d = 1_030_000;
-  const recognizedInflows30d = 410_000;
+  const projectedOutflows30d = scaleToPortfolio(LCC_FLOW_30D_BASE.projectedOutflows, portfolioBalanceMxn);
+  const recognizedInflows30d = scaleToPortfolio(LCC_FLOW_30D_BASE.recognizedInflows, portfolioBalanceMxn);
   const netCashOutflows30d = projectedOutflows30d - recognizedInflows30d;
 
   const hqla = liquidityImmediate + investCete90d + investCete28d;
   const lcr = hqla / netCashOutflows30d;
 
   const cashEquivalents = liquidityImmediate + bucket1d + bucket30d;
-  const currentLiabilities = 900_000;
+  const currentLiabilities = scaleToPortfolio(LCC_FLOW_30D_BASE.currentLiabilities, portfolioBalanceMxn);
   const cashRatio = cashEquivalents / currentLiabilities;
 
   const avgMonthlyInflow = Math.round(totals.totalInflow / rows.length);
@@ -579,7 +609,30 @@ export function LimScreen() {
   const monthlyNetCashflow = avgMonthlyInflow - avgMonthlyOutflow;
   const avgMonthlySuppliers = Math.round(rows.reduce((s, r) => s + r.outflowSuppliers, 0) / rows.length);
   const avgMonthlyPayroll = Math.round(rows.reduce((s, r) => s + r.outflowPayroll, 0) / rows.length);
-  const scenarioLiquidityImmediate = Math.max(liquidityImmediate + Math.round(monthlyNetCashflow * 0.3), 100_000);
+  const scenarioLiquidityImmediate = Math.max(
+    liquidityImmediate + Math.round(monthlyNetCashflow * 0.3),
+    scaleToPortfolio(100_000, portfolioBalanceMxn),
+  );
+
+  const expectedInflows30d = scaleToPortfolio(LCC_EXPECTED_30D_BASE.inflows, portfolioBalanceMxn);
+  const expectedOutflows30d = scaleToPortfolio(LCC_EXPECTED_30D_BASE.outflows, portfolioBalanceMxn);
+  const expectedNetGap30d = expectedInflows30d - expectedOutflows30d;
+
+  const expectedFlowItems = useMemo(
+    () =>
+      [
+        { c: "Cobros clientes A/R", t: "Entrada", m: scaleToPortfolio(890_000, portfolioBalanceMxn), e: "Confirmado" },
+        { c: "Nómina quincenal", t: "Salida", m: scaleToPortfolio(240_000, portfolioBalanceMxn), e: "Pendiente" },
+        { c: "Pago proveedores", t: "Salida", m: scaleToPortfolio(610_000, portfolioBalanceMxn), e: "Estimado" },
+        { c: "Vencimiento CDT", t: "Entrada", m: scaleToPortfolio(450_000, portfolioBalanceMxn), e: "Confirmado" },
+        { c: "Impuestos ISR", t: "Salida", m: scaleToPortfolio(180_000, portfolioBalanceMxn), e: "Pendiente" },
+      ] as const,
+    [portfolioBalanceMxn],
+  );
+
+  const repoRenewalHint = formatMxnFull(scaleToPortfolio(190_000, portfolioBalanceMxn));
+  const creditLineHint = formatMxnFull(scaleToPortfolio(2_000_000, portfolioBalanceMxn));
+  const eomFloorHint = formatMxnFull(scaleToPortfolio(1_200_000, portfolioBalanceMxn));
 
   const outflowStress =
     scenario === "optimista" ? 0.94
@@ -635,12 +688,26 @@ export function LimScreen() {
         : "lim-kpi-val--blue";
 
   const TABS: { id: MainTab; label: string; badge?: string }[] = [
-    { id: "dashboard", label: "Dashboard" },
+    { id: "credito-admin", label: "Crédito · Admin", badge: "A" },
+    { id: "credito-cotizacion", label: "Crédito · Cotización" },
+    { id: "credito-auditoria", label: "Crédito · Auditoría" },
+    { id: "pricing", label: "Depósitos · Pricing", badge: "B" },
+    { id: "tesoreria", label: "Depósitos · Tesorería" },
+    { id: "auditoria", label: "Depósitos · Auditoría" },
+    { id: "dashboard", label: "LCC Dashboard" },
     { id: "cashflow", label: "Cashflow" },
     { id: "expected", label: "Flujo Esperado", badge: "4" },
     { id: "financing", label: "Financiamiento" },
-  
   ];
+
+  const handleTabClick = (tab: MainTab) => {
+    if (isScotiaDemoTab(tab)) {
+      scotia.setActiveTab(tab);
+    } else {
+      setLegacyTab(tab);
+    }
+    setActiveTab(tab);
+  };
 
   return (
     <div className="zelify-workspace-page">
@@ -657,23 +724,75 @@ export function LimScreen() {
                   type="button"
                   role="tab"
                   aria-selected={activeTab === t.id}
-                  className={`lim-tab${activeTab === t.id ? " lim-tab--active" : ""}`}
-                  onClick={() => setActiveTab(t.id)}
+                  className={`lim-tab${activeTab === t.id ? " lim-tab--active" : ""}${t.badge === "A" || t.badge === "B" ? " lim-tab--scotia" : ""}`}
+                  onClick={() => handleTabClick(t.id)}
                 >
                   {t.label}
                   {t.badge && (
-                    <span className="lim-tab-badge">{t.badge}</span>
+                    <span className={`lim-tab-badge${t.badge === "A" || t.badge === "B" ? " lim-tab-badge--scotia" : ""}`}>{t.badge}</span>
                   )}
                 </button>
               ))}
             </nav>
             <div className="lim-topbar-right">
-              <span className="lim-system-pill">Sistema activo</span>
+              {isScotiaTab && (
+                <>
+                  <button type="button" className="lim-btn-tour" onClick={() => scotia.setTourActive(true)}>
+                    Guía de exposición
+                  </button>
+                  <button type="button" className="lim-btn-ghost lim-btn-sm" onClick={() => scotia.resetAll()}>
+                    Reiniciar
+                  </button>
+                </>
+              )}
+              <span className={`lim-system-pill${isScotiaTab ? " lim-system-pill--scotia" : ""}`}>
+                {isScotiaTab ? "Motor LIM" : "Sistema activo"}
+              </span>
             </div>
           </div>
 
+          {isCreditTab && (
+            <nav className="lim-credit-subtabs" role="tablist" aria-label="Líneas de crédito">
+              {(Object.keys(CATEGORY_SHORT_LABELS) as CreditProductCategory[]).map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  role="tab"
+                  aria-selected={scotia.creditCategory === cat}
+                  className={`lim-credit-subtab${scotia.creditCategory === cat ? " lim-credit-subtab--active" : ""}`}
+                  onClick={() => scotia.setCreditCategory(cat)}
+                >
+                  {CATEGORY_SHORT_LABELS[cat]}
+                </button>
+              ))}
+            </nav>
+          )}
+
+          {isScotiaTab && (
+            <ScotiaDemoSection
+              activeTab={activeTab as ScotiaDemoTab}
+              creditCategory={scotia.creditCategory}
+              selectedClient={scotia.selectedClient}
+              onSelectedClientChange={scotia.setSelectedClient}
+              limStore={scotia.limStore}
+              creditStore={scotia.creditStore}
+              onTabChange={(tab) => handleTabClick(tab)}
+            />
+          )}
+
+          <ScotiaDemoTourHost
+            active={scotia.tourActive && isScotiaTab}
+            onClose={() => scotia.setTourActive(false)}
+            onTabChange={(tab) => handleTabClick(tab)}
+            onSelectedClientChange={scotia.setSelectedClient}
+            limStore={scotia.limStore}
+            creditStore={scotia.creditStore}
+          />
+
+          {!isScotiaTab && (
+            <>
           {/* ── Sub-controls bar (cashflow & expected tabs) ── */}
-          {(activeTab === "cashflow" || activeTab === "expected") && (
+          {(effectiveLegacyTab === "cashflow" || effectiveLegacyTab === "expected") && (
             <div className="lim-subbar">
               <div className="lim-subbar-left">
                 <select className="lim-sel">
@@ -728,7 +847,7 @@ export function LimScreen() {
                 </select>
               </div>
               <div className="lim-subbar-right">
-                {activeTab === "cashflow" && (
+                {effectiveLegacyTab === "cashflow" && (
                   <button className="lim-btn-ghost" type="button">Actualizar cálculo</button>
                 )}
               </div>
@@ -736,21 +855,29 @@ export function LimScreen() {
           )}
 
           {/* ══════════════ CASHFLOW TAB ══════════════ */}
-          {activeTab === "cashflow" && (
+          {effectiveLegacyTab === "cashflow" && (
             <div className="lim-cf-layout">
               {/* KPI sidebar */}
               <aside className="lim-kpi-side">
                 <div className="lim-kpi-primary">
-                  <span className={`lim-kpi-val ${kpiValCls}`}>{fmt(totals.balance)}</span>
-                  <span className={`lim-kpi-pill${scenario === "optimista" ? " lim-kpi-pill--opt" : scenario === "pesimista" ? " lim-kpi-pill--pes" : " lim-kpi-pill--blue"}`}>● Saldo de caja</span>
+                  <span className={`lim-kpi-val ${kpiValCls}`}>{formatMxnCompact(portfolioBalanceMxn)}</span>
+                  <span className={`lim-kpi-pill${scenario === "optimista" ? " lim-kpi-pill--opt" : scenario === "pesimista" ? " lim-kpi-pill--pes" : " lim-kpi-pill--blue"}`}>● Saldo cartera (LIM)</span>
                 </div>
                 <div className="lim-kpi-item">
-                  <span className="lim-kpi-val lim-kpi-val--sm">{fmt(scenarioLiquidityImmediate)}</span>
+                  <span className="lim-kpi-val lim-kpi-val--sm">{formatMxnCompact(rows[0]?.balanceStart ?? portfolioBalanceMxn)}</span>
+                  <span className="lim-kpi-sub">Saldo inicial Cashflow ⓘ</span>
+                </div>
+                <div className="lim-kpi-item">
+                  <span className="lim-kpi-val lim-kpi-val--sm">{formatMxnCompact(totals.balance)}</span>
+                  <span className="lim-kpi-sub">Saldo proyectado (horizonte) ⓘ</span>
+                </div>
+                <div className="lim-kpi-item">
+                  <span className="lim-kpi-val lim-kpi-val--sm">{formatMxnCompact(scenarioLiquidityImmediate)}</span>
                   <span className="lim-kpi-sub">Liquidez inmediata ⓘ</span>
                 </div>
                 <div className="lim-kpi-item">
                   <span className={`lim-kpi-val lim-kpi-val--sm ${monthlyNetCashflow >= 0 ? "lim-kpi-val--opt" : "lim-kpi-val--pes"}`}>
-                    {monthlyNetCashflow >= 0 ? "+" : ""}{fmt(monthlyNetCashflow)}
+                    {monthlyNetCashflow >= 0 ? "+" : ""}{formatMxnCompact(monthlyNetCashflow)}
                   </span>
                   <span className="lim-kpi-sub">Flujo neto mensual ⓘ</span>
                 </div>
@@ -767,6 +894,10 @@ export function LimScreen() {
 
               {/* chart + table */}
               <div className="lim-cf-main">
+                <p className="lim-section-subhead lim-cf-cartera-note">
+                  Todos los montos en pesos mexicanos (MXN). El saldo inicial del flujo coincide con la cartera de{" "}
+                  <strong>Depósitos · Tesorería</strong> ({formatMxnFull(portfolioBalanceMxn)}).
+                </p>
                 <div key={chartAnimKey} className="lim-chart-wrap lim-chart-wrap--scenario-swap">
                   <CashflowChart
                     realRows={realRows}
@@ -811,7 +942,7 @@ export function LimScreen() {
                       <tr className="lim-tr-section">
                         <td className="lim-td-lbl"><span className="lim-dot lim-dot--blue" />Saldo inicial de caja</td>
                         {rows.map((r, i) => (
-                          <td key={r.label} className={`lim-td-n${i === safeActiveMonth ? " lim-td-n--active" : ""}`}>{fmtFull(r.balanceStart)}</td>
+                          <td key={r.label} className={`lim-td-n${i === safeActiveMonth ? " lim-td-n--active" : ""}`}>{formatMxnFull(r.balanceStart)}</td>
                         ))}
                       </tr>
 
@@ -823,7 +954,7 @@ export function LimScreen() {
                         </td>
                         {rows.map((r, i) => (
                           <td key={r.label} className={`lim-td-n lim-td-n--bold${i === safeActiveMonth ? " lim-td-n--active lim-td-n--green" : ""}`}>
-                            {fmtFull(r.inflow)}
+                            {formatMxnFull(r.inflow)}
                           </td>
                         ))}
                       </tr>
@@ -838,7 +969,7 @@ export function LimScreen() {
                               <td className="lim-td-lbl lim-td-lbl--sub">{label}</td>
                               {rows.map((r, i) => (
                                 <td key={r.label} className={`lim-td-n lim-td-n--sub${i === safeActiveMonth ? " lim-td-n--active" : ""}`}>
-                                  {fmtFull(r[key as keyof MonthRow] as number)}
+                                  {formatMxnFull(r[key as keyof MonthRow] as number)}
                                 </td>
                               ))}
                             </tr>
@@ -854,7 +985,7 @@ export function LimScreen() {
                         </td>
                         {rows.map((r, i) => (
                           <td key={r.label} className={`lim-td-n lim-td-n--bold${i === safeActiveMonth ? " lim-td-n--active lim-td-n--red" : ""}`}>
-                            {fmtFull(r.outflow)}
+                            {formatMxnFull(r.outflow)}
                           </td>
                         ))}
                       </tr>
@@ -868,7 +999,7 @@ export function LimScreen() {
                               <td className="lim-td-lbl lim-td-lbl--sub">{label}</td>
                               {rows.map((r, i) => (
                                 <td key={r.label} className={`lim-td-n lim-td-n--sub${i === safeActiveMonth ? " lim-td-n--active" : ""}`}>
-                                  {fmtFull(r[key as keyof MonthRow] as number)}
+                                  {formatMxnFull(r[key as keyof MonthRow] as number)}
                                 </td>
                               ))}
                             </tr>
@@ -880,7 +1011,7 @@ export function LimScreen() {
                       <tr className="lim-tr-section">
                         <td className="lim-td-lbl"><span className="lim-dot lim-dot--blue" />Saldo final del mes</td>
                         {rows.map((r, i) => (
-                          <td key={r.label} className={`lim-td-n lim-td-n--bold${i === safeActiveMonth ? " lim-td-n--active" : ""}`}>{fmtFull(r.balanceEnd)}</td>
+                          <td key={r.label} className={`lim-td-n lim-td-n--bold${i === safeActiveMonth ? " lim-td-n--active" : ""}`}>{formatMxnFull(r.balanceEnd)}</td>
                         ))}
                       </tr>
 
@@ -889,7 +1020,7 @@ export function LimScreen() {
                         <td className="lim-td-lbl"><span className="lim-dot lim-dot--blue" />Activos líquidos</td>
                         {rows.map((r, i) => (
                           <td key={r.label} className={`lim-td-n lim-td-n--bold${i === safeActiveMonth ? " lim-td-n--active" : ""}`}>
-                            {fmtFull(investedTotalSeries[i] ?? investedTotalCurrent)}
+                            {formatMxnFull(investedTotalSeries[i] ?? investedTotalCurrent)}
                           </td>
                         ))}
                       </tr>
@@ -904,7 +1035,7 @@ export function LimScreen() {
                           const net = r.inflow - r.outflow;
                           return (
                             <td key={r.label} className={`lim-td-n lim-td-n--bold${net >= 0 ? " lim-td-n--green" : " lim-td-n--red"}${i === safeActiveMonth ? " lim-td-n--active" : ""}`}>
-                              {net >= 0 ? "+" : ""}{fmtFull(net)}
+                              {net >= 0 ? "+" : ""}{formatMxnFull(net)}
                             </td>
                           );
                         })}
@@ -915,7 +1046,7 @@ export function LimScreen() {
                             <td className="lim-td-lbl lim-td-lbl--sub">Saldo EOM <span className="lim-kpi-acronym">End of Month</span></td>
                             {rows.map((r, i) => (
                               <td key={r.label} className={`lim-td-n lim-td-n--sub lim-td-n--blue${i === safeActiveMonth ? " lim-td-n--active" : ""}`}>
-                                {fmtFull(r.balanceEnd)}
+                                {formatMxnFull(r.balanceEnd)}
                               </td>
                             ))}
                           </tr>
@@ -923,7 +1054,7 @@ export function LimScreen() {
                             <td className="lim-td-lbl lim-td-lbl--sub">Burn rate mensual</td>
                             {rows.map((r, i) => (
                               <td key={r.label} className={`lim-td-n lim-td-n--sub${i === safeActiveMonth ? " lim-td-n--active" : ""}`}>
-                                {fmtFull(r.outflow)}
+                                {formatMxnFull(r.outflow)}
                               </td>
                             ))}
                           </tr>
@@ -935,7 +1066,7 @@ export function LimScreen() {
                                 acc += r.inflow - r.outflow;
                                 return (
                                   <td key={r.label} className={`lim-td-n lim-td-n--sub${acc >= 0 ? " lim-td-n--green" : " lim-td-n--red"}${i === safeActiveMonth ? " lim-td-n--active" : ""}`}>
-                                    {acc >= 0 ? "+" : ""}{fmtFull(acc)}
+                                    {acc >= 0 ? "+" : ""}{formatMxnFull(acc)}
                                   </td>
                                 );
                               });
@@ -951,30 +1082,27 @@ export function LimScreen() {
           )}
 
           {/* ══════════════ ESPERADO TAB ══════════════ */}
-          {activeTab === "expected" && (
+          {effectiveLegacyTab === "expected" && (
             <div className="lim-panel">
               <div className="lim-section-head">Flujos esperados — Próximos 30 días</div>
+              <p className="lim-section-subhead">
+                Montos en MXN · alineados al saldo cartera LIM ({formatMxnCompact(portfolioBalanceMxn)})
+              </p>
               <div className="lim-kpi-row-3">
-                <article className="lim-kpi-card"><span>Entradas proyectadas 30d</span><strong className="lim-val-up">$1.34M</strong></article>
-                <article className="lim-kpi-card"><span>Salidas proyectadas 30d</span><strong>$1.03M</strong></article>
-                <article className="lim-kpi-card"><span>Gap neto</span><strong className="lim-val-up">+$0.31M</strong></article>
+                <article className="lim-kpi-card"><span>Entradas proyectadas 30d</span><strong className="lim-val-up">{formatMxnCompact(expectedInflows30d)}</strong></article>
+                <article className="lim-kpi-card"><span>Salidas proyectadas 30d</span><strong>{formatMxnCompact(expectedOutflows30d)}</strong></article>
+                <article className="lim-kpi-card"><span>Gap neto</span><strong className="lim-val-up">+{formatMxnCompact(expectedNetGap30d)}</strong></article>
               </div>
               <table className="lim-tbl lim-tbl--list lim-financing-instruments-table">
                 <thead>
                   <tr>{["Concepto", "Tipo", "Monto est.", "Estado"].map((h) => <th key={h}>{h}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {[
-                    { c: "Cobros clientes A/R", t: "Entrada", m: 890_000, e: "Confirmado" },
-                    { c: "Nómina quincenal", t: "Salida", m: 240_000, e: "Pendiente" },
-                    { c: "Pago proveedores", t: "Salida", m: 610_000, e: "Estimado" },
-                    { c: "Vencimiento CDT", t: "Entrada", m: 450_000, e: "Confirmado" },
-                    { c: "Impuestos ISR", t: "Salida", m: 180_000, e: "Pendiente" },
-                  ].map((item) => (
+                  {expectedFlowItems.map((item) => (
                     <tr key={item.c}>
                       <td>{item.c}</td>
                       <td className={item.t === "Entrada" ? "lim-val-up" : "lim-val-down"}>{item.t}</td>
-                      <td className="lim-td-n">${fmtFull(item.m)}</td>
+                      <td className="lim-td-n">{formatMxnFull(item.m)}</td>
                       <td><span className={`lim-pill${item.e === "Confirmado" ? " lim-pill--green" : item.e === "Pendiente" ? " lim-pill--red" : " lim-pill--yellow"}`}>{item.e}</span></td>
                     </tr>
                   ))}
@@ -984,11 +1112,11 @@ export function LimScreen() {
           )}
 
           {/* ══════════════ FINANCIAMIENTO TAB ══════════════ */}
-          {activeTab === "financing" && (
+          {effectiveLegacyTab === "financing" && (
             <div className="lim-panel">
               <div className="lim-section-head">Gestión de inversiones y crédito</div>
               <div className="lim-section-subhead">
-                Efectivo total disponible para invertir: <strong style={{ color: "#111827" }}>${fmtFull(investedTotalCurrent)}</strong>
+                Montos en MXN · cartera LIM {formatMxnCompact(portfolioBalanceMxn)} · efectivo invertible escalado al saldo total.
               </div>
 
               <table className="lim-tbl lim-tbl--list">
@@ -1004,7 +1132,7 @@ export function LimScreen() {
                     <tr key={item.i}>
                       <td><strong>{item.i}</strong></td>
                       <td>{item.p}</td>
-                      <td className="lim-td-n">${fmtFull(item.m)}</td>
+                      <td className="lim-td-n">{formatMxnFull(item.m)}</td>
                       <td className="lim-val-up">{item.r}</td>
                       <td className="lim-td-muted">{item.v}</td>
                     </tr>
@@ -1021,18 +1149,42 @@ export function LimScreen() {
                 </div>
                 <div className="lim-section-head" style={{ marginTop: 8 }}>Oportunidad de inversión recomendada</div>
                 <div className="lim-section-subhead">
-                  Total disponible: <strong style={{ color: "#111827" }}>${fmtFull(investedTotalCurrent + liquidityImmediate)}</strong> ·
-                  Reserva de liquidez inmediata: <strong style={{ color: "#111827" }}>${fmtFull(liquidityImmediate)}</strong> ·
-                  Monto sugerido a invertir: <strong style={{ color: "#111827" }}>${fmtFull(investedTotalCurrent)}</strong>
+                  Total disponible: <strong style={{ color: "#111827" }}>{formatMxnFull(investedTotalCurrent + liquidityImmediate)}</strong> ·
+                  Reserva de liquidez inmediata: <strong style={{ color: "#111827" }}>{formatMxnFull(liquidityImmediate)}</strong> ·
+                  Monto sugerido a invertir: <strong style={{ color: "#111827" }}>{formatMxnFull(investedTotalCurrent)}</strong>
                 </div>
                 <table className="lim-tbl lim-tbl--list">
                   <thead><tr>{["Instrumento", "Plazo recomendado", "Monto sugerido", "Tasa estimada", "Retorno potencial"].map((h) => <th key={h}>{h}</th>)}</tr></thead>
                   <tbody>
                     {[
-                      { i: "Money Market AAA", p: "6 meses", e: `$${fmtFull(investMoneyMarket6m)}`, t: "2.9% TNA", ip: "$10,150" },
-                      { i: "CETE", p: "90 días", e: `$${fmtFull(investCete90d)}`, t: "6.67% TNA", ip: "$3,003" },
-                      { i: "CETE", p: "28 días", e: `$${fmtFull(investCete28d)}`, t: "6.54% TNA", ip: "$544" },
-                      { i: "Repo Overnight", p: "1 día", e: `$${fmtFull(investRepo1d)}`, t: "2.2% TNA", ip: "$220" },
+                      {
+                        i: "Money Market AAA",
+                        p: "6 meses",
+                        e: formatMxnFull(investMoneyMarket6m),
+                        t: "2.9% TNA",
+                        ip: formatMxnFull(scaleToPortfolio(10_150, portfolioBalanceMxn)),
+                      },
+                      {
+                        i: "CETE",
+                        p: "90 días",
+                        e: formatMxnFull(investCete90d),
+                        t: "6.67% TNA",
+                        ip: formatMxnFull(scaleToPortfolio(3_003, portfolioBalanceMxn)),
+                      },
+                      {
+                        i: "CETE",
+                        p: "28 días",
+                        e: formatMxnFull(investCete28d),
+                        t: "6.54% TNA",
+                        ip: formatMxnFull(scaleToPortfolio(544, portfolioBalanceMxn)),
+                      },
+                      {
+                        i: "Repo Overnight",
+                        p: "1 día",
+                        e: formatMxnFull(investRepo1d),
+                        t: "2.2% TNA",
+                        ip: formatMxnFull(scaleToPortfolio(220, portfolioBalanceMxn)),
+                      },
                     ].map((item) => (
                       <tr key={item.p}>
                         <td><strong>{item.i}</strong></td>
@@ -1049,19 +1201,19 @@ export function LimScreen() {
                   <div className="lim-ai-card lim-ai-card--green">
                     <span className="lim-ai-tag lim-ai-tag--green">Oportunidad</span>
                     <div className="lim-ai-card-title">Optimizar Money Market</div>
-                    <div className="lim-ai-card-body">Con {fmt(investedTotalCurrent + liquidityImmediate)} disponibles, la IA sugiere asignar {fmt(investedTotalCurrent)} a inversiones y mantener {fmt(liquidityImmediate)} como liquidez inmediata para cubrir operación diaria.</div>
+                    <div className="lim-ai-card-body">Con {formatMxnCompact(investedTotalCurrent + liquidityImmediate)} disponibles, la IA sugiere asignar {formatMxnCompact(investedTotalCurrent)} a inversiones y mantener {formatMxnCompact(liquidityImmediate)} como liquidez inmediata para cubrir operación diaria.</div>
                     <button className="lim-ai-action" type="button">Aplicar →</button>
                   </div>
                   <div className="lim-ai-card lim-ai-card--yellow">
                     <span className="lim-ai-tag lim-ai-tag--yellow">Alerta</span>
                     <div className="lim-ai-card-title">Vencimiento en 24 h</div>
-                    <div className="lim-ai-card-body">El <strong>Repo Overnight $190K</strong> vence el 09 May 2026. Se recomienda renovar o redirigir al CETE para mantener liquidez operativa sin corte de cobertura.</div>
+                    <div className="lim-ai-card-body">El <strong>Repo Overnight {repoRenewalHint}</strong> vence el 09 May 2026. Se recomienda renovar o redirigir al CETE para mantener liquidez operativa sin corte de cobertura.</div>
                     <button className="lim-ai-action" type="button">Revisar →</button>
                   </div>
                   <div className="lim-ai-card lim-ai-card--blue">
                     <span className="lim-ai-tag lim-ai-tag--blue">Estrategia</span>
                     <div className="lim-ai-card-title">Línea Revolving sin utilizar</div>
-                    <div className="lim-ai-card-body">La línea de crédito Pichincha ($2M, 8.5%) tiene margen completo disponible. Mantenerla sin utilizar mejora el índice de cobertura. Activar solo si <strong>DSO supera 45 días</strong> o el saldo EOM cae bajo $1.2M.</div>
+                    <div className="lim-ai-card-body">La línea de crédito Pichincha ({creditLineHint}, 8.5%) tiene margen completo disponible. Mantenerla sin utilizar mejora el índice de cobertura. Activar solo si <strong>DSO supera 45 días</strong> o el saldo EOM cae bajo {eomFloorHint}.</div>
                     <button className="lim-ai-action" type="button">Configurar alerta →</button>
                   </div>
                 </div>
@@ -1070,23 +1222,26 @@ export function LimScreen() {
           )}
 
           {/* ══════════════ DASHBOARD TAB ══════════════ */}
-          {activeTab === "dashboard" && (
+          {effectiveLegacyTab === "dashboard" && (
             <div className="lim-dashboard">
               <div className="lim-dash-head">
                 <h2>Liquidity Control Center Dashboard</h2>
+                <p className="lim-section-subhead">
+                  KPIs en MXN · saldo cartera LIM {formatMxnCompact(portfolioBalanceMxn)}
+                </p>
               </div>
 
               <div className="lim-dash-kpis">
                 <article className="lim-dash-kpi">
                   <div className="lim-dash-kpi-title">Liquidez inmediata (Caja disponible)</div>
                   <div className="lim-dash-kpi-range">Efectivo operativo disponible hoy</div>
-                  <div className="lim-dash-kpi-val">${fmtFull(liquidityImmediate)}</div>
+                  <div className="lim-dash-kpi-val">{formatMxnFull(liquidityImmediate)}</div>
                 </article>
 
                 <article className="lim-dash-kpi">
                   <div className="lim-dash-kpi-title">Flujo neto mensual de efectivo</div>
                   <div className="lim-dash-kpi-range">Entradas mensuales - salidas mensuales</div>
-                  <div className="lim-dash-kpi-val">+${fmtFull(Math.round(totals.totalInflow / rows.length - totals.totalOutflow / rows.length))}</div>
+                  <div className="lim-dash-kpi-val">+{formatMxnFull(Math.round(totals.totalInflow / rows.length - totals.totalOutflow / rows.length))}</div>
                 </article>
 
                 <article className="lim-dash-kpi">
@@ -1114,34 +1269,37 @@ export function LimScreen() {
 
               <div className="lim-section-head">Activos líquidos por bucket de vencimiento</div>
               <div className="lim-section-subhead">
-                Monto total invertido recomendado: <strong style={{ color: "#111827" }}>${fmtFull(investedTotalCurrent)}</strong>
+                Monto total invertido recomendado: <strong style={{ color: "#111827" }}>{formatMxnFull(investedTotalCurrent)}</strong>
               </div>
               <table className="lim-tbl lim-tbl--list">
                 <thead><tr>{["Bucket", "Monto invertido", "Instrumentos incluidos"].map((h) => <th key={h}>{h}</th>)}</tr></thead>
                 <tbody>
                   <tr>
                     <td>1 día</td>
-                    <td className="lim-td-n">${fmtFull(bucket1d)}</td>
+                    <td className="lim-td-n">{formatMxnFull(bucket1d)}</td>
                     <td>Repo Overnight</td>
                   </tr>
                   <tr>
                     <td>30 días</td>
-                    <td className="lim-td-n">${fmtFull(bucket30d)}</td>
+                    <td className="lim-td-n">{formatMxnFull(bucket30d)}</td>
                     <td>CETE</td>
                   </tr>
                   <tr>
                     <td>90 días</td>
-                    <td className="lim-td-n">${fmtFull(bucket90d)}</td>
+                    <td className="lim-td-n">{formatMxnFull(bucket90d)}</td>
                     <td>CETE</td>
                   </tr>
                   <tr>
                     <td>Activos líquidos</td>
-                    <td className="lim-td-n">${fmtFull(investedTotalCurrent)}</td>
+                    <td className="lim-td-n">{formatMxnFull(investedTotalCurrent)}</td>
                     <td>Total invertido del escenario activo</td>
                   </tr>
                 </tbody>
               </table>
             </div>
+          )}
+
+          </>
           )}
 
         </div>
