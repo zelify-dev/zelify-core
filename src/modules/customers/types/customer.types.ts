@@ -22,6 +22,8 @@ export interface Customer {
   address?: string;
   lastModified: string;
   birthDate: string;
+  /** Alta en Zelify (ISO); desde 2026-05-24 habilita sync a LCC. */
+  createdAt?: string;
   // Optional until Zelify products populate them automatically
   kycStatus?: KycStatus;
   kycVerifiedAt?: string;

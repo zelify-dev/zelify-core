@@ -61,6 +61,9 @@ export function CreditAdminPanel({ store, activeCategory }: { store: Store; acti
               <span className="scotia-credit-client-card__type">{c.entityType === "PM" ? "Empresa" : "Persona"}</span>
               <strong>{c.name}</strong>
               <span>{displayClientId(c.id)} · Score {c.creditScore}</span>
+              {c.sourceCustomerId && (
+                <span className="lim-pill lim-pill--blue">Cliente Zelify · {c.sourceCustomerId}</span>
+              )}
               <span className={`lim-pill lim-pill--${c.aiApproved === false ? "red" : c.aiApproved ? "green" : "yellow"}`}>
                 {c.aiApproved === false ? "Rechazado IA" : c.aiApproved ? "Aprobado IA" : "Pendiente IA"}
               </span>
@@ -212,6 +215,9 @@ export function CreditQuotePanel({ store, activeCategory }: { store: Store; acti
               <span className="scotia-credit-client-card__type">{c.entityType === "PM" ? "Empresa" : "Persona"}</span>
               <strong>{c.name}</strong>
               <span>{displayClientId(c.id)} · Score {c.creditScore}</span>
+              {c.sourceCustomerId && (
+                <span className="lim-pill lim-pill--blue">Cliente Zelify · {c.sourceCustomerId}</span>
+              )}
               <span className={`lim-pill lim-pill--${c.aiApproved === false ? "red" : c.aiApproved ? "green" : "yellow"}`}>
                 {c.aiApproved === false ? "Rechazado IA" : c.aiApproved ? "Aprobado IA" : "Pendiente IA"}
               </span>

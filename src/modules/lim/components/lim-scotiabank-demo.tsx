@@ -5,6 +5,11 @@ import { ScotiaDemoTour, type ScotiaDemoTab, type ScotiaTourAction } from "@/com
 import { CreditAdminPanel, CreditAuditPanel, CreditQuotePanel } from "@/modules/cortex/components/credit-demo-panels";
 import { seedScotiaCreditStorage, useCreditDemoStore } from "@/modules/cortex/hooks/use-credit-demo-store";
 import type { CreditProductCategory } from "@/modules/cortex/types/credit-pricing.types";
+import type { Customer } from "@/modules/customers/types/customer.types";
+import {
+  dedupeCustomers,
+  readLccInboundCustomers,
+} from "@/modules/scotia/services/lcc-customer-sync";
 import { LimDepositsSyncBar } from "./lim-deposits-sync-bar";
 import { LimDepositPricingPanel } from "./lim-deposit-pricing-panel";
 import { LimPricingAuditPanel } from "./lim-pricing-audit-panel";
@@ -175,6 +180,32 @@ export function useScotiaDemoMode() {
     const cat = creditStore.getProduct().category;
     setCreditCategory(cat);
   }, [creditStore.hydrated, creditStore.state.selectedProductId, creditStore]);
+
+  useEffect(() => {
+    if (!creditStore.hydrated) return;
+    let cancelled = false;
+
+    const syncZelifyCustomersToLcc = async () => {
+      const local = readLccInboundCustomers();
+      let remote: Customer[] = [];
+      try {
+        const res = await fetch("/api/customers", { cache: "no-store" });
+        if (res.ok) {
+          const json = (await res.json()) as { data?: Customer[] };
+          remote = json.data ?? [];
+        }
+      } catch {
+        /* API no disponible en demo local */
+      }
+      if (cancelled) return;
+      creditStore.mergeInboundCustomers(dedupeCustomers([...local, ...remote]));
+    };
+
+    void syncZelifyCustomersToLcc();
+    return () => {
+      cancelled = true;
+    };
+  }, [creditStore.hydrated, creditStore.mergeInboundCustomers]);
 
   useEffect(() => {
     if (!limStore.hydrated || !creditStore.hydrated) return;

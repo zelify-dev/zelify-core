@@ -110,6 +110,7 @@ export function CreateClientModal({
       statusChangedAt: form.statusChangedAt || undefined,
       address: form.address.trim() || undefined,
       birthDate: form.birthDate,
+      createdAt: new Date().toISOString(),
       kycStatus: form.kycStatus || undefined,
       kycVerifiedAt: form.kycVerifiedAt || undefined,
       amlStatus: form.amlStatus || undefined,

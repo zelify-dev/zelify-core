@@ -71,6 +71,8 @@ export interface ClientProductContext {
 
 export interface CreditClientProfile {
   id: string;
+  /** Cliente origen en módulo Clientes (CU-xxx). */
+  sourceCustomerId?: string;
   productId: string;
   name: string;
   entityType: "PF" | "PM";

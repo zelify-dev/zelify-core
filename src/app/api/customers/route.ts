@@ -20,6 +20,7 @@ type CustomerRow = {
   kyc_verified_at: string | null;
   aml_status: AmlStatus | null;
   last_modified: string | null;
+  created_at: string | null;
 };
 
 function mapRowToCustomer(row: CustomerRow): Customer {
@@ -39,6 +40,7 @@ function mapRowToCustomer(row: CustomerRow): Customer {
     kycVerifiedAt: row.kyc_verified_at ?? undefined,
     amlStatus: row.aml_status ?? undefined,
     lastModified: row.last_modified ?? new Date().toISOString().slice(0, 10),
+    createdAt: row.created_at ?? undefined,
   };
 }
 
@@ -69,7 +71,7 @@ export async function GET() {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
     .from("customers")
-    .select("id, full_name, email, mobile_phone, document_type, document_number, state, status_reason, status_changed_at, address, birth_date, kyc_status, kyc_verified_at, aml_status, last_modified")
+    .select("id, full_name, email, mobile_phone, document_type, document_number, state, status_reason, status_changed_at, address, birth_date, kyc_status, kyc_verified_at, aml_status, last_modified, created_at")
     .order("last_modified", { ascending: false });
 
   if (error) {
@@ -95,7 +97,7 @@ export async function POST(request: Request) {
   const { data, error } = await supabase
     .from("customers")
     .insert(payload)
-    .select("id, full_name, email, mobile_phone, document_type, document_number, state, status_reason, status_changed_at, address, birth_date, kyc_status, kyc_verified_at, aml_status, last_modified")
+    .select("id, full_name, email, mobile_phone, document_type, document_number, state, status_reason, status_changed_at, address, birth_date, kyc_status, kyc_verified_at, aml_status, last_modified, created_at")
     .single();
 
   if (error) {

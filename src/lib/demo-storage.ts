@@ -4,6 +4,7 @@ export const DEMO_STORAGE_KEYS = {
   lim: `${DEMO_PREFIX}lim_state`,
   credit: `${DEMO_PREFIX}credit_state`,
   seeded: `${DEMO_PREFIX}lim_seeded`,
+  lccInboundCustomers: `${DEMO_PREFIX}lcc_inbound_customers`,
 } as const;
 
 export function isBrowser(): boolean {

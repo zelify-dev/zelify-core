@@ -26,7 +26,7 @@ const TRANSLATIONS = {
     subWelcome: "Sign in to your account to access the dashboard.",
 
 
-    
+
     email: "Email",
     password: "Password",
     signIn: "Sign In",
@@ -66,7 +66,7 @@ const TRANSLATIONS = {
     reqEmail: "El correo es obligatorio.",
     reqPassword: "La contraseña es obligatoria.",
     placeholderEmail: "admin@tuempresa.com",
-    placeholderPassword: "Ingresa tu contraseña", 
+    placeholderPassword: "Ingresa tu contraseña",
     noAccount: "¿No tienes cuenta? ",
     createAccount: "Crear cuenta",
     otpTitle: "Verifica tu identidad",

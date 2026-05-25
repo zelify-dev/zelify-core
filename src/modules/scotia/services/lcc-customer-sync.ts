@@ -1,0 +1,184 @@
+import type { CreditClientProfile, CreditDemoState } from "@/modules/cortex/types/credit-pricing.types";
+import type { Customer } from "@/modules/customers/types/customer.types";
+import { DEMO_STORAGE_KEYS, readDemoJson, writeDemoJson } from "@/lib/demo-storage";
+import {
+  LCC_CUSTOMER_ELIGIBLE_FROM,
+  LCC_DEFAULT_CREDIT_ROTATION,
+} from "../constants/lcc-customer-sync.constants";
+import { buildFullLimClientList, syncLimBalancesFromCredit } from "../data/scotia-demo-bridge";
+import type { LimDemoState } from "@/modules/lim/types/deposit-pricing.types";
+import { recalculateAllClientRates } from "@/modules/lim/services/deposit-pricing.engine";
+
+function dateOnly(isoOrDate: string): string {
+  return isoOrDate.slice(0, 10);
+}
+
+export function isEligibleForLcc(customer: Customer): boolean {
+  const marker = customer.createdAt ?? customer.lastModified;
+  if (!marker) return false;
+  return dateOnly(marker) >= LCC_CUSTOMER_ELIGIBLE_FROM;
+}
+
+function inferEntityType(customer: Customer): "PF" | "PM" {
+  const name = customer.fullName.toUpperCase();
+  if (/\b(S\.?A\.?|SAPI|SA DE CV|SC|SPR|SPRIM)\b/.test(name)) return "PM";
+  return "PF";
+}
+
+function simpleRfc(customer: Customer): string {
+  const parts = customer.fullName.trim().split(/\s+/);
+  const first = (parts[0] ?? "XX").slice(0, 2).toUpperCase();
+  const last = (parts[parts.length - 1] ?? "XX").slice(0, 2).toUpperCase();
+  const birth = customer.birthDate?.replace(/-/g, "").slice(2, 8) ?? "900101";
+  return `${first}${last}${birth}XX1`.slice(0, 13);
+}
+
+function creditScoreForCustomer(customer: Customer, slot: number): number {
+  const base = customer.kycStatus === "VERIFIED" ? 720 : 650;
+  return Math.min(850, base + (slot % 5) * 12);
+}
+
+export function creditSlotIndexForCustomer(customerId: string, totalBefore = 0): number {
+  let hash = 0;
+  for (let i = 0; i < customerId.length; i++) hash = (hash + customerId.charCodeAt(i)) % 997;
+  return (totalBefore + hash) % LCC_DEFAULT_CREDIT_ROTATION.length;
+}
+
+export function customerToCreditClient(
+  customer: Customer,
+  slotIndex: number,
+): CreditClientProfile {
+  const slot = LCC_DEFAULT_CREDIT_ROTATION[slotIndex % LCC_DEFAULT_CREDIT_ROTATION.length]!;
+  const entityType = slot.preferEntityType === "PM" && inferEntityType(customer) === "PM" ? "PM" : "PF";
+  const amount =
+    slot.productId === "PLAZO-CORP-01" && entityType === "PM"
+      ? Math.max(slot.amount, 2_500_000)
+      : slot.productId === "PLAZO-CORP-01"
+        ? 800_000
+        : slot.amount;
+
+  const kycVerified = customer.kycStatus === "VERIFIED";
+  const amlApproved = customer.amlStatus === "CLEAR";
+
+  return {
+    id: `CL-LCC-${customer.id}`,
+    sourceCustomerId: customer.id,
+    productId: slot.productId,
+    name: customer.fullName,
+    entityType,
+    amount,
+    termMonths: slot.termMonths,
+    creditScore: creditScoreForCustomer(customer, slotIndex),
+    aiApproved: null,
+    clientProducts: {
+      nomina: kycVerified,
+      tdc: kycVerified,
+      seguroAuto: slot.productId === "AUTO-EV-01",
+      inversionPatrimonial: slot.productId === "PLAZO-CORP-01",
+      cuentaAhorro: true,
+    },
+    kyc: {
+      curp: customer.documentType === "CURP" ? customer.documentNumber : undefined,
+      idDocument: customer.documentType === "INE" ? customer.documentNumber : customer.documentNumber,
+      rfc: customer.documentType === "RFC" ? customer.documentNumber : simpleRfc(customer),
+      birthDate: customer.birthDate || undefined,
+      nationality: "Mexicana",
+      address: customer.address ?? "México",
+      phone: customer.mobilePhone || "+52",
+      email: customer.email || `${customer.id}@zelify.local`,
+      idVerified: kycVerified,
+      amlApproved,
+      pep: false,
+      incomeMonthly: Math.round(amount / 18),
+    },
+    kyb:
+      entityType === "PM"
+        ? {
+            rfc: customer.documentType === "RFC" ? customer.documentNumber : simpleRfc(customer),
+            legalName: customer.fullName,
+            sector: "Comercial",
+            employees: 25,
+            annualRevenue: amount * 4,
+            beneficialOwnersVerified: kycVerified,
+            amlRisk: amlApproved ? "BAJO" : "MEDIO",
+          }
+        : undefined,
+  };
+}
+
+export function mergeCustomersIntoCreditState(
+  state: CreditDemoState,
+  customers: Customer[],
+): CreditDemoState {
+  const eligible = customers.filter(isEligibleForLcc);
+  if (eligible.length === 0) return state;
+
+  const existingSource = new Set(
+    state.clients.map((c) => c.sourceCustomerId).filter((id): id is string => Boolean(id)),
+  );
+  const existingIds = new Set(state.clients.map((c) => c.id));
+
+  const toAdd: CreditClientProfile[] = [];
+  let slot = state.clients.length;
+
+  for (const customer of eligible) {
+    if (existingSource.has(customer.id)) continue;
+    const profile = customerToCreditClient(customer, creditSlotIndexForCustomer(customer.id, slot));
+    if (existingIds.has(profile.id)) continue;
+    toAdd.push(profile);
+    slot += 1;
+  }
+
+  if (toAdd.length === 0) return state;
+
+  return {
+    ...state,
+    clients: [...state.clients, ...toAdd],
+    auditLog: [
+      {
+        id: `credit-lcc-sync-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        action: "LCC_SYNC",
+        details: `+${toAdd.length} cliente(s) Zelify → LCC · ${toAdd.map((c) => `${c.name} · ${c.productId}`).join(", ")}`,
+        user: "Sistema LCC",
+        channel: "Consola",
+        correlationId: `corr-lcc-${Date.now()}`,
+      },
+      ...state.auditLog,
+    ].slice(0, 50),
+  };
+}
+
+export function mergeCustomersIntoLimState(
+  limState: LimDemoState,
+  creditClients: CreditClientProfile[],
+): LimDemoState {
+  const withClients = {
+    ...limState,
+    clients: buildFullLimClientList(creditClients),
+  };
+  return syncLimBalancesFromCredit(recalculateAllClientRates(withClients), creditClients);
+}
+
+export function readLccInboundCustomers(): Customer[] {
+  return readDemoJson<Customer[]>(DEMO_STORAGE_KEYS.lccInboundCustomers, []);
+}
+
+export function registerZelifyCustomerForLcc(customer: Customer): void {
+  if (!isEligibleForLcc(customer)) return;
+  const withMeta: Customer = {
+    ...customer,
+    createdAt: customer.createdAt ?? new Date().toISOString(),
+  };
+  const list = readLccInboundCustomers();
+  const idx = list.findIndex((c) => c.id === withMeta.id);
+  if (idx >= 0) list[idx] = withMeta;
+  else list.push(withMeta);
+  writeDemoJson(DEMO_STORAGE_KEYS.lccInboundCustomers, list);
+}
+
+export function dedupeCustomers(customers: Customer[]): Customer[] {
+  const map = new Map<string, Customer>();
+  for (const c of customers) map.set(c.id, c);
+  return [...map.values()];
+}

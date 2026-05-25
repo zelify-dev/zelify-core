@@ -8,6 +8,7 @@ import { SandboxBanner } from "../components/sandbox-banner";
 import { CustomerTable } from "../components/customer-table";
 import { CreateClientModal } from "../components/create-client-modal";
 import { customersService } from "../services/customers.service";
+import { registerZelifyCustomerForLcc } from "@/modules/scotia/services/lcc-customer-sync";
 import { Customer } from "../types/customer.types";
 import { useI18n } from "@/providers/i18n-provider";
 
@@ -48,8 +49,15 @@ export const CustomersListScreen: React.FC = () => {
       const updated = await customersService.updateCustomer(editingCustomer.id, customer);
       setCustomers((prev) => prev.map((c) => (c.id === editingCustomer.id ? updated : c)));
     } else {
-      const created = await customersService.createCustomer(customer);
-      setCustomers((prev) => [created, ...prev]);
+      registerZelifyCustomerForLcc(customer);
+      try {
+        const created = await customersService.createCustomer(customer);
+        registerZelifyCustomerForLcc(created);
+        setCustomers((prev) => [created, ...prev]);
+      } catch (error) {
+        console.error("Error creating customer:", error);
+        setCustomers((prev) => [customer, ...prev]);
+      }
     }
   };
 

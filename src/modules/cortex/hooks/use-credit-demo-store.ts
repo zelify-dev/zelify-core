@@ -12,6 +12,8 @@ import {
 import { calculateCreditQuote, runAiBatch } from "../services/credit-pricing.engine";
 import { CATEGORY_PRODUCT_ID } from "../data/credit-catalog";
 import type { CreditDemoState, CreditProductCategory, CreditProductTemplate, ProductRule } from "../types/credit-pricing.types";
+import type { Customer } from "@/modules/customers/types/customer.types";
+import { mergeCustomersIntoCreditState } from "@/modules/scotia/services/lcc-customer-sync";
 
 function loadCreditState(): CreditDemoState {
   const stored = readDemoJson<CreditDemoState | null>(DEMO_STORAGE_KEYS.credit, null);
@@ -227,6 +229,16 @@ export function useCreditDemoStore() {
     });
   }, [state, persist, audit]);
 
+  const mergeInboundCustomers = useCallback((customers: Customer[]) => {
+    setState((current) => {
+      const merged = mergeCustomersIntoCreditState(current, customers);
+      if (merged.clients.length === current.clients.length) return current;
+      const next = recalcQuote(merged);
+      writeDemoJson(DEMO_STORAGE_KEYS.credit, next);
+      return next;
+    });
+  }, []);
+
   const resetDemo = useCallback(() => {
     persist(recalcQuote(createFreshCreditDemoState()));
   }, [persist]);
@@ -256,5 +268,6 @@ export function useCreditDemoStore() {
     approveManager,
     fixQuote,
     resetDemo,
+    mergeInboundCustomers,
   };
 }
