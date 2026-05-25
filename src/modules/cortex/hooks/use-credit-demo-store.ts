@@ -13,7 +13,11 @@ import { calculateCreditQuote, runAiBatch } from "../services/credit-pricing.eng
 import { CATEGORY_PRODUCT_ID } from "../data/credit-catalog";
 import type { CreditDemoState, CreditProductCategory, CreditProductTemplate, ProductRule } from "../types/credit-pricing.types";
 import type { Customer } from "@/modules/customers/types/customer.types";
-import { mergeCustomersIntoCreditState } from "@/modules/scotia/services/lcc-customer-sync";
+import {
+  collectCustomersForLccSync,
+  fetchZelifyCustomersForLcc,
+  mergeCustomersIntoCreditState,
+} from "@/modules/scotia/services/lcc-customer-sync";
 
 function loadCreditState(): CreditDemoState {
   const stored = readDemoJson<CreditDemoState | null>(DEMO_STORAGE_KEYS.credit, null);
@@ -43,8 +47,12 @@ export function seedScotiaCreditStorage(force = false): CreditDemoState {
 }
 
 function recalcQuote(state: CreditDemoState): CreditDemoState {
-  const product = getProduct(state);
-  const client = getClient(state);
+  const product = getProduct(state, state.selectedProductId);
+  const client =
+    state.clients.find((c) => c.id === state.selectedClientId) ??
+    state.clients.find((c) => c.productId === state.selectedProductId) ??
+    state.clients[0];
+  if (!client) return state;
   const quote = calculateCreditQuote({
     product,
     client,
@@ -60,7 +68,12 @@ export function useCreditDemoStore() {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    setState(loadCreditState());
+    const loaded = loadCreditState();
+    const pinned = collectCustomersForLccSync();
+    const merged = mergeCustomersIntoCreditState(loaded, pinned, { includeAllInbound: true });
+    const withQuote = recalcQuote(merged);
+    writeDemoJson(DEMO_STORAGE_KEYS.credit, withQuote);
+    setState(withQuote);
     setHydrated(true);
   }, []);
 
@@ -229,15 +242,21 @@ export function useCreditDemoStore() {
     });
   }, [state, persist, audit]);
 
-  const mergeInboundCustomers = useCallback((customers: Customer[]) => {
+  const mergeInboundCustomers = useCallback(async (customers?: Customer[]) => {
+    const local = customers ?? collectCustomersForLccSync();
+    const remote = await fetchZelifyCustomersForLcc();
+    const bundle = [...local, ...remote.filter((c) => !local.some((l) => l.id === c.id))];
+
     setState((current) => {
-      const merged = mergeCustomersIntoCreditState(current, customers);
+      const merged = mergeCustomersIntoCreditState(current, bundle, { includeAllInbound: true });
       if (merged.clients.length === current.clients.length) return current;
       const next = recalcQuote(merged);
       writeDemoJson(DEMO_STORAGE_KEYS.credit, next);
       return next;
     });
   }, []);
+
+  const zelifyLccClients = state.clients.filter((c) => c.sourceCustomerId);
 
   const resetDemo = useCallback(() => {
     persist(recalcQuote(createFreshCreditDemoState()));
@@ -269,5 +288,6 @@ export function useCreditDemoStore() {
     fixQuote,
     resetDemo,
     mergeInboundCustomers,
+    zelifyLccClients,
   };
 }

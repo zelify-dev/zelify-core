@@ -6,9 +6,10 @@ import { CreditAdminPanel, CreditAuditPanel, CreditQuotePanel } from "@/modules/
 import { seedScotiaCreditStorage, useCreditDemoStore } from "@/modules/cortex/hooks/use-credit-demo-store";
 import type { CreditProductCategory } from "@/modules/cortex/types/credit-pricing.types";
 import type { Customer } from "@/modules/customers/types/customer.types";
+import { DEMO_STORAGE_KEYS } from "@/lib/demo-storage";
 import {
-  dedupeCustomers,
-  readLccInboundCustomers,
+  LCC_CUSTOMERS_CHANGED_EVENT,
+  collectCustomersForLccSync,
 } from "@/modules/scotia/services/lcc-customer-sync";
 import { LimDepositsSyncBar } from "./lim-deposits-sync-bar";
 import { LimDepositPricingPanel } from "./lim-deposit-pricing-panel";
@@ -183,27 +184,23 @@ export function useScotiaDemoMode() {
 
   useEffect(() => {
     if (!creditStore.hydrated) return;
-    let cancelled = false;
 
-    const syncZelifyCustomersToLcc = async () => {
-      const local = readLccInboundCustomers();
-      let remote: Customer[] = [];
-      try {
-        const res = await fetch("/api/customers", { cache: "no-store" });
-        if (res.ok) {
-          const json = (await res.json()) as { data?: Customer[] };
-          remote = json.data ?? [];
-        }
-      } catch {
-        /* API no disponible en demo local */
-      }
-      if (cancelled) return;
-      creditStore.mergeInboundCustomers(dedupeCustomers([...local, ...remote]));
+    const runSync = () => {
+      void creditStore.mergeInboundCustomers();
     };
 
-    void syncZelifyCustomersToLcc();
+    runSync();
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === DEMO_STORAGE_KEYS.lccInboundCustomers) runSync();
+    };
+    const onLccCustomers = () => runSync();
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener(LCC_CUSTOMERS_CHANGED_EVENT, onLccCustomers);
     return () => {
-      cancelled = true;
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener(LCC_CUSTOMERS_CHANGED_EVENT, onLccCustomers);
     };
   }, [creditStore.hydrated, creditStore.mergeInboundCustomers]);
 

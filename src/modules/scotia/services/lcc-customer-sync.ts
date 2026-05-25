@@ -9,10 +9,14 @@ import { buildFullLimClientList, syncLimBalancesFromCredit } from "../data/scoti
 import type { LimDemoState } from "@/modules/lim/types/deposit-pricing.types";
 import { recalculateAllClientRates } from "@/modules/lim/services/deposit-pricing.engine";
 
+/** Disparado al registrar un cliente para LCC (misma pestaña u otra). */
+export const LCC_CUSTOMERS_CHANGED_EVENT = "zelify:lcc-customers-changed";
+
 function dateOnly(isoOrDate: string): string {
   return isoOrDate.slice(0, 10);
 }
 
+/** API / histórico: solo desde el 24-may-2026. */
 export function isEligibleForLcc(customer: Customer): boolean {
   const marker = customer.createdAt ?? customer.lastModified;
   if (!marker) return false;
@@ -57,8 +61,8 @@ export function customerToCreditClient(
         ? 800_000
         : slot.amount;
 
-  const kycVerified = customer.kycStatus === "VERIFIED";
-  const amlApproved = customer.amlStatus === "CLEAR";
+  const kycVerified = customer.kycStatus === "VERIFIED" || customer.kycStatus === undefined;
+  const amlApproved = customer.amlStatus === "CLEAR" || customer.amlStatus === undefined;
 
   return {
     id: `CL-LCC-${customer.id}`,
@@ -79,7 +83,7 @@ export function customerToCreditClient(
     },
     kyc: {
       curp: customer.documentType === "CURP" ? customer.documentNumber : undefined,
-      idDocument: customer.documentType === "INE" ? customer.documentNumber : customer.documentNumber,
+      idDocument: customer.documentNumber,
       rfc: customer.documentType === "RFC" ? customer.documentNumber : simpleRfc(customer),
       birthDate: customer.birthDate || undefined,
       nationality: "Mexicana",
@@ -109,9 +113,19 @@ export function customerToCreditClient(
 export function mergeCustomersIntoCreditState(
   state: CreditDemoState,
   customers: Customer[],
+  options?: { includeAllInbound?: boolean },
 ): CreditDemoState {
-  const eligible = customers.filter(isEligibleForLcc);
-  if (eligible.length === 0) return state;
+  const inboundPinned = readLccInboundCustomers();
+  const pinnedIds = new Set(inboundPinned.map((c) => c.id));
+
+  const toProcess = customers.filter((c) => {
+    if (pinnedIds.has(c.id)) return true;
+    if (options?.includeAllInbound) return true;
+    return isEligibleForLcc(c);
+  });
+
+  const mergedList = dedupeCustomers([...inboundPinned, ...toProcess]);
+  if (mergedList.length === 0) return state;
 
   const existingSource = new Set(
     state.clients.map((c) => c.sourceCustomerId).filter((id): id is string => Boolean(id)),
@@ -121,19 +135,25 @@ export function mergeCustomersIntoCreditState(
   const toAdd: CreditClientProfile[] = [];
   let slot = state.clients.length;
 
-  for (const customer of eligible) {
+  for (const customer of mergedList) {
     if (existingSource.has(customer.id)) continue;
     const profile = customerToCreditClient(customer, creditSlotIndexForCustomer(customer.id, slot));
     if (existingIds.has(profile.id)) continue;
     toAdd.push(profile);
+    existingIds.add(profile.id);
+    existingSource.add(customer.id);
     slot += 1;
   }
 
   if (toAdd.length === 0) return state;
 
+  const firstNew = toAdd[0]!;
+
   return {
     ...state,
     clients: [...state.clients, ...toAdd],
+    selectedClientId: firstNew.id,
+    selectedProductId: firstNew.productId,
     auditLog: [
       {
         id: `credit-lcc-sync-${Date.now()}`,
@@ -164,21 +184,42 @@ export function readLccInboundCustomers(): Customer[] {
   return readDemoJson<Customer[]>(DEMO_STORAGE_KEYS.lccInboundCustomers, []);
 }
 
+/** Siempre guarda el cliente para LCC (sin filtro de fecha). */
 export function registerZelifyCustomerForLcc(customer: Customer): void {
-  if (!isEligibleForLcc(customer)) return;
   const withMeta: Customer = {
     ...customer,
     createdAt: customer.createdAt ?? new Date().toISOString(),
+    lastModified: customer.lastModified ?? new Date().toISOString().slice(0, 10),
   };
   const list = readLccInboundCustomers();
   const idx = list.findIndex((c) => c.id === withMeta.id);
   if (idx >= 0) list[idx] = withMeta;
   else list.push(withMeta);
   writeDemoJson(DEMO_STORAGE_KEYS.lccInboundCustomers, list);
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(LCC_CUSTOMERS_CHANGED_EVENT, { detail: { customerId: withMeta.id } }));
+  }
 }
 
 export function dedupeCustomers(customers: Customer[]): Customer[] {
   const map = new Map<string, Customer>();
   for (const c of customers) map.set(c.id, c);
   return [...map.values()];
+}
+
+export async function fetchZelifyCustomersForLcc(): Promise<Customer[]> {
+  try {
+    const res = await fetch("/api/customers", { cache: "no-store" });
+    if (!res.ok) return [];
+    const json = (await res.json()) as { data?: Customer[] };
+    return json.data ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export function collectCustomersForLccSync(): Customer[] {
+  const local = readLccInboundCustomers();
+  return dedupeCustomers(local);
 }

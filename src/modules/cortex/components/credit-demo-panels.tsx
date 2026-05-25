@@ -33,6 +33,7 @@ export function CreditAdminPanel({ store, activeCategory }: { store: Store; acti
   const clientsInCategory = state.clients.filter(
     (c) => state.products.find((p) => p.id === c.productId)?.category === activeCategory,
   );
+  const zelifyInCategory = clientsInCategory.filter((c) => c.sourceCustomerId);
 
   return (
     <div className="lim-panel scotia-workspace" data-tour="credit-product-admin">
@@ -41,6 +42,40 @@ export function CreditAdminPanel({ store, activeCategory }: { store: Store; acti
         title="Catálogo de productos"
         subtitle={`${CATEGORY_LABELS[activeCategory]} · selecciona cliente y parametriza producto.`}
       />
+
+      {store.zelifyLccClients.length > 0 && (
+        <section className="scotia-card scotia-card--flat lim-lcc-zelify-strip">
+          <div className="scotia-card__head">
+            <h3>Clientes Zelify · LCC</h3>
+            <span className="lim-td-muted">
+              Alta desde Clientes individuales · cambia de línea según producto asignado
+            </span>
+          </div>
+          <div className="scotia-credit-clients-grid">
+            {store.zelifyLccClients.map((c) => {
+              const cat = state.products.find((p) => p.id === c.productId)?.category;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={`scotia-credit-client-card scotia-credit-client-card--zelify${state.selectedClientId === c.id ? " scotia-credit-client-card--active" : ""}${cat !== activeCategory ? " scotia-credit-client-card--muted" : ""}`}
+                  onClick={() => {
+                    selectClient(c.id);
+                    setDetailClient(c);
+                  }}
+                >
+                  <span className="scotia-credit-client-card__type">
+                    {cat === activeCategory ? CATEGORY_LABELS[activeCategory] : cat ?? "Crédito"}
+                  </span>
+                  <strong>{c.name}</strong>
+                  <span>{displayClientId(c.id)} · {c.sourceCustomerId}</span>
+                  <span className="lim-pill lim-pill--blue">Cliente Zelify</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <section className="scotia-card">
         <div className="scotia-card__head">
@@ -146,7 +181,9 @@ export function CreditQuotePanel({ store, activeCategory }: { store: Store; acti
   const categoryClients = state.clients.filter(
     (c) => state.products.find((p) => p.id === c.productId)?.category === activeCategory,
   );
-  const batchClients = categoryClients.slice(0, 4);
+  const zelifyInCategory = categoryClients.filter((c) => c.sourceCustomerId);
+  const othersInCategory = categoryClients.filter((c) => !c.sourceCustomerId);
+  const batchClients = [...zelifyInCategory, ...othersInCategory].slice(0, 8);
   const compliance = evaluateRuleCompliance(client, product, state.rulesByCategory[activeCategory]);
   const complianceOk = compliance.every((r) => r.passed);
   const scoreOk = client.creditScore >= 650;
@@ -202,7 +239,11 @@ export function CreditQuotePanel({ store, activeCategory }: { store: Store; acti
       <section className="scotia-card scotia-card--flat" data-tour="credit-quote-clients">
         <div className="scotia-card__head">
           <h3>Clientes · verificación KYC/KYB</h3>
-          <span className="lim-td-muted">Batch de {batchClients.length} · selecciona para cotizar</span>
+          <span className="lim-td-muted">
+            {zelifyInCategory.length > 0
+              ? `${zelifyInCategory.length} de Zelify · ${batchClients.length} en esta línea`
+              : `Batch de ${batchClients.length} · selecciona para cotizar`}
+          </span>
         </div>
         <div className="scotia-credit-clients-grid scotia-credit-clients-grid--4">
           {batchClients.map((c) => (

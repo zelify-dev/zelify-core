@@ -1678,6 +1678,19 @@
   font-weight: 600;
 }
 
+.scotia-credit-client-card--zelify {
+  border-color: #93c5fd;
+  background: linear-gradient(180deg, #f8fafc 0%, #eff6ff 100%);
+}
+
+.scotia-credit-client-card--muted {
+  opacity: 0.72;
+}
+
+.lim-lcc-zelify-strip {
+  border-color: #bfdbfe;
+}
+
 .scotia-client-rate__main {
   display: flex;
   justify-content: space-between;

@@ -49,15 +49,21 @@ export const CustomersListScreen: React.FC = () => {
       const updated = await customersService.updateCustomer(editingCustomer.id, customer);
       setCustomers((prev) => prev.map((c) => (c.id === editingCustomer.id ? updated : c)));
     } else {
-      registerZelifyCustomerForLcc(customer);
-      try {
-        const created = await customersService.createCustomer(customer);
-        registerZelifyCustomerForLcc(created);
-        setCustomers((prev) => [created, ...prev]);
-      } catch (error) {
-        console.error("Error creating customer:", error);
-        setCustomers((prev) => [customer, ...prev]);
-      }
+    registerZelifyCustomerForLcc({
+      ...customer,
+      createdAt: customer.createdAt ?? new Date().toISOString(),
+    });
+    try {
+      const created = await customersService.createCustomer(customer);
+      registerZelifyCustomerForLcc({
+        ...created,
+        createdAt: created.createdAt ?? customer.createdAt ?? new Date().toISOString(),
+      });
+      setCustomers((prev) => [created, ...prev]);
+    } catch (error) {
+      console.error("Error creating customer:", error);
+      setCustomers((prev) => [customer, ...prev]);
+    }
     }
   };
 
