@@ -28,3 +28,16 @@ export function formatMxnCompact(value: number): string {
 
 /** Alias CORTEX · mismo estándar que depósitos. */
 export const formatMxnCredit = formatMxnFull;
+
+/** Informes PDF / ciudadano: monto completo + moneda explícita (sin abreviar K/M). */
+export function formatMxnReport(value: number): string {
+  return `${mxnFull.format(value)} MXN`;
+}
+
+/** Porcentaje con formato mexicano (coma decimal). */
+export function formatPctMx(value: number, decimals = 1): string {
+  return `${value.toLocaleString("es-MX", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })}%`;
+}
