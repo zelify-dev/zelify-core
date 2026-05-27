@@ -19,60 +19,45 @@ export type Application = {
 
 export const CREDIT_PRODUCTS = ["Credito automotriz", "Credito personal", "Credito a plazo fijo"] as const;
 
-export const LCC_FIXED_TERM_CLIENTS = SCOTIA_CREDIT_SEED.clients
-  .filter((client) => client.productId === "PLAZO-CORP-01")
-  .map((client) => ({
-    id: client.id,
-    name: client.name,
-    email: client.kyc.email,
-    amount: client.amount,
-    creditScore: client.creditScore,
-  }));
+type MdcClientPoolItem = {
+  id: string;
+  name: string;
+  email: string;
+  amount: number;
+  creditScore: number;
+  product: (typeof CREDIT_PRODUCTS)[number];
+};
 
-const FIRST_NAMES = [
-  "Maria",
-  "Diego",
-  "Ana",
-  "Jorge",
-  "Sofia",
-  "Carlos",
-  "Lucia",
-  "Eduardo",
-  "Valentina",
-  "Ricardo",
-  "Patricia",
-  "Fernando",
-  "Gabriela",
-  "Alejandro",
-  "Daniela",
-  "Miguel",
-  "Laura",
-  "Andres",
-  "Paula",
-  "Roberto",
-] as const;
+function mapProductIdToMdcProduct(productId: string): (typeof CREDIT_PRODUCTS)[number] {
+  if (productId.startsWith("AUTO")) return "Credito automotriz";
+  if (productId.startsWith("PERS")) return "Credito personal";
+  return "Credito a plazo fijo";
+}
 
-const LAST_NAMES = [
-  "Lopez",
-  "Ramirez",
-  "Vega",
-  "Hernandez",
-  "Martinez",
-  "Mendoza",
-  "Romero",
-  "Castillo",
-  "Ruiz",
-  "Silva",
-  "Torres",
-  "Morales",
-  "Jimenez",
-  "Alvarez",
-] as const;
+export const LCC_MDC_CLIENTS: MdcClientPoolItem[] = SCOTIA_CREDIT_SEED.clients.map((client) => ({
+  id: client.id,
+  name: client.name,
+  email: client.kyc.email,
+  amount: client.amount,
+  creditScore: client.creditScore,
+  product: mapProductIdToMdcProduct(client.productId),
+}));
+
+export const LCC_FIXED_TERM_CLIENTS = LCC_MDC_CLIENTS.filter((client) => client.product === "Credito a plazo fijo");
+export const LCC_AUTO_CLIENTS = LCC_MDC_CLIENTS.filter((client) => client.product === "Credito automotriz");
+export const LCC_PERSONAL_CLIENTS = LCC_MDC_CLIENTS.filter((client) => client.product === "Credito personal");
 
 function hashSeed(str: string) {
   let h = 0;
   for (let i = 0; i < str.length; i++) h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
   return Math.abs(h);
+}
+
+function riskFromRiskIndex(score: number): RiskLevel {
+  const bureauScore = Math.round(850 - (Math.max(0, Math.min(100, score)) / 100) * 450);
+  if (bureauScore <= 549) return "high";
+  if (bureauScore <= 649) return "medium";
+  return "low";
 }
 
 export const applicationsPerDay = [
@@ -203,46 +188,50 @@ export const applicationsListMock: Application[] = (() => {
   const rows: Application[] = recentApplicationsSeed.map((r) => ({ ...r }));
 
   const statuses: ApplicationStatus[] = ["approved", "declined", "pending", "manualReview", "overridden"];
-  const risks: RiskLevel[] = ["low", "medium", "high"];
+  const clientPoolByProduct: Record<(typeof CREDIT_PRODUCTS)[number], MdcClientPoolItem[]> = {
+    "Credito automotriz": LCC_AUTO_CLIENTS.length > 0 ? LCC_AUTO_CLIENTS : LCC_MDC_CLIENTS,
+    "Credito personal": LCC_PERSONAL_CLIENTS.length > 0 ? LCC_PERSONAL_CLIENTS : LCC_MDC_CLIENTS,
+    "Credito a plazo fijo": LCC_FIXED_TERM_CLIENTS.length > 0 ? LCC_FIXED_TERM_CLIENTS : LCC_MDC_CLIENTS,
+  };
 
   for (let i = 0; i < 28; i++) {
     const id = `gen-${i}`;
-    const fn = FIRST_NAMES[hashSeed(id + "fn") % FIRST_NAMES.length];
-    const ln1 = LAST_NAMES[hashSeed(id + "ln1") % LAST_NAMES.length];
-    const ln2 = LAST_NAMES[(hashSeed(id + "ln2") + 3) % LAST_NAMES.length];
     const product = CREDIT_PRODUCTS[hashSeed(id + "p") % CREDIT_PRODUCTS.length];
-    const plazoFijoClient = LCC_FIXED_TERM_CLIENTS[hashSeed(id + "plazo") % LCC_FIXED_TERM_CLIENTS.length];
+    const productPool = clientPoolByProduct[product];
+    const sourceClient = productPool[hashSeed(id + "pool") % productPool.length];
     const status = statuses[hashSeed(id + "s") % statuses.length];
-    const risk = risks[hashSeed(id + "r") % risks.length];
     const day = 1 + (hashSeed(id + "d") % 28);
     const hour = hashSeed(id + "h") % 24;
-    const applicantName = product === "Credito a plazo fijo" ? plazoFijoClient.name : `${fn} ${ln1} ${ln2}`;
-    const applicantEmail = product === "Credito a plazo fijo"
-      ? plazoFijoClient.email
-      : `${fn.toLowerCase()}.${ln1.toLowerCase()}.${i}@gmail.com`;
     const requestedAmount =
       product === "Credito personal"
-        ? 25_000 + (hashSeed(id + "a") % 775_000)
+        ? Math.min(800_000, Math.max(25_000, sourceClient.amount + ((hashSeed(id + "adj") % 220_000) - 110_000)))
         : product === "Credito a plazo fijo"
-          ? Math.min(1_500_000, Math.max(150_000, plazoFijoClient.amount + ((hashSeed(id + "adj") % 280_000) - 140_000)))
-          : 100_000 + (hashSeed(id + "a") % 2_400_000);
+          ? Math.min(1_500_000, Math.max(150_000, sourceClient.amount + ((hashSeed(id + "adj") % 280_000) - 140_000)))
+          : Math.min(2_500_000, Math.max(100_000, sourceClient.amount + ((hashSeed(id + "adj") % 360_000) - 180_000)));
+    const riskScore = Math.max(15, Math.min(89, Math.round(100 - sourceClient.creditScore / 10) + ((hashSeed(id + "risk") % 9) - 4)));
+    const risk: RiskLevel = riskFromRiskIndex(riskScore);
 
     rows.push({
       id: `uuid-gen-${1000 + i}`,
       appNo: `APP-${String(1276 - i).padStart(6, "0")}`,
-      applicantName,
-      applicantEmail,
+      applicantName: sourceClient.name,
+      applicantEmail: sourceClient.email,
       product,
       requestedAmount,
       currency: "MXN",
       status,
       risk,
-      riskScore: 15 + (hashSeed(id + "rs") % 75),
+      riskScore,
       submittedAt: new Date(Date.UTC(2026, 4, day, hour, (hashSeed(id + "m") % 59) + 1, 0)).toISOString(),
     });
   }
 
-  return rows.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+  return rows
+    .map((row) => ({
+      ...row,
+      risk: riskFromRiskIndex(row.riskScore),
+    }))
+    .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
 })();
 
 export const STATUS_LABELS: Record<ApplicationStatus, string> = {

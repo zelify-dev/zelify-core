@@ -154,6 +154,13 @@ function normalizeProductName(name: string) {
   return name;
 }
 
+function riskFromScore(score: number) {
+  const bureauScore = Math.round(850 - (Math.max(0, Math.min(100, score)) / 100) * 450);
+  if (bureauScore <= 549) return "high";
+  if (bureauScore <= 649) return "medium";
+  return "low";
+}
+
 function nowForExport() {
   const now = new Date();
   const date = now.toISOString().slice(0, 10);
@@ -204,6 +211,7 @@ function readApplications() {
   return readStored<Application[]>(MDC_STORAGE_KEYS.applications, applicationsListMock).map((app) => ({
     ...app,
     product: normalizeProductName(app.product),
+    risk: riskFromScore(app.riskScore),
   }));
 }
 
@@ -266,7 +274,7 @@ function buildUnderwritingRows(applications: Application[]): CsvRow[] {
     producto: app.product,
     monto_solicitado_mxn: app.requestedAmount,
     score_riesgo: app.riskScore,
-    nivel_riesgo: app.risk,
+    nivel_riesgo: riskFromScore(app.riskScore),
     estado_motor: app.status,
     resultado_suscripcion:
       app.status === "approved" || app.status === "overridden"
@@ -342,7 +350,7 @@ function buildExportRows(type: ExportJob["type"], applications: Application[]) {
     producto: app.product,
     monto_solicitado_mxn: app.requestedAmount,
     estado: app.status,
-    riesgo: app.risk,
+    riesgo: riskFromScore(app.riskScore),
     score_riesgo: app.riskScore,
     fecha: app.submittedAt,
   }));

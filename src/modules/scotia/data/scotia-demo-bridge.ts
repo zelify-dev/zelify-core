@@ -16,7 +16,7 @@ export const FEATURED_CORPORATE_CLIENTS: DemoClient[] = [
     id: "PM-DEMO-002",
     creditClientId: FEATURED_CREDIT_LINKS["PM-DEMO-002"],
     featuredCase: true,
-    name: "Grupo Industrial del Norte SA de CV",
+    name: "Grupo Delta Industrial SA",
     personType: "PM",
     averageBalance: 50_000_000,
     balanceMetric: "SPM",
@@ -27,7 +27,7 @@ export const FEATURED_CORPORATE_CLIENTS: DemoClient[] = [
     id: "PM-DEMO-003",
     creditClientId: FEATURED_CREDIT_LINKS["PM-DEMO-003"],
     featuredCase: true,
-    name: "Constructora VIP Estratégica SA",
+    name: "Inversiones del Norte SA",
     personType: "PM",
     averageBalance: 120_000_000,
     balanceMetric: "SPM",
@@ -38,7 +38,7 @@ export const FEATURED_CORPORATE_CLIENTS: DemoClient[] = [
     id: "PM-DEMO-004",
     creditClientId: FEATURED_CREDIT_LINKS["PM-DEMO-004"],
     featuredCase: true,
-    name: "Logística Express del Bajío SA",
+    name: "TechStart Solutions SA de CV",
     personType: "PM",
     averageBalance: 35_000_000,
     balanceMetric: "SPM",
@@ -102,7 +102,9 @@ export function syncLimBalancesFromCredit(
         ...dep,
         creditClientId: credit.id,
         loanAmountMxn: credit.amount,
-        name: dep.name,
+        name: credit.name,
+        personType: credit.entityType,
+        segment: segmentFromProductId(credit.productId),
       };
     }
 

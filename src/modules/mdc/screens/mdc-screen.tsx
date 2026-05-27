@@ -4,10 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
 import {
   applicationsListMock,
-  applicationsPerDay,
+  LCC_AUTO_CLIENTS,
   CREDIT_PRODUCTS,
   LCC_FIXED_TERM_CLIENTS,
-  overviewKpis,
+  LCC_PERSONAL_CLIENTS,
   RISK_LABELS,
   STATUS_LABELS,
   type Application,
@@ -35,10 +35,18 @@ type RuleFormState = {
   status: "active" | "inactive";
 };
 
+type RangePreset = "7d" | "30d" | "90d";
+
 const APP_STORAGE_KEY = "mdc:applications";
 const RULES_STORAGE_KEY = "mdc:rules";
 const PAGE_SIZE = 10;
 const FIXED_TERM_PRODUCT = "Credito a plazo fijo";
+const DAY_MS = 24 * 60 * 60 * 1000;
+const RANGE_DAYS: Record<RangePreset, number> = {
+  "7d": 7,
+  "30d": 30,
+  "90d": 90,
+};
 
 const TABS: { id: MdcTab; label: string }[] = [
   { id: "overview", label: "Tablero" },
@@ -80,6 +88,10 @@ const RULE_FIELD_LABELS: Record<string, string> = {
   "applicant.age": "Edad del solicitante",
   "ratios.dti": "Relacion deuda / ingreso (DTI)",
   "bureau.score": "Score crediticio en buro",
+  "cards.utilization": "Utilizacion de tarjetas",
+  "credit.maxDaysPastDue": "Maximo atraso reciente (dias)",
+  "credit.hardInquiries30d": "Consultas duras ultimos 30 dias",
+  "credit.historyMonths": "Antiguedad de historial (meses)",
   "employment.months": "Antiguedad laboral (meses)",
   "income.monthlyNet": "Ingreso mensual neto",
   "custom.field": "Campo personalizado",
@@ -173,15 +185,60 @@ function deltaPctLabel(v: number) {
   return `${v > 0 ? "+" : ""}${v.toFixed(1)}%`;
 }
 
+function pctDelta(current: number, previous: number) {
+  if (previous === 0) return current > 0 ? 100 : 0;
+  return ((current - previous) / previous) * 100;
+}
+
+function rangeWindow(apps: Pick<Application, "submittedAt">[], days: number) {
+  if (apps.length === 0) return null;
+  const latestTs = apps.reduce((max, app) => Math.max(max, new Date(app.submittedAt).getTime()), 0);
+  const latestDate = new Date(latestTs);
+  const endMs = Date.UTC(
+    latestDate.getUTCFullYear(),
+    latestDate.getUTCMonth(),
+    latestDate.getUTCDate(),
+    23,
+    59,
+    59,
+    999,
+  );
+  const startMs = endMs - (days * DAY_MS - 1);
+  return { startMs, endMs };
+}
+
+function isWithinRange(dateIso: string, startMs: number, endMs: number) {
+  const ts = new Date(dateIso).getTime();
+  return ts >= startMs && ts <= endMs;
+}
+
+function chartDayLabel(date: Date) {
+  const month = new Intl.DateTimeFormat("en-US", { month: "short", timeZone: "UTC" }).format(date);
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${month} ${day}`;
+}
+
+function utcDayStartMs(value: string | number) {
+  const date = new Date(value);
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+
+function bureauScoreFromRiskIndex(riskIndex: number) {
+  const bounded = Math.max(0, Math.min(100, riskIndex));
+  return Math.round(850 - (bounded / 100) * 450);
+}
+
 function riskFromScore(score: number): RiskLevel {
-  if (score >= 70) return "high";
-  if (score >= 45) return "medium";
+  const bureauScore = bureauScoreFromRiskIndex(score);
+  if (bureauScore <= 549) return "high";
+  if (bureauScore <= 649) return "medium";
   return "low";
 }
 
 function statusFromScore(score: number): ApplicationStatus {
-  if (score >= 75) return "declined";
-  if (score >= 50) return "manualReview";
+  const bureauScore = bureauScoreFromRiskIndex(score);
+  if (bureauScore < 550) return "declined";
+  if (bureauScore < 650) return "manualReview";
   return "approved";
 }
 
@@ -232,6 +289,18 @@ function defaultRuleForm(): RuleFormState {
   };
 }
 
+function mergeRulesWithDefaults(rows: CreditRuleRow[]) {
+  if (rows.length === 0) return creditRulesMock;
+  const merged = [...rows];
+  const byField = new Set(rows.map((rule) => rule.field));
+  for (const baseRule of creditRulesMock) {
+    if (!byField.has(baseRule.field)) {
+      merged.push(baseRule);
+    }
+  }
+  return merged;
+}
+
 function ruleFieldLabel(field: string) {
   return RULE_FIELD_LABELS[field] ?? field.replaceAll(".", " · ");
 }
@@ -248,15 +317,30 @@ function normalizeApplicantEmail(email: string) {
 }
 
 function bindFixedTermApplicant(app: Pick<Application, "id" | "appNo" | "product" | "applicantName" | "applicantEmail">) {
-  if (app.product !== FIXED_TERM_PRODUCT || LCC_FIXED_TERM_CLIENTS.length === 0) {
+  const pool =
+    app.product === "Credito automotriz"
+      ? LCC_AUTO_CLIENTS
+      : app.product === "Credito personal"
+        ? LCC_PERSONAL_CLIENTS
+        : app.product === FIXED_TERM_PRODUCT
+          ? LCC_FIXED_TERM_CLIENTS
+          : [];
+
+  if (pool.length === 0) {
     return { applicantName: app.applicantName, applicantEmail: app.applicantEmail };
   }
 
-  const byEmail = LCC_FIXED_TERM_CLIENTS.find(
+  const byEmail = pool.find(
     (client) => client.email.toLowerCase() === app.applicantEmail.toLowerCase(),
   );
   if (byEmail) {
     return { applicantName: byEmail.name, applicantEmail: byEmail.email };
+  }
+  const byName = pool.find(
+    (client) => client.name.toLowerCase() === app.applicantName.toLowerCase(),
+  );
+  if (byName) {
+    return { applicantName: byName.name, applicantEmail: byName.email };
   }
 
   let hash = 0;
@@ -264,8 +348,8 @@ function bindFixedTermApplicant(app: Pick<Application, "id" | "appNo" | "product
   for (let i = 0; i < seed.length; i++) {
     hash = (Math.imul(31, hash) + seed.charCodeAt(i)) | 0;
   }
-  const idx = Math.abs(hash) % LCC_FIXED_TERM_CLIENTS.length;
-  const selected = LCC_FIXED_TERM_CLIENTS[idx];
+  const idx = Math.abs(hash) % pool.length;
+  const selected = pool[idx];
   return { applicantName: selected.name, applicantEmail: selected.email };
 }
 
@@ -375,6 +459,7 @@ function LineChart({ points }: { points: { label: string; value: number }[] }) {
   const yForValue = (value: number) => topPad + chartHeight - (value / chartMax) * chartHeight;
   const linePoints = points.map((point, index) => `${xForIndex(index)},${yForValue(point.value)}`).join(" ");
   const areaPoints = `${leftPad},${topPad + chartHeight} ${linePoints} ${leftPad + chartWidth},${topPad + chartHeight}`;
+  const labelStep = points.length > 14 ? Math.ceil(points.length / 12) : 1;
 
   return (
     <svg className="mdc-line-chart" viewBox={`0 0 ${width} ${height}`} aria-hidden>
@@ -403,9 +488,11 @@ function LineChart({ points }: { points: { label: string; value: number }[] }) {
       {points.map((point, index) => (
         <g key={`${point.label}-${index}`}>
           <circle cx={xForIndex(index)} cy={yForValue(point.value)} r="4" className="mdc-line-chart__dot" />
-          <text x={xForIndex(index)} y={height - 16} textAnchor="middle" className="mdc-line-chart__x-label">
-            {point.label}
-          </text>
+          {(index === 0 || index === points.length - 1 || index % labelStep === 0) && (
+            <text x={xForIndex(index)} y={height - 16} textAnchor="middle" className="mdc-line-chart__x-label">
+              {point.label}
+            </text>
+          )}
         </g>
       ))}
     </svg>
@@ -562,16 +649,39 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
   const dtiRule = rules.find((rule) => rule.status === "active" && rule.field === "ratios.dti");
   const ageRule = rules.find((rule) => rule.status === "active" && rule.field === "applicant.age");
   const bureauRule = rules.find((rule) => rule.status === "active" && rule.field === "bureau.score");
+  const utilizationRule = rules.find((rule) => rule.status === "active" && rule.field === "cards.utilization");
+  const delinquencyRule = rules.find((rule) => rule.status === "active" && rule.field === "credit.maxDaysPastDue");
+  const inquiriesRule = rules.find((rule) => rule.status === "active" && rule.field === "credit.hardInquiries30d");
+  const historyRule = rules.find((rule) => rule.status === "active" && rule.field === "credit.historyMonths");
   const incomeMin = Number(incomeMinRule?.value ?? 12000) || 12000;
-  const dtiMax = Number(dtiRule?.value ?? 0.5) || 0.5;
+  const dtiMax = Number(dtiRule?.value ?? 0.45) || 0.45;
   const ageMin = Number(ageRule?.value ?? 18) || 18;
-  const bureauMin = Number(bureauRule?.value ?? 650) || 650;
+  const bureauBaseMin = Number(bureauRule?.value ?? 620) || 620;
+  const utilizationMax = Number(utilizationRule?.value ?? 0.3) || 0.3;
+  const maxDaysPastDueAllowed = Number(delinquencyRule?.value ?? 29) || 29;
+  const hardInquiriesMax = Number(inquiriesRule?.value ?? 3) || 3;
+  const historyMinMonths = Number(historyRule?.value ?? 12) || 12;
+  const bureauMinByProduct = isAutomotriz ? 680 : isPlazoFijo ? 650 : 620;
+  const bureauMin = Math.max(bureauBaseMin, bureauMinByProduct);
   const estimatedIncomeMonthly = Math.max(
     6000,
     Math.round(isPlazoFijo ? app.requestedAmount / 85 : isAutomotriz ? app.requestedAmount / 70 : app.requestedAmount / 28),
   );
   const estimatedAge = 20 + (quickHash(`${app.id}-age`) % 28);
-  const bureauScoreEstimated = Math.max(420, Math.round(820 - app.riskScore * 4.2));
+  const bureauScoreEstimated = bureauScoreFromRiskIndex(app.riskScore);
+  const utilizationRatio = Math.max(
+    0.06,
+    Math.min(0.97, app.riskScore / 100 + ((quickHash(`${app.id}-util`) % 13) - 6) / 100),
+  );
+  const maxDaysPastDue = Math.max(
+    0,
+    Math.min(120, Math.round(app.riskScore * 1.15 + (quickHash(`${app.id}-dpd`) % 21) - 8)),
+  );
+  const hardInquiries30d = Math.max(
+    0,
+    Math.min(8, Math.round(app.riskScore / 22 + (quickHash(`${app.id}-inq`) % 3))),
+  );
+  const creditHistoryMonths = Math.max(3, Math.round(96 - app.riskScore + (quickHash(`${app.id}-hist`) % 36)));
   const hasDocumentAlerts = docs.filter((doc) => doc.automated === "Revision").length >= 2;
   const hasCapacityPressure = monthlyEstimate > estimatedIncomeMonthly * 0.45;
   const policyByField: Partial<Record<CreditRuleRow["field"], boolean>> = {
@@ -579,6 +689,10 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
     "ratios.dti": dti > dtiMax,
     "applicant.age": estimatedAge < ageMin,
     "bureau.score": bureauScoreEstimated < bureauMin,
+    "cards.utilization": utilizationRatio > utilizationMax,
+    "credit.maxDaysPastDue": maxDaysPastDue > maxDaysPastDueAllowed,
+    "credit.hardInquiries30d": hardInquiries30d > hardInquiriesMax,
+    "credit.historyMonths": creditHistoryMonths < historyMinMonths,
   };
   const stages = [
     { id: "onboarding", label: "Onboarding", state: "done" },
@@ -589,20 +703,29 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
   ] as const;
   let activeRules = rules
     .filter((rule) => rule.status === "active")
-    .slice(0, 4)
+    .slice(0, 6)
     .map((rule) => {
       const hasPolicyBreach = policyByField[rule.field] === true;
       let result: RuleSeverity = "pass";
       if (hasPolicyBreach) {
         result = app.status === "manualReview" && rule.severity !== "fail" ? "warn" : "fail";
-      } else if (app.status === "manualReview" && (rule.severity === "warn" || (rule.field === "bureau.score" && app.riskScore >= 50))) {
+      } else if (app.status === "manualReview" && (rule.severity === "warn" || (rule.field === "bureau.score" && bureauScoreEstimated < 700))) {
         result = "warn";
       }
       return { ...rule, result };
     });
   const fallbackField =
     (Object.entries(policyByField).find(([, value]) => value)?.[0] as CreditRuleRow["field"] | undefined) ??
-    activeRules.find((rule) => ["ratios.dti", "income.monthlyNet", "bureau.score", "applicant.age"].includes(rule.field))?.field ??
+    activeRules.find((rule) =>
+      [
+        "ratios.dti",
+        "income.monthlyNet",
+        "bureau.score",
+        "cards.utilization",
+        "credit.maxDaysPastDue",
+        "credit.hardInquiries30d",
+      ].includes(rule.field),
+    )?.field ??
     activeRules[0]?.field;
   if (fallbackField && app.status === "declined" && !activeRules.some((rule) => rule.result === "fail")) {
     activeRules = activeRules.map((rule) => (rule.field === fallbackField ? { ...rule, result: "fail" as RuleSeverity } : rule));
@@ -619,7 +742,8 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
   const failedRuleRows = activeRules.filter((rule) => rule.result === "fail");
   const warnedRuleRows = activeRules.filter((rule) => rule.result === "warn");
   const failedRules = failedRuleRows.map((rule) => rule.name);
-  const hasHighRiskTrigger = app.riskScore >= 75 || app.risk === "high";
+  const appRiskLevel = riskFromScore(app.riskScore);
+  const hasHighRiskTrigger = bureauScoreEstimated <= 549 || maxDaysPastDue >= 90 || appRiskLevel === "high";
   const ruleResultLabel: Record<RuleSeverity, string> = {
     pass: "Aprobado",
     warn: "Revision",
@@ -653,7 +777,19 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
       return `Edad estimada del solicitante (${estimatedAge} anos) menor al minimo requerido (${ageMin} anos).`;
     }
     if (rule.field === "bureau.score") {
-      return `Score de buro estimado (${bureauScoreEstimated}) por debajo del umbral definido (${bureauMin}).`;
+      return `Score de buro estimado (${bureauScoreEstimated}) por debajo del umbral requerido para ${app.product} (${bureauMin}).`;
+    }
+    if (rule.field === "cards.utilization") {
+      return `Utilizacion de tarjetas en ${ratioLabel(utilizationRatio)}, superior al maximo recomendado (${ratioLabel(utilizationMax)}).`;
+    }
+    if (rule.field === "credit.maxDaysPastDue") {
+      return `Atraso maximo reciente de ${maxDaysPastDue} dias, excede el limite permitido (${maxDaysPastDueAllowed} dias).`;
+    }
+    if (rule.field === "credit.hardInquiries30d") {
+      return `Consultas duras en 30 dias (${hardInquiries30d}) por encima del limite (${hardInquiriesMax}).`;
+    }
+    if (rule.field === "credit.historyMonths") {
+      return `Antiguedad de historial (${creditHistoryMonths} meses) por debajo del minimo recomendado (${historyMinMonths} meses).`;
     }
     return `${rule.name}: incumplimiento en ${ruleFieldLabel(rule.field)} (valor politica: ${rule.value}).`;
   };
@@ -676,7 +812,27 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
   }
   if (bureauScoreEstimated < bureauMin) {
     declinedReasonsFromPolicy.push(
-      `Score de buro estimado (${bureauScoreEstimated}) por debajo del umbral definido (${bureauMin}).`,
+      `Score de buro estimado (${bureauScoreEstimated}) por debajo del umbral requerido para ${app.product} (${bureauMin}).`,
+    );
+  }
+  if (maxDaysPastDue > maxDaysPastDueAllowed) {
+    declinedReasonsFromPolicy.push(
+      `Atraso maximo reciente de ${maxDaysPastDue} dias, excede el limite permitido (${maxDaysPastDueAllowed} dias).`,
+    );
+  }
+  if (utilizationRatio > utilizationMax) {
+    declinedReasonsFromPolicy.push(
+      `Utilizacion de tarjetas en ${ratioLabel(utilizationRatio)}, superior al maximo recomendado (${ratioLabel(utilizationMax)}).`,
+    );
+  }
+  if (hardInquiries30d > hardInquiriesMax) {
+    declinedReasonsFromPolicy.push(
+      `Consultas duras en 30 dias (${hardInquiries30d}) por encima del limite (${hardInquiriesMax}).`,
+    );
+  }
+  if (creditHistoryMonths < historyMinMonths) {
+    declinedReasonsFromPolicy.push(
+      `Antiguedad de historial (${creditHistoryMonths} meses) por debajo del minimo recomendado (${historyMinMonths} meses).`,
     );
   }
   if (hasDocumentAlerts) {
@@ -690,7 +846,7 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
         : declinedReasonsFromPolicy.length > 0
           ? `Rechazada por politica de originacion: ${declinedReasonsFromPolicy.slice(0, 2).join(" ")}`
           : hasHighRiskTrigger
-            ? `Rechazada por score de riesgo alto (${app.riskScore}) y riesgo ${RISK_LABELS[app.risk].toLowerCase()}.`
+            ? `Rechazada por score de buro bajo (${bureauScoreEstimated}) y nivel de riesgo ${RISK_LABELS[appRiskLevel].toLowerCase()}.`
             : `Rechazada por validacion integral: se detectaron condiciones no elegibles en capacidad de pago y/o consistencia documental.`
       : app.status === "manualReview"
         ? warnedRuleRows.length > 0
@@ -760,7 +916,8 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
                 <div><dt>Nombre</dt><dd>{app.applicantName}</dd></div>
                 <div><dt>Email</dt><dd>{app.applicantEmail}</dd></div>
                 <div><dt>Fecha envio</dt><dd>{shortDate(app.submittedAt)}</dd></div>
-                <div><dt>Score de riesgo</dt><dd>{app.riskScore} ({RISK_LABELS[app.risk]})</dd></div>
+                <div><dt>Score buró estimado</dt><dd>{bureauScoreEstimated} ({RISK_LABELS[appRiskLevel]})</dd></div>
+                <div><dt>Indice interno de riesgo</dt><dd>{app.riskScore}/100</dd></div>
               </dl>
             </section>
 
@@ -839,8 +996,12 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
               <h4>Resumen del motor</h4>
               <div className="mdc-detail-score-grid">
                 <div>
-                  <span>Risk score</span>
-                  <strong>{app.riskScore}</strong>
+                  <span>Score Buró</span>
+                  <strong>{bureauScoreEstimated}</strong>
+                </div>
+                <div>
+                  <span>Indice de riesgo</span>
+                  <strong>{app.riskScore}/100</strong>
                 </div>
                 <div>
                   <span>Fraud score</span>
@@ -1091,6 +1252,7 @@ export function MdcScreen() {
       readStoredJson<Application[]>(APP_STORAGE_KEY, applicationsListMock).map((app) => ({
         ...app,
         product: normalizeProductName(app.product),
+        risk: riskFromScore(app.riskScore),
         ...bindFixedTermApplicant({
           id: app.id,
           appNo: app.appNo,
@@ -1102,7 +1264,9 @@ export function MdcScreen() {
       })),
     ),
   );
-  const [rules, setRules] = useState<CreditRuleRow[]>(() => readStoredJson<CreditRuleRow[]>(RULES_STORAGE_KEY, creditRulesMock));
+  const [rules, setRules] = useState<CreditRuleRow[]>(() =>
+    mergeRulesWithDefaults(readStoredJson<CreditRuleRow[]>(RULES_STORAGE_KEY, creditRulesMock)),
+  );
 
   const [showAddApplication, setShowAddApplication] = useState(false);
   const [detailApp, setDetailApp] = useState<Application | null>(null);
@@ -1117,9 +1281,7 @@ export function MdcScreen() {
   const [showRuleModal, setShowRuleModal] = useState(false);
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [ruleModalState, setRuleModalState] = useState<RuleFormState>(defaultRuleForm());
-  const [copiedLink, setCopiedLink] = useState(false);
-  const onboardingPublicUrl =
-    "https://cortex.zelify.com/es/onboarding/solicitudes/iniciar/flujo-v2?channel=originador&source=panel-riesgo&tenant=mx-core&access_hint=invite-only&k=ZLX9A7M2Q4";
+  const [rangeFilter, setRangeFilter] = useState<RangePreset>("7d");
 
   useEffect(() => {
     writeStoredJson(APP_STORAGE_KEY, apps);
@@ -1129,22 +1291,72 @@ export function MdcScreen() {
     writeStoredJson(RULES_STORAGE_KEY, rules);
   }, [rules]);
 
+  const rangeDays = RANGE_DAYS[rangeFilter];
+
+  const { rangeScopedApps, previousRangeApps, applicationsTrendPoints } = useMemo(() => {
+    const currentWindow = rangeWindow(apps, rangeDays);
+    if (!currentWindow) {
+      return {
+        rangeScopedApps: [] as Application[],
+        previousRangeApps: [] as Application[],
+        applicationsTrendPoints: [] as { label: string; value: number }[],
+      };
+    }
+
+    const currentRows = apps.filter((app) =>
+      isWithinRange(app.submittedAt, currentWindow.startMs, currentWindow.endMs),
+    );
+    const previousStart = currentWindow.startMs - rangeDays * DAY_MS;
+    const previousEnd = currentWindow.startMs - 1;
+    const previousRows = apps.filter((app) => isWithinRange(app.submittedAt, previousStart, previousEnd));
+
+    const pointsByDay = new Map<number, number>();
+    for (const app of currentRows) {
+      const dayMs = utcDayStartMs(app.submittedAt);
+      pointsByDay.set(dayMs, (pointsByDay.get(dayMs) ?? 0) + 1);
+    }
+
+    const points = Array.from({ length: rangeDays }, (_, index) => {
+      const dayMs = currentWindow.startMs + index * DAY_MS;
+      return {
+        label: chartDayLabel(new Date(dayMs)),
+        value: pointsByDay.get(dayMs) ?? 0,
+      };
+    });
+
+    return {
+      rangeScopedApps: currentRows,
+      previousRangeApps: previousRows,
+      applicationsTrendPoints: points,
+    };
+  }, [apps, rangeDays]);
+
   const overview = useMemo(() => {
-    const total = apps.length;
-    const approved = apps.filter((a) => a.status === "approved").length;
-    const declined = apps.filter((a) => a.status === "declined").length;
-    const pending = apps.filter((a) => a.status === "pending").length;
-    const avgAmount = total > 0 ? apps.reduce((sum, a) => sum + a.requestedAmount, 0) / total : 0;
+    const total = rangeScopedApps.length;
+    const approved = rangeScopedApps.filter((a) => a.status === "approved").length;
+    const declined = rangeScopedApps.filter((a) => a.status === "declined").length;
+    const manualOrPending = rangeScopedApps.filter((a) => a.status === "pending" || a.status === "manualReview").length;
+    const avgAmount = total > 0 ? rangeScopedApps.reduce((sum, a) => sum + a.requestedAmount, 0) / total : 0;
+
+    const previousTotal = previousRangeApps.length;
+    const previousApproved = previousRangeApps.filter((a) => a.status === "approved").length;
+    const previousDeclined = previousRangeApps.filter((a) => a.status === "declined").length;
+    const previousAvgAmount =
+      previousTotal > 0 ? previousRangeApps.reduce((sum, a) => sum + a.requestedAmount, 0) / previousTotal : 0;
+    const approvedPct = approved / Math.max(total, 1);
+    const declinedPct = declined / Math.max(total, 1);
+    const previousApprovedPct = previousApproved / Math.max(previousTotal, 1);
+    const previousDeclinedPct = previousDeclined / Math.max(previousTotal, 1);
 
     const approvalRatio = [
       { label: "Aprobadas automaticas", value: approved, color: "#0f766e" },
       { label: "Rechazadas por politica", value: declined, color: "#b91c1c" },
-      { label: "En revision manual", value: pending, color: "#334155" },
+      { label: "En revision manual", value: manualOrPending, color: "#334155" },
     ];
 
-    const lowTarget = Math.round(total * 0.56);
-    const mediumTarget = Math.round(total * 0.29);
-    const highTarget = Math.max(total - lowTarget - mediumTarget, 0);
+    const lowTarget = rangeScopedApps.filter((a) => riskFromScore(a.riskScore) === "low").length;
+    const mediumTarget = rangeScopedApps.filter((a) => riskFromScore(a.riskScore) === "medium").length;
+    const highTarget = rangeScopedApps.filter((a) => riskFromScore(a.riskScore) === "high").length;
 
     const riskDistribution = [
       { label: "Perfil conservador", value: lowTarget, color: "#0f766e" },
@@ -1152,7 +1364,7 @@ export function MdcScreen() {
       { label: "Perfil expuesto", value: highTarget, color: "#b91c1c" },
     ];
 
-    const recent = [...apps]
+    const recent = [...rangeScopedApps]
       .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
       .slice(0, 8);
 
@@ -1160,24 +1372,32 @@ export function MdcScreen() {
       total,
       approved,
       declined,
+      approvedPct,
+      declinedPct,
       avgAmount,
       approvalRatio,
       riskDistribution,
       recent,
+      deltas: {
+        total: pctDelta(total, previousTotal),
+        approvedPct: pctDelta(approvedPct, previousApprovedPct),
+        declinedPct: pctDelta(declinedPct, previousDeclinedPct),
+        avgAmount: pctDelta(avgAmount, previousAvgAmount),
+      },
     };
-  }, [apps]);
+  }, [previousRangeApps, rangeScopedApps]);
 
   const filteredApps = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return apps.filter((app) => {
+    return rangeScopedApps.filter((app) => {
       if (statusFilter !== "all" && app.status !== statusFilter) return false;
       if (productFilter !== "all" && app.product !== productFilter) return false;
-      if (riskFilter !== "all" && app.risk !== riskFilter) return false;
+      if (riskFilter !== "all" && riskFromScore(app.riskScore) !== riskFilter) return false;
       if (!q) return true;
       const blob = `${app.appNo} ${app.applicantName} ${app.applicantEmail} ${app.product}`.toLowerCase();
       return blob.includes(q);
     });
-  }, [apps, productFilter, riskFilter, search, statusFilter]);
+  }, [productFilter, rangeScopedApps, riskFilter, search, statusFilter]);
 
   const pageCount = Math.max(1, Math.ceil(filteredApps.length / PAGE_SIZE));
   const paginatedApps = useMemo(() => {
@@ -1212,16 +1432,6 @@ export function MdcScreen() {
     setShowRuleModal(true);
   };
 
-  const copyOnboardingLink = async () => {
-    try {
-      await navigator.clipboard.writeText(onboardingPublicUrl);
-      setCopiedLink(true);
-      window.setTimeout(() => setCopiedLink(false), 1800);
-    } catch {
-      setCopiedLink(false);
-    }
-  };
-
   return (
     <div className="zelify-workspace-page">
       <ZelifyTopNavbar />
@@ -1236,7 +1446,14 @@ export function MdcScreen() {
               </div>
               <div className="mdc-header__date">
                 <label htmlFor="mdc-range">Rango</label>
-                <select id="mdc-range" defaultValue="7d">
+                <select
+                  id="mdc-range"
+                  value={rangeFilter}
+                  onChange={(e) => {
+                    setRangeFilter(e.target.value as RangePreset);
+                    setPage(0);
+                  }}
+                >
                   <option value="7d">Ultimos 7 dias</option>
                   <option value="30d">Ultimos 30 dias</option>
                   <option value="90d">Ultimos 90 dias</option>
@@ -1266,29 +1483,29 @@ export function MdcScreen() {
                 <MdcStatCard
                   title="Solicitudes totales"
                   value={String(overview.total)}
-                  deltaPct={overviewKpis.totalApplications.deltaPct}
-                  positive={overviewKpis.totalApplications.positive}
+                  deltaPct={overview.deltas.total}
+                  positive={overview.deltas.total >= 0}
                   comparisonLabel="vs periodo anterior"
                 />
                 <MdcStatCard
                   title="Porcentaje de aprobacion"
-                  value={ratioLabel(overview.approved / Math.max(overview.total, 1))}
-                  deltaPct={overviewKpis.approvedPct.deltaPct}
-                  positive={overviewKpis.approvedPct.positive}
-                  comparisonLabel="motivo principal rechazo: ingresos insuficientes"
+                  value={ratioLabel(overview.approvedPct)}
+                  deltaPct={overview.deltas.approvedPct}
+                  positive={overview.deltas.approvedPct >= 0}
+                  comparisonLabel="vs periodo anterior"
                 />
                 <MdcStatCard
                   title="Porcentaje de rechazo"
-                  value={ratioLabel(overview.declined / Math.max(overview.total, 1))}
-                  deltaPct={overviewKpis.declinedPct.deltaPct}
-                  positive={overviewKpis.declinedPct.positive}
+                  value={ratioLabel(overview.declinedPct)}
+                  deltaPct={overview.deltas.declinedPct}
+                  positive={overview.deltas.declinedPct >= 0}
                   comparisonLabel="vs periodo anterior"
                 />
                 <MdcStatCard
                   title="Monto promedio solicitado / aprobado"
                   value={money(overview.avgAmount)}
-                  deltaPct={overviewKpis.avgAmount.deltaPct}
-                  positive={overviewKpis.avgAmount.positive}
+                  deltaPct={overview.deltas.avgAmount}
+                  positive={overview.deltas.avgAmount >= 0}
                   comparisonLabel="vs periodo anterior"
                 />
               </div>
@@ -1296,9 +1513,9 @@ export function MdcScreen() {
               <article className="mdc-card">
                 <div className="mdc-card__head">
                   <h3>Solicitudes por dia</h3>
-                  <p>Tendencia semanal de ingreso al motor</p>
+                  <p>Tendencia de ingreso al motor segun rango seleccionado</p>
                 </div>
-                <LineChart points={applicationsPerDay} />
+                <LineChart points={applicationsTrendPoints} />
               </article>
 
               <div className="mdc-grid-2">
@@ -1338,16 +1555,26 @@ export function MdcScreen() {
                       </tr>
                     </thead>
                     <tbody>
-                      {overview.recent.map((app) => (
-                        <tr key={app.id}>
-                          <td>{app.appNo}</td>
-                          <td>{app.applicantName}</td>
-                          <td>{app.product}</td>
-                          <td>{money(app.requestedAmount)}</td>
-                          <td><span className={classForStatus(app.status)}>{STATUS_LABELS[app.status]}</span></td>
-                          <td><span className={classForRisk(app.risk)}>{RISK_LABELS[app.risk]}</span></td>
+                      {overview.recent.length === 0 ? (
+                        <tr>
+                          <td colSpan={6}>Sin solicitudes en el rango seleccionado.</td>
                         </tr>
-                      ))}
+                      ) : (
+                        overview.recent.map((app) => (
+                          <tr key={app.id}>
+                            <td>{app.appNo}</td>
+                            <td>{app.applicantName}</td>
+                            <td>{app.product}</td>
+                            <td>{money(app.requestedAmount)}</td>
+                            <td><span className={classForStatus(app.status)}>{STATUS_LABELS[app.status]}</span></td>
+                            <td>
+                              <span className={classForRisk(riskFromScore(app.riskScore))}>
+                                {RISK_LABELS[riskFromScore(app.riskScore)]}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -1432,7 +1659,9 @@ export function MdcScreen() {
                     </select>
                   </label>
                 </div>
-                <p className="mdc-date-hint">La fecha se toma del rango global del tablero para filtrar resultados de solicitudes.</p>
+                <p className="mdc-date-hint">
+                  La fecha se toma del rango global del tablero para filtrar resultados de solicitudes ({rangeDays} dias).
+                </p>
 
                 <div className="mdc-table-wrap">
                   <table className="mdc-table">
@@ -1450,76 +1679,82 @@ export function MdcScreen() {
                       </tr>
                     </thead>
                     <tbody>
-                      {paginatedApps.map((app) => (
-                        <tr key={app.id}>
-                          <td>{app.appNo}</td>
-                          <td>{app.applicantName}</td>
-                          <td>{app.applicantEmail}</td>
-                          <td>{app.product}</td>
-                          <td>{money(app.requestedAmount)}</td>
-                          <td><span className={classForStatus(app.status)}>{STATUS_LABELS[app.status]}</span></td>
-                          <td>
-                            <span className={classForRisk(app.risk)}>
-                              {RISK_LABELS[app.risk]} · {app.riskScore}
-                            </span>
-                          </td>
-                          <td>{shortDate(app.submittedAt)}</td>
-                          <td>
-                            <div className="mdc-actions">
-                              <button type="button" className="mdc-btn mdc-btn--xs" onClick={() => setDetailApp(app)}>
-                                Ver
-                              </button>
-                              <details className="mdc-row-menu">
-                                <summary>Opciones</summary>
-                                <div className="mdc-row-menu__items">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setApps((current) =>
-                                        current.map((row) =>
-                                          row.id === app.id
-                                            ? {
-                                                ...row,
-                                                status: statusFromScore(row.riskScore),
-                                                risk: riskFromScore(row.riskScore),
-                                                submittedAt: new Date().toISOString(),
-                                              }
-                                            : row,
-                                        ),
-                                      );
-                                    }}
-                                  >
-                                    Ejecutar evaluacion
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setApps((current) =>
-                                        current.map((row) =>
-                                          row.id === app.id
-                                            ? { ...row, status: "pending", submittedAt: new Date().toISOString() }
-                                            : row,
-                                        ),
-                                      );
-                                    }}
-                                  >
-                                    Reenviar onboarding
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="mdc-row-menu__danger"
-                                    onClick={() => {
-                                      setApps((current) => current.filter((row) => row.id !== app.id));
-                                    }}
-                                  >
-                                    Eliminar
-                                  </button>
-                                </div>
-                              </details>
-                            </div>
-                          </td>
+                      {paginatedApps.length === 0 ? (
+                        <tr>
+                          <td colSpan={9}>Sin resultados para los filtros seleccionados.</td>
                         </tr>
-                      ))}
+                      ) : (
+                        paginatedApps.map((app) => (
+                          <tr key={app.id}>
+                            <td>{app.appNo}</td>
+                            <td>{app.applicantName}</td>
+                            <td>{app.applicantEmail}</td>
+                            <td>{app.product}</td>
+                            <td>{money(app.requestedAmount)}</td>
+                            <td><span className={classForStatus(app.status)}>{STATUS_LABELS[app.status]}</span></td>
+                            <td>
+                              <span className={classForRisk(riskFromScore(app.riskScore))}>
+                                {RISK_LABELS[riskFromScore(app.riskScore)]} · {app.riskScore}
+                              </span>
+                            </td>
+                            <td>{shortDate(app.submittedAt)}</td>
+                            <td>
+                              <div className="mdc-actions">
+                                <button type="button" className="mdc-btn mdc-btn--xs" onClick={() => setDetailApp(app)}>
+                                  Ver
+                                </button>
+                                <details className="mdc-row-menu">
+                                  <summary>Opciones</summary>
+                                  <div className="mdc-row-menu__items">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setApps((current) =>
+                                          current.map((row) =>
+                                            row.id === app.id
+                                              ? {
+                                                  ...row,
+                                                  status: statusFromScore(row.riskScore),
+                                                  risk: riskFromScore(row.riskScore),
+                                                  submittedAt: new Date().toISOString(),
+                                                }
+                                              : row,
+                                          ),
+                                        );
+                                      }}
+                                    >
+                                      Ejecutar evaluacion
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setApps((current) =>
+                                          current.map((row) =>
+                                            row.id === app.id
+                                              ? { ...row, status: "pending", submittedAt: new Date().toISOString() }
+                                              : row,
+                                          ),
+                                        );
+                                      }}
+                                    >
+                                      Reenviar onboarding
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="mdc-row-menu__danger"
+                                      onClick={() => {
+                                        setApps((current) => current.filter((row) => row.id !== app.id));
+                                      }}
+                                    >
+                                      Eliminar
+                                    </button>
+                                  </div>
+                                </details>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>

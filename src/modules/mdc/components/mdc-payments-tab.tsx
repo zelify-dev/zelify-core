@@ -23,6 +23,15 @@ type Installment = {
   dueDate: string;
 };
 
+type RangePreset = "7d" | "30d" | "90d";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const RANGE_DAYS: Record<RangePreset, number> = {
+  "7d": 7,
+  "30d": 30,
+  "90d": 90,
+};
+
 export const SESSIONS: Session[] = [
   { id: "ses_1001", userId: "Maria Fernanda Lopez", applicantId: "APP-001284", status: "CAPTURADO", paymentMethod: "tarjeta", amount: 2450, currency: "MXN", createdAt: "2026-05-01" },
   { id: "ses_1002", userId: "Carlos Alberto Mendoza", applicantId: "APP-001279", status: "CAPTURADO", paymentMethod: "tarjeta", amount: 2750, currency: "MXN", createdAt: "2026-05-02" },
@@ -37,15 +46,38 @@ export const SESSIONS: Session[] = [
 
 export function MdcPaymentsTab() {
   const [selectedPayment, setSelectedPayment] = useState<Session | null>(null);
+  const [range, setRange] = useState<RangePreset>("30d");
+  const rangeDays = RANGE_DAYS[range];
+
+  const { filteredSessions, startMs } = useMemo(() => {
+    if (SESSIONS.length === 0) {
+      return { filteredSessions: [] as Session[], startMs: 0 };
+    }
+
+    const latestDayMs = SESSIONS.reduce(
+      (max, session) => Math.max(max, sessionDayStartMs(session.createdAt)),
+      0,
+    );
+    const rangeEnd = latestDayMs + DAY_MS - 1;
+    const rangeStart = rangeEnd - (rangeDays * DAY_MS - 1);
+    const sessions = SESSIONS.filter((session) => {
+      const dayMs = sessionDayStartMs(session.createdAt);
+      return dayMs >= rangeStart && dayMs <= rangeEnd;
+    });
+
+    return { filteredSessions: sessions, startMs: rangeStart };
+  }, [rangeDays]);
 
   const kpis = useMemo(() => {
-    const totalSessions = SESSIONS.length;
-    const successful = SESSIONS.filter((session) => session.status === "CAPTURADO").length;
-    const failed = SESSIONS.filter((session) => session.status === "FALLIDO").length;
-    const revenue = SESSIONS.filter((session) => session.status === "CAPTURADO").reduce((acc, session) => acc + session.amount, 0);
+    const totalSessions = filteredSessions.length;
+    const successful = filteredSessions.filter((session) => session.status === "CAPTURADO").length;
+    const failed = filteredSessions.filter((session) => session.status === "FALLIDO").length;
+    const revenue = filteredSessions
+      .filter((session) => session.status === "CAPTURADO")
+      .reduce((acc, session) => acc + session.amount, 0);
     const successRate = totalSessions ? (successful / totalSessions) * 100 : 0;
     const avgTicket = successful ? revenue / successful : 0;
-    const failureReasons = SESSIONS.filter((session) => session.status === "FALLIDO").reduce(
+    const failureReasons = filteredSessions.filter((session) => session.status === "FALLIDO").reduce(
       (acc, session) => {
         if (session.errorCode === "insufficient_funds") {
           acc.funds += 1;
@@ -68,27 +100,37 @@ export function MdcPaymentsTab() {
       topFailureReason,
       topFailureCount,
     };
-  }, []);
+  }, [filteredSessions]);
 
   const trendPoints = useMemo(() => {
-    const byDate = new Map<string, number>();
-    for (const session of SESSIONS) {
+    const byDate = new Map<number, number>();
+    for (const session of filteredSessions) {
       if (session.status !== "CAPTURADO") continue;
-      byDate.set(session.createdAt, (byDate.get(session.createdAt) ?? 0) + session.amount);
+      const dayMs = sessionDayStartMs(session.createdAt);
+      byDate.set(dayMs, (byDate.get(dayMs) ?? 0) + session.amount);
     }
 
-    const dates = Array.from(new Set(SESSIONS.map((session) => session.createdAt))).sort();
-    return dates.reduce<{ running: number; points: { label: string; value: number }[] }>(
-      (acc, date) => {
-        const nextValue = acc.running + (byDate.get(date) ?? 0);
-        return {
-          running: nextValue,
-          points: [...acc.points, { label: formatChartDate(date), value: nextValue }],
-        };
-      },
-      { running: 0, points: [] },
-    ).points;
-  }, []);
+    const dayPoints = Array.from({ length: rangeDays }, (_, index) => {
+      const dayMs = startMs + index * DAY_MS;
+      return {
+        dayMs,
+        value: byDate.get(dayMs) ?? 0,
+      };
+    });
+
+    return dayPoints
+      .reduce<{ runningTotal: number; points: { label: string; value: number }[] }>(
+        (acc, point) => {
+          const nextTotal = acc.runningTotal + point.value;
+          return {
+            runningTotal: nextTotal,
+            points: [...acc.points, { label: formatChartDate(point.dayMs), value: nextTotal }],
+          };
+        },
+        { runningTotal: 0, points: [] },
+      )
+      .points;
+  }, [filteredSessions, rangeDays, startMs]);
 
   return (
     <>
@@ -100,7 +142,7 @@ export function MdcPaymentsTab() {
           </div>
           <div className="mdc-pay-range">
             <label htmlFor="mdc-pay-range">Rango</label>
-            <select id="mdc-pay-range" defaultValue="30d">
+            <select id="mdc-pay-range" value={range} onChange={(e) => setRange(e.target.value as RangePreset)}>
               <option value="7d">Ultimos 7 dias</option>
               <option value="30d">Ultimos 30 dias</option>
               <option value="90d">Ultimos 90 dias</option>
@@ -139,17 +181,23 @@ export function MdcPaymentsTab() {
                 </tr>
               </thead>
               <tbody>
-                {SESSIONS.map((session) => (
-                  <tr key={session.id} className="mdc-pay-row" onClick={() => setSelectedPayment(session)}>
-                    <td>{session.applicantId}</td>
-                    <td>{session.userId}</td>
-                    <td><StatusBadge status={session.status} /></td>
-                    <td className="mdc-pay-capitalize">{session.paymentMethod}</td>
-                    <td className="mdc-pay-num">${formatMoney(session.amount)} {session.currency}</td>
-                    <td>{session.createdAt}</td>
-                    <td className="mdc-pay-arrow"><ChevronRight className="h-4 w-4" /></td>
+                {filteredSessions.length === 0 ? (
+                  <tr>
+                    <td colSpan={7}>Sin sesiones de pago en el rango seleccionado.</td>
                   </tr>
-                ))}
+                ) : (
+                  filteredSessions.map((session) => (
+                    <tr key={session.id} className="mdc-pay-row" onClick={() => setSelectedPayment(session)}>
+                      <td>{session.applicantId}</td>
+                      <td>{session.userId}</td>
+                      <td><StatusBadge status={session.status} /></td>
+                      <td className="mdc-pay-capitalize">{session.paymentMethod}</td>
+                      <td className="mdc-pay-num">${formatMoney(session.amount)} {session.currency}</td>
+                      <td>{session.createdAt}</td>
+                      <td className="mdc-pay-arrow"><ChevronRight className="h-4 w-4" /></td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -180,6 +228,7 @@ function PaymentTrendChart({ points }: { points: { label: string; value: number 
   const yForValue = (value: number) => topPad + chartHeight - (value / chartMax) * chartHeight;
   const linePoints = points.map((point, index) => `${xForIndex(index)},${yForValue(point.value)}`).join(" ");
   const areaPoints = `${leftPad},${topPad + chartHeight} ${linePoints} ${leftPad + chartWidth},${topPad + chartHeight}`;
+  const labelStep = points.length > 14 ? Math.ceil(points.length / 12) : 1;
 
   return (
     <svg className="mdc-pay-trend-chart" viewBox={`0 0 ${width} ${height}`} aria-hidden>
@@ -208,9 +257,11 @@ function PaymentTrendChart({ points }: { points: { label: string; value: number 
       {points.map((point, index) => (
         <g key={`${point.label}-${index}`}>
           <circle cx={xForIndex(index)} cy={yForValue(point.value)} r="4" className="mdc-pay-trend-chart__dot" />
-          <text x={xForIndex(index)} y={height - 16} textAnchor="middle" className="mdc-pay-trend-chart__x-label">
-            {point.label}
-          </text>
+          {(index === 0 || index === points.length - 1 || index % labelStep === 0) && (
+            <text x={xForIndex(index)} y={height - 16} textAnchor="middle" className="mdc-pay-trend-chart__x-label">
+              {point.label}
+            </text>
+          )}
         </g>
       ))}
     </svg>
@@ -362,9 +413,14 @@ function formatMoneyNoDecimals(value: number) {
   return new Intl.NumberFormat("es-MX", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
 }
 
-function formatChartDate(value: string) {
-  const date = new Date(`${value}T00:00:00`);
-  const month = new Intl.DateTimeFormat("en-US", { month: "short" }).format(date);
-  const day = String(date.getDate()).padStart(2, "0");
+function sessionDayStartMs(value: string) {
+  const [year, month, day] = value.split("-").map((part) => Number(part));
+  return Date.UTC(year, month - 1, day);
+}
+
+function formatChartDate(dayMs: number) {
+  const date = new Date(dayMs);
+  const month = new Intl.DateTimeFormat("en-US", { month: "short", timeZone: "UTC" }).format(date);
+  const day = String(date.getUTCDate()).padStart(2, "0");
   return `${month} ${day}`;
 }
