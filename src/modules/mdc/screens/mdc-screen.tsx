@@ -558,6 +558,28 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
       confidence: `${79 + (quickHash(app.id + "ing") % 17)}%`,
     },
   ];
+  const incomeMinRule = rules.find((rule) => rule.status === "active" && rule.field === "income.monthlyNet");
+  const dtiRule = rules.find((rule) => rule.status === "active" && rule.field === "ratios.dti");
+  const ageRule = rules.find((rule) => rule.status === "active" && rule.field === "applicant.age");
+  const bureauRule = rules.find((rule) => rule.status === "active" && rule.field === "bureau.score");
+  const incomeMin = Number(incomeMinRule?.value ?? 12000) || 12000;
+  const dtiMax = Number(dtiRule?.value ?? 0.5) || 0.5;
+  const ageMin = Number(ageRule?.value ?? 18) || 18;
+  const bureauMin = Number(bureauRule?.value ?? 650) || 650;
+  const estimatedIncomeMonthly = Math.max(
+    6000,
+    Math.round(isPlazoFijo ? app.requestedAmount / 85 : isAutomotriz ? app.requestedAmount / 70 : app.requestedAmount / 28),
+  );
+  const estimatedAge = 20 + (quickHash(`${app.id}-age`) % 28);
+  const bureauScoreEstimated = Math.max(420, Math.round(820 - app.riskScore * 4.2));
+  const hasDocumentAlerts = docs.filter((doc) => doc.automated === "Revision").length >= 2;
+  const hasCapacityPressure = monthlyEstimate > estimatedIncomeMonthly * 0.45;
+  const policyByField: Partial<Record<CreditRuleRow["field"], boolean>> = {
+    "income.monthlyNet": estimatedIncomeMonthly < incomeMin || hasCapacityPressure,
+    "ratios.dti": dti > dtiMax,
+    "applicant.age": estimatedAge < ageMin,
+    "bureau.score": bureauScoreEstimated < bureauMin,
+  };
   const stages = [
     { id: "onboarding", label: "Onboarding", state: "done" },
     { id: "docs", label: "Documentos", state: app.status === "pending" ? "current" : "done" },
@@ -565,31 +587,117 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
     { id: "rules", label: "Reglas de decision", state: app.status === "pending" ? "current" : "done" },
     { id: "decision", label: "Decision final", state: app.status === "pending" ? "current" : app.status === "declined" ? "failed" : "done" },
   ] as const;
-  const activeRules = rules
+  let activeRules = rules
     .filter((rule) => rule.status === "active")
     .slice(0, 4)
-    .map((rule, index) => {
+    .map((rule) => {
+      const hasPolicyBreach = policyByField[rule.field] === true;
       let result: RuleSeverity = "pass";
-      if (rule.severity === "fail" && app.riskScore >= 75) result = "fail";
-      if (rule.severity === "warn" && app.riskScore >= 55) result = "warn";
-      if (rule.id === "cr-2" && dti > 0.5) result = "fail";
-      if (rule.id === "cr-3" && app.riskScore >= 50) result = "warn";
-      if (index === 0 && app.status === "approved") result = "pass";
+      if (hasPolicyBreach) {
+        result = app.status === "manualReview" && rule.severity !== "fail" ? "warn" : "fail";
+      } else if (app.status === "manualReview" && (rule.severity === "warn" || (rule.field === "bureau.score" && app.riskScore >= 50))) {
+        result = "warn";
+      }
       return { ...rule, result };
     });
-  const failedRules = activeRules.filter((rule) => rule.result === "fail").map((rule) => rule.name);
-  const warnedRules = activeRules.filter((rule) => rule.result === "warn").map((rule) => rule.name);
+  const fallbackField =
+    (Object.entries(policyByField).find(([, value]) => value)?.[0] as CreditRuleRow["field"] | undefined) ??
+    activeRules.find((rule) => ["ratios.dti", "income.monthlyNet", "bureau.score", "applicant.age"].includes(rule.field))?.field ??
+    activeRules[0]?.field;
+  if (fallbackField && app.status === "declined" && !activeRules.some((rule) => rule.result === "fail")) {
+    activeRules = activeRules.map((rule) => (rule.field === fallbackField ? { ...rule, result: "fail" as RuleSeverity } : rule));
+  }
+  if (app.status === "manualReview" && !activeRules.some((rule) => rule.result === "warn" || rule.result === "fail")) {
+    activeRules = activeRules.map((rule) => (rule.field === fallbackField ? { ...rule, result: "warn" as RuleSeverity } : rule));
+  }
+  if (app.status === "approved") {
+    activeRules = activeRules.map((rule) => ({ ...rule, result: "pass" as RuleSeverity }));
+  }
+  if (app.status === "overridden" && !activeRules.some((rule) => rule.result === "fail")) {
+    activeRules = activeRules.map((rule) => (rule.field === fallbackField ? { ...rule, result: "fail" as RuleSeverity } : rule));
+  }
+  const failedRuleRows = activeRules.filter((rule) => rule.result === "fail");
+  const warnedRuleRows = activeRules.filter((rule) => rule.result === "warn");
+  const failedRules = failedRuleRows.map((rule) => rule.name);
+  const hasHighRiskTrigger = app.riskScore >= 75 || app.risk === "high";
+  const ruleResultLabel: Record<RuleSeverity, string> = {
+    pass: "Aprobado",
+    warn: "Revision",
+    fail: "Rechazado",
+  };
+  const ruleSummaryLabel =
+    app.status === "declined"
+      ? "Rechazado"
+      : app.status === "manualReview" || app.status === "pending"
+        ? "Revision"
+        : app.status === "overridden"
+          ? "Aprobado con override"
+          : "Aprobado";
+  const ruleSummaryBadgeClass =
+    app.status === "declined"
+      ? "mdc-badge mdc-badge--bad"
+      : app.status === "manualReview" || app.status === "pending"
+        ? "mdc-badge mdc-badge--warn"
+        : app.status === "overridden"
+          ? "mdc-badge mdc-badge--info"
+          : "mdc-badge mdc-badge--ok";
+
+  const reasonFromRule = (rule: CreditRuleRow) => {
+    if (rule.field === "income.monthlyNet") {
+      return `Ingreso mensual estimado (${money(estimatedIncomeMonthly)}) por debajo del minimo requerido (${money(incomeMin)}).`;
+    }
+    if (rule.field === "ratios.dti") {
+      return `Relacion deuda/ingreso (DTI) en ${ratioLabel(dti)}, superior al limite permitido (${ratioLabel(dtiMax)}).`;
+    }
+    if (rule.field === "applicant.age") {
+      return `Edad estimada del solicitante (${estimatedAge} anos) menor al minimo requerido (${ageMin} anos).`;
+    }
+    if (rule.field === "bureau.score") {
+      return `Score de buro estimado (${bureauScoreEstimated}) por debajo del umbral definido (${bureauMin}).`;
+    }
+    return `${rule.name}: incumplimiento en ${ruleFieldLabel(rule.field)} (valor politica: ${rule.value}).`;
+  };
+
+  const declinedReasonsFromPolicy: string[] = [];
+  if (estimatedIncomeMonthly < incomeMin) {
+    declinedReasonsFromPolicy.push(
+      `Ingreso mensual estimado (${money(estimatedIncomeMonthly)}) por debajo del minimo requerido (${money(incomeMin)}).`,
+    );
+  }
+  if (dti > dtiMax) {
+    declinedReasonsFromPolicy.push(
+      `Relacion deuda/ingreso (DTI) en ${ratioLabel(dti)}, superior al limite permitido (${ratioLabel(dtiMax)}).`,
+    );
+  }
+  if (hasCapacityPressure) {
+    declinedReasonsFromPolicy.push(
+      `La cuota mensual estimada (${money(monthlyEstimate)}) compromete la capacidad de pago frente al ingreso estimado.`,
+    );
+  }
+  if (bureauScoreEstimated < bureauMin) {
+    declinedReasonsFromPolicy.push(
+      `Score de buro estimado (${bureauScoreEstimated}) por debajo del umbral definido (${bureauMin}).`,
+    );
+  }
+  if (hasDocumentAlerts) {
+    declinedReasonsFromPolicy.push("Inconsistencias documentales detectadas en validacion automatica (OCR/KYC).");
+  }
+
   const decisionReason =
     app.status === "declined"
-      ? failedRules.length > 0
-        ? `Rechazada por incumplimiento de reglas: ${failedRules.join(", ")}.`
-        : dti > 0.5
-          ? `Rechazada por DTI elevado (${ratioLabel(dti)}), por encima del limite de politica.`
-          : `Rechazada por score de riesgo alto (${app.riskScore}) y riesgo ${RISK_LABELS[app.risk].toLowerCase()}.`
+      ? failedRuleRows.length > 0
+        ? `Rechazada por incumplimiento de politica: ${failedRuleRows.map(reasonFromRule).join(" ")}`
+        : declinedReasonsFromPolicy.length > 0
+          ? `Rechazada por politica de originacion: ${declinedReasonsFromPolicy.slice(0, 2).join(" ")}`
+          : hasHighRiskTrigger
+            ? `Rechazada por score de riesgo alto (${app.riskScore}) y riesgo ${RISK_LABELS[app.risk].toLowerCase()}.`
+            : `Rechazada por validacion integral: se detectaron condiciones no elegibles en capacidad de pago y/o consistencia documental.`
       : app.status === "manualReview"
-        ? warnedRules.length > 0
-          ? `En revision manual por alertas en reglas: ${warnedRules.join(", ")}.`
-          : `En revision manual por inconsistencias documentales y score ${app.riskScore}.`
+        ? warnedRuleRows.length > 0
+          ? `En revision manual por alertas de politica: ${warnedRuleRows.map(reasonFromRule).slice(0, 2).join(" ")}`
+          : hasDocumentAlerts
+            ? "En revision manual por inconsistencias documentales detectadas en OCR/KYC."
+            : `En revision manual por validaciones complementarias de capacidad de pago (score ${app.riskScore}).`
         : app.status === "overridden"
           ? failedRules.length > 0
             ? `Override aplicado por analista pese a: ${failedRules.join(", ")}. Requiere trazabilidad de aprobacion.`
@@ -706,8 +814,8 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
             <section className="mdc-detail-card">
               <div className="mdc-detail-card__head">
                 <h4>Desglose de reglas</h4>
-                <span className={app.status === "declined" ? "mdc-badge mdc-badge--bad" : app.status === "pending" ? "mdc-badge mdc-badge--warn" : "mdc-badge mdc-badge--ok"}>
-                  {app.status === "declined" ? "Fail" : app.status === "pending" ? "Warn" : "Pass"}
+                <span className={ruleSummaryBadgeClass}>
+                  {ruleSummaryLabel}
                 </span>
               </div>
               <div className="mdc-detail-rule-list">
@@ -718,7 +826,7 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
                       <p>{rule.description}</p>
                     </div>
                     <span className={rule.result === "pass" ? "mdc-badge mdc-badge--ok" : rule.result === "warn" ? "mdc-badge mdc-badge--warn" : "mdc-badge mdc-badge--bad"}>
-                      {rule.result === "pass" ? "Pass" : rule.result === "warn" ? "Warn" : "Fail"}
+                      {ruleResultLabel[rule.result]}
                     </span>
                   </article>
                 ))}
