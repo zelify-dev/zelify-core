@@ -596,6 +596,15 @@
   font-size: 11px;
 }
 
+.mdc-btn--icon {
+  width: 32px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
 .mdc-btn--danger {
   color: #b91c1c;
   border-color: #fecaca;
@@ -616,6 +625,15 @@
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.mdc-row-menu__summary-icon {
+  width: 32px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
 }
 
 .mdc-row-menu summary::-webkit-details-marker {

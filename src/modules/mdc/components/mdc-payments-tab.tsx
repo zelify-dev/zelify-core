@@ -24,6 +24,10 @@ type Installment = {
 };
 
 type RangePreset = "7d" | "30d" | "90d";
+type MdcPaymentsTabProps = {
+  range?: RangePreset;
+  onRangeChange?: (range: RangePreset) => void;
+};
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const RANGE_DAYS: Record<RangePreset, number> = {
@@ -33,6 +37,16 @@ const RANGE_DAYS: Record<RangePreset, number> = {
 };
 
 export const SESSIONS: Session[] = [
+  { id: "ses_0901", userId: "Monica Flores Ruiz", applicantId: "APP-001233", status: "CAPTURADO", paymentMethod: "spei", amount: 1850, currency: "MXN", createdAt: "2026-02-10" },
+  { id: "ses_0902", userId: "Arturo Salinas Gomez", applicantId: "APP-001234", status: "CAPTURADO", paymentMethod: "tarjeta", amount: 2200, currency: "MXN", createdAt: "2026-02-18" },
+  { id: "ses_0903", userId: "Nadia Paredes Luna", applicantId: "APP-001235", status: "FALLIDO", paymentMethod: "tarjeta", amount: 2600, currency: "MXN", createdAt: "2026-02-27", errorCode: "issuer_declined", retryable: true },
+  { id: "ses_0904", userId: "Emilio Cardenas Vega", applicantId: "APP-001236", status: "CAPTURADO", paymentMethod: "spei", amount: 3150, currency: "MXN", createdAt: "2026-03-05" },
+  { id: "ses_0905", userId: "Claudia Moreno Diaz", applicantId: "APP-001237", status: "CAPTURADO", paymentMethod: "tarjeta", amount: 2780, currency: "MXN", createdAt: "2026-03-12" },
+  { id: "ses_0906", userId: "Ivan Torres Rojas", applicantId: "APP-001238", status: "FALLIDO", paymentMethod: "spei", amount: 3410, currency: "MXN", createdAt: "2026-03-19", errorCode: "insufficient_funds", retryable: true },
+  { id: "ses_0907", userId: "Carolina Vega Prieto", applicantId: "APP-001239", status: "CAPTURADO", paymentMethod: "tarjeta", amount: 3620, currency: "MXN", createdAt: "2026-03-25" },
+  { id: "ses_0908", userId: "Javier Luna Nieto", applicantId: "APP-001240", status: "CAPTURADO", paymentMethod: "spei", amount: 4040, currency: "MXN", createdAt: "2026-03-31" },
+  { id: "ses_0909", userId: "Paola Mendez Silva", applicantId: "APP-001241", status: "CAPTURADO", paymentMethod: "tarjeta", amount: 2950, currency: "MXN", createdAt: "2026-04-03" },
+  { id: "ses_0910", userId: "Ramon Herrera Castro", applicantId: "APP-001242", status: "PENDIENTE", paymentMethod: "spei", amount: 3300, currency: "MXN", createdAt: "2026-04-06" },
   { id: "ses_1001", userId: "Maria Fernanda Lopez", applicantId: "APP-001284", status: "CAPTURADO", paymentMethod: "tarjeta", amount: 2450, currency: "MXN", createdAt: "2026-05-01" },
   { id: "ses_1002", userId: "Carlos Alberto Mendoza", applicantId: "APP-001279", status: "CAPTURADO", paymentMethod: "tarjeta", amount: 2750, currency: "MXN", createdAt: "2026-05-02" },
   { id: "ses_1003", userId: "Lucia Romero Vargas", applicantId: "APP-001278", status: "CAPTURADO", paymentMethod: "spei", amount: 1200, currency: "MXN", createdAt: "2026-05-03" },
@@ -44,10 +58,18 @@ export const SESSIONS: Session[] = [
   { id: "ses_1009", userId: "Fernanda Alvarez Ruiz", applicantId: "APP-001251", status: "CAPTURADO", paymentMethod: "tarjeta", amount: 5800, currency: "MXN", createdAt: "2026-05-07" },
 ];
 
-export function MdcPaymentsTab() {
+export function MdcPaymentsTab({ range, onRangeChange }: MdcPaymentsTabProps) {
   const [selectedPayment, setSelectedPayment] = useState<Session | null>(null);
-  const [range, setRange] = useState<RangePreset>("30d");
-  const rangeDays = RANGE_DAYS[range];
+  const [internalRange, setInternalRange] = useState<RangePreset>("30d");
+  const activeRange = range ?? internalRange;
+  const rangeDays = RANGE_DAYS[activeRange];
+
+  const setActiveRange = (nextRange: RangePreset) => {
+    onRangeChange?.(nextRange);
+    if (range === undefined) {
+      setInternalRange(nextRange);
+    }
+  };
 
   const { filteredSessions, startMs } = useMemo(() => {
     if (SESSIONS.length === 0) {
@@ -110,26 +132,36 @@ export function MdcPaymentsTab() {
       byDate.set(dayMs, (byDate.get(dayMs) ?? 0) + session.amount);
     }
 
-    const dayPoints = Array.from({ length: rangeDays }, (_, index) => {
-      const dayMs = startMs + index * DAY_MS;
+    const targetPoints = rangeDays <= 7 ? 7 : rangeDays <= 30 ? 15 : 13;
+    const bucketSizeDays = Math.max(1, Math.ceil(rangeDays / targetPoints));
+    const bucketCount = Math.ceil(rangeDays / bucketSizeDays);
+
+    const bucketPoints = Array.from({ length: bucketCount }, (_, bucketIndex) => {
+      const bucketStart = startMs + bucketIndex * bucketSizeDays * DAY_MS;
+      const remainingDays = Math.max(rangeDays - bucketIndex * bucketSizeDays, 0);
+      const daysInBucket = Math.max(0, Math.min(bucketSizeDays, remainingDays));
+
+      let bucketTotal = 0;
+      for (let dayOffset = 0; dayOffset < daysInBucket; dayOffset++) {
+        const dayMs = bucketStart + dayOffset * DAY_MS;
+        bucketTotal += byDate.get(dayMs) ?? 0;
+      }
+
       return {
-        dayMs,
-        value: byDate.get(dayMs) ?? 0,
+        label: formatBucketLabel(bucketStart, daysInBucket),
+        value: bucketTotal,
       };
     });
 
-    return dayPoints
-      .reduce<{ runningTotal: number; points: { label: string; value: number }[] }>(
-        (acc, point) => {
-          const nextTotal = acc.runningTotal + point.value;
-          return {
-            runningTotal: nextTotal,
-            points: [...acc.points, { label: formatChartDate(point.dayMs), value: nextTotal }],
-          };
-        },
-        { runningTotal: 0, points: [] },
-      )
-      .points;
+    const firstPositiveIndex = bucketPoints.findIndex((point) => point.value > 0);
+    if (firstPositiveIndex <= 0) return bucketPoints;
+
+    const minVisiblePoints = Math.min(
+      bucketPoints.length,
+      rangeDays <= 7 ? 7 : rangeDays <= 30 ? 10 : 8,
+    );
+    const contextStart = Math.max(0, firstPositiveIndex - (minVisiblePoints - 1));
+    return bucketPoints.slice(contextStart);
   }, [filteredSessions, rangeDays, startMs]);
 
   return (
@@ -142,7 +174,11 @@ export function MdcPaymentsTab() {
           </div>
           <div className="mdc-pay-range">
             <label htmlFor="mdc-pay-range">Rango</label>
-            <select id="mdc-pay-range" value={range} onChange={(e) => setRange(e.target.value as RangePreset)}>
+            <select
+              id="mdc-pay-range"
+              value={activeRange}
+              onChange={(e) => setActiveRange(e.target.value as RangePreset)}
+            >
               <option value="7d">Ultimos 7 dias</option>
               <option value="30d">Ultimos 30 dias</option>
               <option value="90d">Ultimos 90 dias</option>
@@ -161,7 +197,7 @@ export function MdcPaymentsTab() {
         <article className="mdc-card">
           <div className="mdc-card__head">
             <h3>Tendencia de pago</h3>
-            <p>Evolucion mensual de cobranzas y pagos</p>
+            <p>Monto capturado por periodo segun rango seleccionado</p>
           </div>
           <PaymentTrendChart points={trendPoints} />
         </article>
@@ -219,16 +255,13 @@ function PaymentTrendChart({ points }: { points: { label: string; value: number 
   const chartWidth = width - leftPad - rightPad;
   const chartHeight = height - topPad - bottomPad;
 
-  const maxValue = Math.max(...points.map((point) => point.value), 1);
-  const step = 6500;
-  const chartMax = Math.ceil(maxValue / step) * step;
-  const ticks = [0, step, step * 2, step * 3, step * 4].map((tick) => Math.min(tick, chartMax)).filter((tick, i, arr) => arr.indexOf(tick) === i);
+  const { chartMax, ticks } = buildYAxis(points.map((point) => point.value));
 
   const xForIndex = (index: number) => leftPad + (chartWidth * index) / Math.max(points.length - 1, 1);
   const yForValue = (value: number) => topPad + chartHeight - (value / chartMax) * chartHeight;
   const linePoints = points.map((point, index) => `${xForIndex(index)},${yForValue(point.value)}`).join(" ");
   const areaPoints = `${leftPad},${topPad + chartHeight} ${linePoints} ${leftPad + chartWidth},${topPad + chartHeight}`;
-  const labelStep = points.length > 14 ? Math.ceil(points.length / 12) : 1;
+  const labelStep = points.length > 10 ? Math.ceil(points.length / 8) : 1;
 
   return (
     <svg className="mdc-pay-trend-chart" viewBox={`0 0 ${width} ${height}`} aria-hidden>
@@ -423,4 +456,25 @@ function formatChartDate(dayMs: number) {
   const month = new Intl.DateTimeFormat("en-US", { month: "short", timeZone: "UTC" }).format(date);
   const day = String(date.getUTCDate()).padStart(2, "0");
   return `${month} ${day}`;
+}
+
+function formatBucketLabel(startDayMs: number, daysInBucket: number) {
+  if (daysInBucket <= 1) return formatChartDate(startDayMs);
+  const endDayMs = startDayMs + (daysInBucket - 1) * DAY_MS;
+  return formatChartDate(endDayMs);
+}
+
+function buildYAxis(values: number[]) {
+  const maxValue = Math.max(...values, 1);
+  const roughStep = Math.max(maxValue / 4, 1);
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+  const normalized = roughStep / magnitude;
+  const niceBase =
+    normalized <= 1 ? 1 :
+      normalized <= 2 ? 2 :
+        normalized <= 5 ? 5 : 10;
+  const step = niceBase * magnitude;
+  const chartMax = Math.max(step * 4, Math.ceil(maxValue / step) * step);
+  const ticks = [0, step, step * 2, step * 3, step * 4];
+  return { chartMax, ticks };
 }

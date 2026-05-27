@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Eye, Settings } from "lucide-react";
 import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
 import {
   applicationsListMock,
@@ -83,14 +84,13 @@ const RULE_OPERATORS: RuleOperator[] = [
 const RULE_TYPES: RuleDataType[] = ["string", "number", "boolean", "date", "percentage"];
 
 const RULE_SEVERITIES: RuleSeverity[] = ["pass", "warn", "fail"];
+const REMOVED_RULE_FIELDS = new Set(["cards.utilization", "credit.hardInquiries30d"]);
 
 const RULE_FIELD_LABELS: Record<string, string> = {
   "applicant.age": "Edad del solicitante",
   "ratios.dti": "Relacion deuda / ingreso (DTI)",
   "bureau.score": "Score crediticio en buro",
-  "cards.utilization": "Utilizacion de tarjetas",
   "credit.maxDaysPastDue": "Maximo atraso reciente (dias)",
-  "credit.hardInquiries30d": "Consultas duras ultimos 30 dias",
   "credit.historyMonths": "Antiguedad de historial (meses)",
   "employment.months": "Antiguedad laboral (meses)",
   "income.monthlyNet": "Ingreso mensual neto",
@@ -290,11 +290,14 @@ function defaultRuleForm(): RuleFormState {
 }
 
 function mergeRulesWithDefaults(rows: CreditRuleRow[]) {
-  if (rows.length === 0) return creditRulesMock;
-  const merged = [...rows];
-  const byField = new Set(rows.map((rule) => rule.field));
+  const sanitizedRows = rows.filter((rule) => !REMOVED_RULE_FIELDS.has(rule.field));
+  if (sanitizedRows.length === 0) {
+    return creditRulesMock.filter((rule) => !REMOVED_RULE_FIELDS.has(rule.field));
+  }
+  const merged = [...sanitizedRows];
+  const byField = new Set(sanitizedRows.map((rule) => rule.field));
   for (const baseRule of creditRulesMock) {
-    if (!byField.has(baseRule.field)) {
+    if (!REMOVED_RULE_FIELDS.has(baseRule.field) && !byField.has(baseRule.field)) {
       merged.push(baseRule);
     }
   }
@@ -649,17 +652,13 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
   const dtiRule = rules.find((rule) => rule.status === "active" && rule.field === "ratios.dti");
   const ageRule = rules.find((rule) => rule.status === "active" && rule.field === "applicant.age");
   const bureauRule = rules.find((rule) => rule.status === "active" && rule.field === "bureau.score");
-  const utilizationRule = rules.find((rule) => rule.status === "active" && rule.field === "cards.utilization");
   const delinquencyRule = rules.find((rule) => rule.status === "active" && rule.field === "credit.maxDaysPastDue");
-  const inquiriesRule = rules.find((rule) => rule.status === "active" && rule.field === "credit.hardInquiries30d");
   const historyRule = rules.find((rule) => rule.status === "active" && rule.field === "credit.historyMonths");
   const incomeMin = Number(incomeMinRule?.value ?? 12000) || 12000;
   const dtiMax = Number(dtiRule?.value ?? 0.45) || 0.45;
   const ageMin = Number(ageRule?.value ?? 18) || 18;
   const bureauBaseMin = Number(bureauRule?.value ?? 620) || 620;
-  const utilizationMax = Number(utilizationRule?.value ?? 0.3) || 0.3;
   const maxDaysPastDueAllowed = Number(delinquencyRule?.value ?? 29) || 29;
-  const hardInquiriesMax = Number(inquiriesRule?.value ?? 3) || 3;
   const historyMinMonths = Number(historyRule?.value ?? 12) || 12;
   const bureauMinByProduct = isAutomotriz ? 680 : isPlazoFijo ? 650 : 620;
   const bureauMin = Math.max(bureauBaseMin, bureauMinByProduct);
@@ -669,17 +668,9 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
   );
   const estimatedAge = 20 + (quickHash(`${app.id}-age`) % 28);
   const bureauScoreEstimated = bureauScoreFromRiskIndex(app.riskScore);
-  const utilizationRatio = Math.max(
-    0.06,
-    Math.min(0.97, app.riskScore / 100 + ((quickHash(`${app.id}-util`) % 13) - 6) / 100),
-  );
   const maxDaysPastDue = Math.max(
     0,
     Math.min(120, Math.round(app.riskScore * 1.15 + (quickHash(`${app.id}-dpd`) % 21) - 8)),
-  );
-  const hardInquiries30d = Math.max(
-    0,
-    Math.min(8, Math.round(app.riskScore / 22 + (quickHash(`${app.id}-inq`) % 3))),
   );
   const creditHistoryMonths = Math.max(3, Math.round(96 - app.riskScore + (quickHash(`${app.id}-hist`) % 36)));
   const hasDocumentAlerts = docs.filter((doc) => doc.automated === "Revision").length >= 2;
@@ -689,9 +680,7 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
     "ratios.dti": dti > dtiMax,
     "applicant.age": estimatedAge < ageMin,
     "bureau.score": bureauScoreEstimated < bureauMin,
-    "cards.utilization": utilizationRatio > utilizationMax,
     "credit.maxDaysPastDue": maxDaysPastDue > maxDaysPastDueAllowed,
-    "credit.hardInquiries30d": hardInquiries30d > hardInquiriesMax,
     "credit.historyMonths": creditHistoryMonths < historyMinMonths,
   };
   const stages = [
@@ -721,9 +710,8 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
         "ratios.dti",
         "income.monthlyNet",
         "bureau.score",
-        "cards.utilization",
         "credit.maxDaysPastDue",
-        "credit.hardInquiries30d",
+        "credit.historyMonths",
       ].includes(rule.field),
     )?.field ??
     activeRules[0]?.field;
@@ -779,14 +767,8 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
     if (rule.field === "bureau.score") {
       return `Score de buro estimado (${bureauScoreEstimated}) por debajo del umbral requerido para ${app.product} (${bureauMin}).`;
     }
-    if (rule.field === "cards.utilization") {
-      return `Utilizacion de tarjetas en ${ratioLabel(utilizationRatio)}, superior al maximo recomendado (${ratioLabel(utilizationMax)}).`;
-    }
     if (rule.field === "credit.maxDaysPastDue") {
       return `Atraso maximo reciente de ${maxDaysPastDue} dias, excede el limite permitido (${maxDaysPastDueAllowed} dias).`;
-    }
-    if (rule.field === "credit.hardInquiries30d") {
-      return `Consultas duras en 30 dias (${hardInquiries30d}) por encima del limite (${hardInquiriesMax}).`;
     }
     if (rule.field === "credit.historyMonths") {
       return `Antiguedad de historial (${creditHistoryMonths} meses) por debajo del minimo recomendado (${historyMinMonths} meses).`;
@@ -818,16 +800,6 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
   if (maxDaysPastDue > maxDaysPastDueAllowed) {
     declinedReasonsFromPolicy.push(
       `Atraso maximo reciente de ${maxDaysPastDue} dias, excede el limite permitido (${maxDaysPastDueAllowed} dias).`,
-    );
-  }
-  if (utilizationRatio > utilizationMax) {
-    declinedReasonsFromPolicy.push(
-      `Utilizacion de tarjetas en ${ratioLabel(utilizationRatio)}, superior al maximo recomendado (${ratioLabel(utilizationMax)}).`,
-    );
-  }
-  if (hardInquiries30d > hardInquiriesMax) {
-    declinedReasonsFromPolicy.push(
-      `Consultas duras en 30 dias (${hardInquiries30d}) por encima del limite (${hardInquiriesMax}).`,
     );
   }
   if (creditHistoryMonths < historyMinMonths) {
@@ -1291,6 +1263,34 @@ export function MdcScreen() {
     writeStoredJson(RULES_STORAGE_KEY, rules);
   }, [rules]);
 
+  useEffect(() => {
+    const closeOpenRowMenus = () => {
+      document.querySelectorAll<HTMLDetailsElement>(".mdc-row-menu[open]").forEach((menu) => {
+        menu.open = false;
+      });
+    };
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest(".mdc-row-menu")) return;
+      closeOpenRowMenus();
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeOpenRowMenus();
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, []);
+
   const rangeDays = RANGE_DAYS[rangeFilter];
 
   const { rangeScopedApps, previousRangeApps, applicationsTrendPoints } = useMemo(() => {
@@ -1700,11 +1700,23 @@ export function MdcScreen() {
                             <td>{shortDate(app.submittedAt)}</td>
                             <td>
                               <div className="mdc-actions">
-                                <button type="button" className="mdc-btn mdc-btn--xs" onClick={() => setDetailApp(app)}>
-                                  Ver
+                                <button
+                                  type="button"
+                                  className="mdc-btn mdc-btn--xs mdc-btn--icon"
+                                  onClick={() => setDetailApp(app)}
+                                  aria-label={`Ver detalle de ${app.appNo}`}
+                                  title="Ver detalle"
+                                >
+                                  <Eye size={14} aria-hidden />
                                 </button>
                                 <details className="mdc-row-menu">
-                                  <summary>Opciones</summary>
+                                  <summary
+                                    className="mdc-row-menu__summary-icon"
+                                    aria-label={`Opciones de ${app.appNo}`}
+                                    title="Opciones"
+                                  >
+                                    <Settings size={14} aria-hidden />
+                                  </summary>
                                   <div className="mdc-row-menu__items">
                                     <button
                                       type="button"
@@ -1892,7 +1904,15 @@ export function MdcScreen() {
             </section>
           )}
 
-          {activeTab === "payments" && <MdcPaymentsTab />}
+          {activeTab === "payments" && (
+            <MdcPaymentsTab
+              range={rangeFilter}
+              onRangeChange={(nextRange) => {
+                setRangeFilter(nextRange as RangePreset);
+                setPage(0);
+              }}
+            />
+          )}
           {activeTab === "collections" && <MdcCollectionsTab />}
           {activeTab === "configuration" && <MdcConfigurationTab />}
         </div>
