@@ -22,7 +22,7 @@ export const zelifyTopNavItems: ZelifyTopNavItem[] = [
   { id: "activities", labelKey: "nav.top.activities", href: "/activities" },
   { id: "branches", labelKey: "nav.top.branches", href: "/branches" },
   { id: "products", labelKey: "nav.top.products", href: "/products" },
-  { id: "reporting", labelKey: "nav.top.reporting", href: "/reports" },
+  { id: "reporting", labelKey: "nav.top.reporting", href: "/reporting" },
   { id: "accounting", labelKey: "nav.top.accounting", href: "/accounting" },
   { id: "administration", labelKey: "nav.top.administration", href: "/settings" },
   { id: "mdc", labelKey: "nav.top.mdc", href: "/mdc" },
