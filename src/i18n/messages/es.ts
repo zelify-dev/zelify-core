@@ -74,6 +74,7 @@ export const es: Messages = {
       reporting: "Informes",
       accounting: "Contabilidad",
       administration: "Administración",
+      mdc: "MDC",
     },
     admin: {
       generalSetup: "Configuración general",

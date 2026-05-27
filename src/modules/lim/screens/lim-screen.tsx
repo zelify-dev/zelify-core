@@ -21,6 +21,7 @@ import {
   LCC_MONTHLY_OUTFLOW_BASE_MXN,
   scaleToPortfolio,
 } from "@/modules/scotia/constants/lcc-demo.constants";
+import { readMdcLccSnapshot, type MdcLccSnapshot } from "@/modules/mdc/data/mdc-lcc-bridge";
 import { formatMxnCompact, formatMxnFull } from "@/modules/scotia/utils/format-mxn";
 import "@/components/ui/templates/workspace-page.css";
 import "./lim-screen.css";
@@ -45,14 +46,19 @@ type MonthRow = {
   balanceEnd: number;
 };
 
-function buildRows(scenario: ScenarioId, portfolioBalanceMxn: number): MonthRow[] {
+function buildRows(
+  scenario: ScenarioId,
+  portfolioBalanceMxn: number,
+  inflowBaseMxn: number,
+  outflowBaseMxn: number,
+): MonthRow[] {
   const annualGrowth =
     scenario === "optimista" ? 0.25 : scenario === "pesimista" ? -0.4 : 0.03;
   const growth = Math.pow(1 + annualGrowth, 1 / 12) - 1;
 
   const base = portfolioBalanceMxn > 0 ? portfolioBalanceMxn : LCC_LEGACY_BASE_CASH_MXN;
-  let inflow = scaleToPortfolio(LCC_MONTHLY_INFLOW_BASE_MXN, base);
-  let outflow = scaleToPortfolio(LCC_MONTHLY_OUTFLOW_BASE_MXN, base);
+  let inflow = inflowBaseMxn > 0 ? inflowBaseMxn : scaleToPortfolio(LCC_MONTHLY_INFLOW_BASE_MXN, base);
+  let outflow = outflowBaseMxn > 0 ? outflowBaseMxn : scaleToPortfolio(LCC_MONTHLY_OUTFLOW_BASE_MXN, base);
   let bal = base;
   const rows: MonthRow[] = [];
 
@@ -516,21 +522,62 @@ export function LimScreen() {
   const [viewMode, setViewMode] = useState<ViewMode>("mensual");
   const [activeMonth, setActiveMonth] = useState(0);
   const [expanded, setExpanded] = useState<Set<string>>(new Set(["inflow", "outflow"]));
+  const [mdcSnapshot, setMdcSnapshot] = useState<MdcLccSnapshot>(() => readMdcLccSnapshot());
+
+  useEffect(() => {
+    const refresh = () => setMdcSnapshot(readMdcLccSnapshot());
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    refresh();
+    window.addEventListener("storage", refresh);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, []);
 
   // Saldo cartera LIM · base del Cashflow y módulos legacy
-  const portfolioBalanceMxn = scotia.limStore.hydrated
+  const limPortfolioBalanceMxn = scotia.limStore.hydrated
     ? scotia.limStore.treasury.totalBalance
     : LCC_LEGACY_BASE_CASH_MXN;
+  const portfolioBalanceMxn =
+    !isScotiaTab && mdcSnapshot.portfolioBalanceMxn > 0 ? mdcSnapshot.portfolioBalanceMxn : limPortfolioBalanceMxn;
+  const baseMonthlyInflowMxn =
+    !isScotiaTab && mdcSnapshot.monthlyInflowBaseMxn > 0
+      ? mdcSnapshot.monthlyInflowBaseMxn
+      : scaleToPortfolio(LCC_MONTHLY_INFLOW_BASE_MXN, portfolioBalanceMxn);
+  const baseMonthlyOutflowMxn =
+    !isScotiaTab && mdcSnapshot.monthlyOutflowBaseMxn > 0
+      ? mdcSnapshot.monthlyOutflowBaseMxn
+      : scaleToPortfolio(LCC_MONTHLY_OUTFLOW_BASE_MXN, portfolioBalanceMxn);
 
   const liquidityReserveRatio =
     portfolioBalanceMxn > 0
-      ? scaleToPortfolio(LCC_LIQUIDITY_RESERVE_BASE_MXN, portfolioBalanceMxn) / portfolioBalanceMxn
+      ? Math.max(
+          !isScotiaTab && mdcSnapshot.liquidityReserveBaseMxn > 0
+            ? mdcSnapshot.liquidityReserveBaseMxn / portfolioBalanceMxn
+            : scaleToPortfolio(LCC_LIQUIDITY_RESERVE_BASE_MXN, portfolioBalanceMxn) / portfolioBalanceMxn,
+          0.05,
+        )
       : LCC_LIQUIDITY_RESERVE_BASE_MXN / LCC_LEGACY_BASE_CASH_MXN;
 
   // Los 3 escenarios siempre calculados para el chart multi-línea
-  const realRowsBase = useMemo(() => buildRows("real", portfolioBalanceMxn), [portfolioBalanceMxn]);
-  const optimistaRowsBase = useMemo(() => buildRows("optimista", portfolioBalanceMxn), [portfolioBalanceMxn]);
-  const pessimistaRowsBase = useMemo(() => buildRows("pesimista", portfolioBalanceMxn), [portfolioBalanceMxn]);
+  const realRowsBase = useMemo(
+    () => buildRows("real", portfolioBalanceMxn, baseMonthlyInflowMxn, baseMonthlyOutflowMxn),
+    [portfolioBalanceMxn, baseMonthlyInflowMxn, baseMonthlyOutflowMxn],
+  );
+  const optimistaRowsBase = useMemo(
+    () => buildRows("optimista", portfolioBalanceMxn, baseMonthlyInflowMxn, baseMonthlyOutflowMxn),
+    [portfolioBalanceMxn, baseMonthlyInflowMxn, baseMonthlyOutflowMxn],
+  );
+  const pessimistaRowsBase = useMemo(
+    () => buildRows("pesimista", portfolioBalanceMxn, baseMonthlyInflowMxn, baseMonthlyOutflowMxn),
+    [portfolioBalanceMxn, baseMonthlyInflowMxn, baseMonthlyOutflowMxn],
+  );
 
   const realRows = useMemo(() => aggregateRows(realRowsBase, viewMode), [realRowsBase, viewMode]);
   const optimistaRows = useMemo(() => aggregateRows(optimistaRowsBase, viewMode), [optimistaRowsBase, viewMode]);
@@ -614,8 +661,14 @@ export function LimScreen() {
     scaleToPortfolio(100_000, portfolioBalanceMxn),
   );
 
-  const expectedInflows30d = scaleToPortfolio(LCC_EXPECTED_30D_BASE.inflows, portfolioBalanceMxn);
-  const expectedOutflows30d = scaleToPortfolio(LCC_EXPECTED_30D_BASE.outflows, portfolioBalanceMxn);
+  const expectedInflows30d =
+    !isScotiaTab && mdcSnapshot.expectedInflows30dMxn > 0
+      ? mdcSnapshot.expectedInflows30dMxn
+      : scaleToPortfolio(LCC_EXPECTED_30D_BASE.inflows, portfolioBalanceMxn);
+  const expectedOutflows30d =
+    !isScotiaTab && mdcSnapshot.expectedOutflows30dMxn > 0
+      ? mdcSnapshot.expectedOutflows30dMxn
+      : scaleToPortfolio(LCC_EXPECTED_30D_BASE.outflows, portfolioBalanceMxn);
   const expectedNetGap30d = expectedInflows30d - expectedOutflows30d;
 
   const expectedFlowItems = useMemo(
@@ -896,7 +949,7 @@ export function LimScreen() {
               <div className="lim-cf-main">
                 <p className="lim-section-subhead lim-cf-cartera-note">
                   Todos los montos en pesos mexicanos (MXN). El saldo inicial del flujo coincide con la cartera de{" "}
-                  <strong>Depósitos · Tesorería</strong> ({formatMxnFull(portfolioBalanceMxn)}).
+                  <strong>{isScotiaTab ? "Depósitos · Tesorería" : "MDC · Productos"}</strong> ({formatMxnFull(portfolioBalanceMxn)}).
                 </p>
                 <div key={chartAnimKey} className="lim-chart-wrap lim-chart-wrap--scenario-swap">
                   <CashflowChart
@@ -1227,8 +1280,14 @@ export function LimScreen() {
               <div className="lim-dash-head">
                 <h2>Liquidity Control Center Dashboard</h2>
                 <p className="lim-section-subhead">
-                  KPIs en MXN · saldo cartera LIM {formatMxnCompact(portfolioBalanceMxn)}
+                  KPIs en MXN · {isScotiaTab ? "saldo cartera LIM" : "saldo cartera MDC"} {formatMxnCompact(portfolioBalanceMxn)}
                 </p>
+                {!isScotiaTab && (
+                  <p className="lim-section-subhead">
+                    Acople MDC activo · {mdcSnapshot.activeClients} clientes activos · {mdcSnapshot.fundedApplications} solicitudes fondeadas
+                    {mdcSnapshot.productNames.length > 0 ? ` · ${mdcSnapshot.productNames.join(" / ")}` : ""}
+                  </p>
+                )}
               </div>
 
               <div className="lim-dash-kpis">
