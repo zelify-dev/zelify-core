@@ -8,19 +8,16 @@ import type {
 export const CATEGORY_SHORT_LABELS: Record<CreditProductCategory, string> = {
   automotriz: "Automotriz",
   personal: "Personal / Línea",
-  plazo_fijo: "Plazo fijo",
 };
 
 export const CATEGORY_PRODUCT_ID: Record<CreditProductCategory, string> = {
   automotriz: "AUTO-EV-01",
   personal: "PERS-LIB-01",
-  plazo_fijo: "PLAZO-CORP-01",
 };
 
 export const CATEGORY_LABELS: Record<CreditProductCategory, string> = {
   automotriz: "Crédito Automotriz",
   personal: "Crédito Personal / Línea de Crédito",
-  plazo_fijo: "Crédito a Plazo Fijo",
 };
 
 export const CATEGORY_DESCRIPTIONS: Record<CreditProductCategory, string> = {
@@ -28,8 +25,6 @@ export const CATEGORY_DESCRIPTIONS: Record<CreditProductCategory, string> = {
     "Financiamiento para compra de vehículos nuevos o seminuevos, incluyendo autos eléctricos e híbridos.",
   personal:
     "Préstamos de libre uso para consumo, emergencias, viajes, consolidación de deudas o liquidez empresarial.",
-  plazo_fijo:
-    "Producto donde el cliente invierte a plazo fijo con tasa pactada. En corporativo puede vincularse a financiamiento estructurado.",
 };
 
 export const DEFAULT_PRODUCTS: CreditProductTemplate[] = [
@@ -75,28 +70,6 @@ export const DEFAULT_PRODUCTS: CreditProductTemplate[] = [
     fixedRateForTerm: true,
     openingFeePct: 2.0,
   },
-  {
-    id: "PLAZO-CORP-01",
-    category: "plazo_fijo",
-    name: "Plazo Fijo Corporativo",
-    description: CATEGORY_DESCRIPTIONS.plazo_fijo,
-    restrictions: [
-      "Monto mínimo $500,000 MXN",
-      "Plazo 90–360 días",
-      "KYB completo para persona moral",
-      "No retiro anticipado sin penalización",
-      "Tasa sujeta a liquidez de tesorería",
-    ],
-    baseRate: 11.5,
-    discountBandMin: 10.0,
-    discountBandMax: 11.5,
-    termMinMonths: 3,
-    termMaxMonths: 12,
-    amountMin: 500_000,
-    amountMax: 15_000_000,
-    fixedRateForTerm: true,
-    openingFeePct: 0.5,
-  },
 ];
 
 export const DEFAULT_RULES: Record<CreditProductCategory, ProductRule[]> = {
@@ -130,20 +103,6 @@ export const DEFAULT_RULES: Record<CreditProductCategory, ProductRule[]> = {
     { id: "r-pers-tdc", group: "pricing", label: "Descuento TDC", description: "−50 pbs tarjeta activa", enabled: true, bpsDiscount: 50 },
     { id: "r-pers-relacion", group: "pricing", label: "Cliente preferente", description: "−25 pbs relación > 2 años", enabled: true, bpsDiscount: 25 },
   ],
-  plazo_fijo: [
-    { id: "r-plazo-monto", group: "aprobacion", label: "Monto mínimo", description: "≥ $500,000 MXN", enabled: true, bpsDiscount: 0, blocksApproval: true },
-    { id: "r-plazo-kyb", group: "aprobacion", label: "KYB vigente", description: "Beneficiarios controladores verificados", enabled: true, bpsDiscount: 0, blocksApproval: true },
-    { id: "r-plazo-kyc", group: "aprobacion", label: "KYC / firmantes", description: "Representantes legales validados", enabled: true, bpsDiscount: 0, blocksApproval: true },
-    { id: "r-plazo-aml", group: "aprobacion", label: "Riesgo AML", description: "Perfil AML bajo o medio aprobado", enabled: true, bpsDiscount: 0, blocksApproval: true },
-    { id: "r-plazo-plazo", group: "validacion", label: "Plazo permitido", description: "90–360 días según producto", enabled: true, bpsDiscount: 0 },
-    { id: "r-plazo-retiro", group: "validacion", label: "Sin retiro anticipado", description: "Penalización por cancelación anticipada", enabled: true, bpsDiscount: 0 },
-    { id: "r-plazo-origen", group: "validacion", label: "Origen de fondos", description: "Documentación de procedencia", enabled: true, bpsDiscount: 0 },
-    { id: "r-plazo-firmantes", group: "validacion", label: "Facultades firmantes", description: "Poder notarial vigente", enabled: true, bpsDiscount: 0 },
-    { id: "r-plazo-tesoreria", group: "validacion", label: "Disponibilidad tesorería", description: "Liquidez confirmada por área de ALM", enabled: true, bpsDiscount: 0 },
-    { id: "r-plazo-relacion", group: "pricing", label: "Relación comercial", description: "−25 pbs cliente > 2 años", enabled: true, bpsDiscount: 25 },
-    { id: "r-plazo-volumen", group: "pricing", label: "Volumen preferente", description: "−25 pbs monto > $2M", enabled: true, bpsDiscount: 25 },
-    { id: "r-plazo-nomina", group: "pricing", label: "Concentración nómina", description: "−25 pbs dispersión corporativa", enabled: true, bpsDiscount: 25 },
-  ],
 };
 
 export const DEFAULT_CROSS_SELL: Record<CreditProductCategory, CrossSellOption[]> = {
@@ -158,11 +117,5 @@ export const DEFAULT_CROSS_SELL: Record<CreditProductCategory, CrossSellOption[]
     { id: "xs-tdc", label: "Tarjeta de crédito", bps: 50, description: "Línea revolvente complementaria" },
     { id: "xs-inversion", label: "Inversión patrimonial", bps: 50, description: "Fondo de inversión a plazo" },
     { id: "xs-nomina", label: "Domiciliación nómina", bps: 25, description: "Descuento por domiciliar nómina" },
-  ],
-  plazo_fijo: [
-    { id: "xs-reinversion", label: "Reinversión automática", bps: 25, description: "Renovación al vencimiento" },
-    { id: "xs-linea", label: "Línea revolvente", bps: 50, description: "Crédito complementario PM" },
-    { id: "xs-nomina-corp", label: "Concentración nómina", bps: 25, description: "Dispersión nómina corporativa" },
-    { id: "xs-tesoreria", label: "Servicio tesorería", bps: 25, description: "Cash management integrado" },
   ],
 };

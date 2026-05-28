@@ -17,7 +17,7 @@ export type Application = {
   submittedAt: string;
 };
 
-export const CREDIT_PRODUCTS = ["Credito automotriz", "Credito personal", "Credito a plazo fijo"] as const;
+export const CREDIT_PRODUCTS = ["Credito automotriz", "Credito personal"] as const;
 
 type MdcClientPoolItem = {
   id: string;
@@ -30,8 +30,7 @@ type MdcClientPoolItem = {
 
 function mapProductIdToMdcProduct(productId: string): (typeof CREDIT_PRODUCTS)[number] {
   if (productId.startsWith("AUTO")) return "Credito automotriz";
-  if (productId.startsWith("PERS")) return "Credito personal";
-  return "Credito a plazo fijo";
+  return "Credito personal";
 }
 
 export const LCC_MDC_CLIENTS: MdcClientPoolItem[] = SCOTIA_CREDIT_SEED.clients.map((client) => ({
@@ -43,7 +42,6 @@ export const LCC_MDC_CLIENTS: MdcClientPoolItem[] = SCOTIA_CREDIT_SEED.clients.m
   product: mapProductIdToMdcProduct(client.productId),
 }));
 
-export const LCC_FIXED_TERM_CLIENTS = LCC_MDC_CLIENTS.filter((client) => client.product === "Credito a plazo fijo");
 export const LCC_AUTO_CLIENTS = LCC_MDC_CLIENTS.filter((client) => client.product === "Credito automotriz");
 export const LCC_PERSONAL_CLIENTS = LCC_MDC_CLIENTS.filter((client) => client.product === "Credito personal");
 
@@ -109,8 +107,8 @@ export const recentApplicationsSeed: Application[] = [
     appNo: "APP-001282",
     applicantName: "Inversiones del Norte SA",
     applicantEmail: "tesoreria@inversionesnorte.mx",
-    product: "Credito a plazo fijo",
-    requestedAmount: 1200000,
+    product: "Credito personal",
+    requestedAmount: 580000,
     currency: "MXN",
     status: "pending",
     risk: "medium",
@@ -174,8 +172,8 @@ export const recentApplicationsSeed: Application[] = [
     appNo: "APP-001277",
     applicantName: "Grupo Delta Industrial SA",
     applicantEmail: "finanzas@grupodelta.mx",
-    product: "Credito a plazo fijo",
-    requestedAmount: 1500000,
+    product: "Credito personal",
+    requestedAmount: 760000,
     currency: "MXN",
     status: "pending",
     risk: "high",
@@ -191,7 +189,6 @@ export const applicationsListMock: Application[] = (() => {
   const clientPoolByProduct: Record<(typeof CREDIT_PRODUCTS)[number], MdcClientPoolItem[]> = {
     "Credito automotriz": LCC_AUTO_CLIENTS.length > 0 ? LCC_AUTO_CLIENTS : LCC_MDC_CLIENTS,
     "Credito personal": LCC_PERSONAL_CLIENTS.length > 0 ? LCC_PERSONAL_CLIENTS : LCC_MDC_CLIENTS,
-    "Credito a plazo fijo": LCC_FIXED_TERM_CLIENTS.length > 0 ? LCC_FIXED_TERM_CLIENTS : LCC_MDC_CLIENTS,
   };
 
   for (let i = 0; i < 28; i++) {
@@ -205,9 +202,7 @@ export const applicationsListMock: Application[] = (() => {
     const requestedAmount =
       product === "Credito personal"
         ? Math.min(800_000, Math.max(25_000, sourceClient.amount + ((hashSeed(id + "adj") % 220_000) - 110_000)))
-        : product === "Credito a plazo fijo"
-          ? Math.min(1_500_000, Math.max(150_000, sourceClient.amount + ((hashSeed(id + "adj") % 280_000) - 140_000)))
-          : Math.min(2_500_000, Math.max(100_000, sourceClient.amount + ((hashSeed(id + "adj") % 360_000) - 180_000)));
+        : Math.min(2_500_000, Math.max(100_000, sourceClient.amount + ((hashSeed(id + "adj") % 360_000) - 180_000)));
     const riskScore = Math.max(15, Math.min(89, Math.round(100 - sourceClient.creditScore / 10) + ((hashSeed(id + "risk") % 9) - 4)));
     const risk: RiskLevel = riskFromRiskIndex(riskScore);
 

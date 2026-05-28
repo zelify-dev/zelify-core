@@ -1,4 +1,4 @@
-export type CreditProductCategory = "automotriz" | "personal" | "plazo_fijo";
+export type CreditProductCategory = "automotriz" | "personal";
 
 export interface CreditProductTemplate {
   id: string;

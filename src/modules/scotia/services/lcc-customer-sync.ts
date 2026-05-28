@@ -74,12 +74,7 @@ export function customerToCreditClient(
 ): CreditClientProfile {
   const slot = LCC_DEFAULT_CREDIT_ROTATION[slotIndex % LCC_DEFAULT_CREDIT_ROTATION.length]!;
   const entityType = slot.preferEntityType === "PM" && inferEntityType(customer) === "PM" ? "PM" : "PF";
-  const amount =
-    slot.productId === "PLAZO-CORP-01" && entityType === "PM"
-      ? Math.max(slot.amount, 2_500_000)
-      : slot.productId === "PLAZO-CORP-01"
-        ? 800_000
-        : slot.amount;
+  const amount = slot.amount;
 
   const kycVerified = customer.kycStatus === "VERIFIED" || customer.kycStatus === undefined;
   const amlApproved = customer.amlStatus === "CLEAR" || customer.amlStatus === undefined;
@@ -98,7 +93,7 @@ export function customerToCreditClient(
       nomina: kycVerified,
       tdc: kycVerified,
       seguroAuto: slot.productId === "AUTO-EV-01",
-      inversionPatrimonial: slot.productId === "PLAZO-CORP-01",
+      inversionPatrimonial: false,
       cuentaAhorro: true,
     },
     kyc: {

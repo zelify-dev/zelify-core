@@ -1213,6 +1213,36 @@
   font-weight: 600;
 }
 
+.lim-pricing-input--wide {
+  width: 110px;
+}
+
+.lim-tier-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lim-tier-max-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.lim-tier-max-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.lim-tier-max-toggle input {
+  margin: 0;
+}
+
 .lim-pricing-actions {
   display: flex;
   flex-wrap: wrap;

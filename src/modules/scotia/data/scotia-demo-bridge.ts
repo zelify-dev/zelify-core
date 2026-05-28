@@ -2,12 +2,12 @@ import type { CreditClientProfile } from "@/modules/cortex/types/credit-pricing.
 import { recalculateAllClientRates } from "@/modules/lim/services/deposit-pricing.engine";
 import type { DemoClient, LimDemoState } from "@/modules/lim/types/deposit-pricing.types";
 
-/** Tres casos corporativos de pricing (tour B2–B5); vinculados a clientes CORTEX. */
+/** Tres casos corporativos de pricing (tour B2–B5); uno vinculado a cartera CORTEX. */
 export const FEATURED_DEPOSIT_CASE_IDS = ["PM-DEMO-002", "PM-DEMO-003", "PM-DEMO-004"] as const;
 
-const FEATURED_CREDIT_LINKS: Record<(typeof FEATURED_DEPOSIT_CASE_IDS)[number], string> = {
-  "PM-DEMO-002": "CL-PLAZO-003",
-  "PM-DEMO-003": "CL-PLAZO-001",
+const FEATURED_CREDIT_LINKS: Record<(typeof FEATURED_DEPOSIT_CASE_IDS)[number], string | undefined> = {
+  "PM-DEMO-002": undefined,
+  "PM-DEMO-003": undefined,
   "PM-DEMO-004": "CL-PERS-002",
 };
 
@@ -51,7 +51,6 @@ export const FEATURED_CORPORATE_CLIENTS: DemoClient[] = [
 function segmentFromProductId(productId: string): string {
   if (productId.startsWith("AUTO")) return "Automotriz";
   if (productId.startsWith("PERS")) return "Personal";
-  if (productId.startsWith("PLAZO")) return "Plazo fijo";
   if (productId.startsWith("LINEA")) return "Línea revolvente";
   return "Crédito";
 }

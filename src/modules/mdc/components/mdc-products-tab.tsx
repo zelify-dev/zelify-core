@@ -12,7 +12,7 @@ type ModalState = { mode: ModalMode; product: MdcProduct } | null;
 function normalizeProductName(name: string) {
   if (name === "BNPL") return "Credito personal";
   if (name === "Prestamo personal") return "Credito automotriz";
-  if (name.toLowerCase().includes("plazo fijo")) return "Credito a plazo fijo";
+  if (name.toLowerCase().includes("plazo fijo")) return "Credito personal";
   return name;
 }
 
@@ -53,23 +53,6 @@ function normalizeProductFinancials(product: MdcProduct): MdcProduct {
     };
   }
 
-  if (name === "Credito a plazo fijo") {
-    return {
-      ...product,
-      name,
-      metrics: {
-        activeClients: product.metrics.activeClients < 4 ? 6 : product.metrics.activeClients,
-        totalPortfolio: product.metrics.totalPortfolio < 900_000 ? 1_500_000 : product.metrics.totalPortfolio,
-      },
-      configuration: {
-        ...product.configuration,
-        interestRate: product.configuration.interestRate.max <= 8 ? { min: 11, max: 14 } : product.configuration.interestRate,
-        amount: product.configuration.amount.max <= 300_000 ? { min: 150_000, max: 1_500_000 } : product.configuration.amount,
-        term: product.configuration.term.max <= 12 ? { min: 12, max: 36, frequency: "mensual" } : product.configuration.term,
-      },
-    };
-  }
-
   return { ...product, name };
 }
 
@@ -78,7 +61,10 @@ function readStoredProducts() {
   try {
     const raw = window.localStorage.getItem(PRODUCTS_STORAGE_KEY);
     if (!raw) return MDC_PRODUCTS;
-    const stored = (JSON.parse(raw) as MdcProduct[]).map(normalizeProductFinancials);
+    const parsed = JSON.parse(raw) as MdcProduct[];
+    const stored = parsed
+      .filter((product) => !product.name.toLowerCase().includes("plazo fijo"))
+      .map(normalizeProductFinancials);
     const knownNames = new Set(stored.map((product) => normalizeProductName(product.name)));
     const missingDefaults = MDC_PRODUCTS
       .filter((defaultProduct) => !knownNames.has(normalizeProductName(defaultProduct.name)))

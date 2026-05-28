@@ -7,7 +7,6 @@ import {
   applicationsListMock,
   LCC_AUTO_CLIENTS,
   CREDIT_PRODUCTS,
-  LCC_FIXED_TERM_CLIENTS,
   LCC_PERSONAL_CLIENTS,
   RISK_LABELS,
   STATUS_LABELS,
@@ -41,7 +40,6 @@ type RangePreset = "7d" | "30d" | "90d";
 const APP_STORAGE_KEY = "mdc:applications";
 const RULES_STORAGE_KEY = "mdc:rules";
 const PAGE_SIZE = 10;
-const FIXED_TERM_PRODUCT = "Credito a plazo fijo";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const RANGE_DAYS: Record<RangePreset, number> = {
   "7d": 7,
@@ -272,10 +270,6 @@ function nextAppNo(rows: Application[]) {
   return `APP-${String(maxNumber + 1).padStart(6, "0")}`;
 }
 
-function nextAppNoFrom(maxNumber: number) {
-  return `APP-${String(maxNumber + 1).padStart(6, "0")}`;
-}
-
 function defaultRuleForm(): RuleFormState {
   return {
     name: "",
@@ -311,7 +305,7 @@ function ruleFieldLabel(field: string) {
 function normalizeProductName(name: string) {
   if (name === "BNPL") return "Credito personal";
   if (name === "Prestamo personal") return "Credito automotriz";
-  if (name.toLowerCase().includes("plazo fijo")) return "Credito a plazo fijo";
+  if (name.toLowerCase().includes("plazo fijo")) return "Credito personal";
   return name;
 }
 
@@ -319,15 +313,13 @@ function normalizeApplicantEmail(email: string) {
   return email.replace(/@example\.com$/i, "@gmail.com");
 }
 
-function bindFixedTermApplicant(app: Pick<Application, "id" | "appNo" | "product" | "applicantName" | "applicantEmail">) {
+function bindApplicantFromPool(app: Pick<Application, "id" | "appNo" | "product" | "applicantName" | "applicantEmail">) {
   const pool =
     app.product === "Credito automotriz"
       ? LCC_AUTO_CLIENTS
       : app.product === "Credito personal"
         ? LCC_PERSONAL_CLIENTS
-        : app.product === FIXED_TERM_PRODUCT
-          ? LCC_FIXED_TERM_CLIENTS
-          : [];
+        : [];
 
   if (pool.length === 0) {
     return { applicantName: app.applicantName, applicantEmail: app.applicantEmail };
@@ -356,57 +348,10 @@ function bindFixedTermApplicant(app: Pick<Application, "id" | "appNo" | "product
   return { applicantName: selected.name, applicantEmail: selected.email };
 }
 
-function ensureFixedTermApplications(apps: Application[]) {
-  if (LCC_FIXED_TERM_CLIENTS.length === 0) return apps;
-
-  const merged = [...apps];
-  const fixedTermRows = merged.filter((row) => row.product === FIXED_TERM_PRODUCT);
-  const emailSet = new Set(fixedTermRows.map((row) => row.applicantEmail.toLowerCase()));
-  const nameSet = new Set(fixedTermRows.map((row) => row.applicantName.toLowerCase()));
-
-  let maxNumber = merged.reduce((max, row) => {
-    const match = row.appNo.match(/APP-(\d+)/);
-    return match ? Math.max(max, Number(match[1])) : max;
-  }, 1284);
-
-  LCC_FIXED_TERM_CLIENTS.forEach((client, index) => {
-    const hasByEmail = emailSet.has(client.email.toLowerCase());
-    const hasByName = nameSet.has(client.name.toLowerCase());
-    if (hasByEmail || hasByName) return;
-
-    const riskScore = Math.max(22, Math.min(88, Math.round(100 - client.creditScore / 10)));
-    const status = statusFromScore(riskScore);
-    maxNumber += 1;
-    const submittedAt = new Date(Date.UTC(2026, 4, 7 - index, 10 + index, 14, 0)).toISOString();
-
-    merged.unshift({
-      id: `lcc-plazo-${client.id.toLowerCase()}`,
-      appNo: nextAppNoFrom(maxNumber),
-      applicantName: client.name,
-      applicantEmail: client.email,
-      product: FIXED_TERM_PRODUCT,
-      requestedAmount: normalizeRequestedAmount(FIXED_TERM_PRODUCT, client.amount),
-      currency: "MXN",
-      status,
-      risk: riskFromScore(riskScore),
-      riskScore,
-      submittedAt,
-    });
-    emailSet.add(client.email.toLowerCase());
-    nameSet.add(client.name.toLowerCase());
-  });
-
-  return merged;
-}
-
 function normalizeRequestedAmount(product: string, requestedAmount: number) {
   if (product === "Credito personal") {
     if (requestedAmount < 25_000) return 25_000 + Math.round(requestedAmount * 60);
     return Math.min(Math.max(requestedAmount, 25_000), 800_000);
-  }
-  if (product === "Credito a plazo fijo") {
-    if (requestedAmount < 150_000) return 150_000 + Math.round(requestedAmount * 8);
-    return Math.min(Math.max(requestedAmount, 150_000), 1_500_000);
   }
   if (product === "Credito automotriz") {
     if (requestedAmount < 100_000) return 100_000 + Math.round(requestedAmount * 14);
@@ -613,15 +558,14 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
   const [overrideChoice, setOverrideChoice] = useState<ApplicationStatus>("manualReview");
   const [overrideReason, setOverrideReason] = useState("");
   const isAutomotriz = app.product === "Credito automotriz";
-  const isPlazoFijo = app.product === "Credito a plazo fijo";
-  const interestRate = isAutomotriz ? 13.8 : isPlazoFijo ? 12.4 : 21.2;
-  const termMonths = isAutomotriz ? 48 : isPlazoFijo ? 36 : 24;
+  const interestRate = isAutomotriz ? 13.8 : 21.2;
+  const termMonths = isAutomotriz ? 48 : 24;
   const downPayment = isAutomotriz ? Math.round(app.requestedAmount * 0.15) : 0;
   const financedAmount = Math.max(app.requestedAmount - downPayment, 0);
   const totalWithInterest = financedAmount * (1 + (interestRate / 100) * (termMonths / 12));
   const monthlyEstimate = Math.round(totalWithInterest / Math.max(termMonths, 1));
   const fraudScore = Math.min(96, Math.max(10, Math.round(app.riskScore * 0.72 + (quickHash(app.id) % 17))));
-  const dti = Math.min(0.62, Math.max(0.19, app.requestedAmount / (isAutomotriz ? 8_500_000 : isPlazoFijo ? 4_400_000 : 2_100_000)));
+  const dti = Math.min(0.62, Math.max(0.19, app.requestedAmount / (isAutomotriz ? 8_500_000 : 2_100_000)));
   const kycIdentity = app.riskScore < 70 ? "Aprobada" : "Revision";
   const kycAddress = app.riskScore < 65 ? "Aprobada" : "Revision";
   const kycWatchlist = app.riskScore < 78 ? "Sin alertas" : "Coincidencia";
@@ -660,11 +604,11 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
   const bureauBaseMin = Number(bureauRule?.value ?? 620) || 620;
   const maxDaysPastDueAllowed = Number(delinquencyRule?.value ?? 29) || 29;
   const historyMinMonths = Number(historyRule?.value ?? 12) || 12;
-  const bureauMinByProduct = isAutomotriz ? 680 : isPlazoFijo ? 650 : 620;
+  const bureauMinByProduct = isAutomotriz ? 680 : 620;
   const bureauMin = Math.max(bureauBaseMin, bureauMinByProduct);
   const estimatedIncomeMonthly = Math.max(
     6000,
-    Math.round(isPlazoFijo ? app.requestedAmount / 85 : isAutomotriz ? app.requestedAmount / 70 : app.requestedAmount / 28),
+    Math.round(isAutomotriz ? app.requestedAmount / 70 : app.requestedAmount / 28),
   );
   const estimatedAge = 20 + (quickHash(`${app.id}-age`) % 28);
   const bureauScoreEstimated = bureauScoreFromRiskIndex(app.riskScore);
@@ -1220,21 +1164,19 @@ function RuleModal({
 export function MdcScreen() {
   const [activeTab, setActiveTab] = useState<MdcTab>("overview");
   const [apps, setApps] = useState<Application[]>(() =>
-    ensureFixedTermApplications(
-      readStoredJson<Application[]>(APP_STORAGE_KEY, applicationsListMock).map((app) => ({
-        ...app,
+    readStoredJson<Application[]>(APP_STORAGE_KEY, applicationsListMock).map((app) => ({
+      ...app,
+      product: normalizeProductName(app.product),
+      risk: riskFromScore(app.riskScore),
+      ...bindApplicantFromPool({
+        id: app.id,
+        appNo: app.appNo,
         product: normalizeProductName(app.product),
-        risk: riskFromScore(app.riskScore),
-        ...bindFixedTermApplicant({
-          id: app.id,
-          appNo: app.appNo,
-          product: normalizeProductName(app.product),
-          applicantName: app.applicantName,
-          applicantEmail: normalizeApplicantEmail(app.applicantEmail),
-        }),
-        requestedAmount: normalizeRequestedAmount(normalizeProductName(app.product), app.requestedAmount),
-      })),
-    ),
+        applicantName: app.applicantName,
+        applicantEmail: normalizeApplicantEmail(app.applicantEmail),
+      }),
+      requestedAmount: normalizeRequestedAmount(normalizeProductName(app.product), app.requestedAmount),
+    })),
   );
   const [rules, setRules] = useState<CreditRuleRow[]>(() =>
     mergeRulesWithDefaults(readStoredJson<CreditRuleRow[]>(RULES_STORAGE_KEY, creditRulesMock)),
@@ -1925,13 +1867,11 @@ export function MdcScreen() {
           const riskScore =
             product === "Credito personal"
               ? Math.min(68, 24 + Math.round(amount / 400))
-              : product === "Credito a plazo fijo"
-                ? Math.min(78, 28 + Math.round(amount / 2_000))
-                : Math.min(86, 32 + Math.round(amount / 4_000));
+              : Math.min(86, 32 + Math.round(amount / 4_000));
           const name = `${firstName} ${lastName}`.trim() || email;
           const appNo = nextAppNo(apps);
           const appId = `local-${Date.now()}`;
-          const fixedTermBinding = bindFixedTermApplicant({
+          const applicantBinding = bindApplicantFromPool({
             id: appId,
             appNo,
             product,
@@ -1941,8 +1881,8 @@ export function MdcScreen() {
           const next: Application = {
             id: appId,
             appNo,
-            applicantName: fixedTermBinding.applicantName,
-            applicantEmail: fixedTermBinding.applicantEmail,
+            applicantName: applicantBinding.applicantName,
+            applicantEmail: applicantBinding.applicantEmail,
             product,
             requestedAmount: normalizeRequestedAmount(product, amount),
             currency: "MXN",

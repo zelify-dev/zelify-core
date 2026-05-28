@@ -16,11 +16,4 @@ export const LCC_DEFAULT_CREDIT_ROTATION = [
     termMonths: 36,
     preferEntityType: "PF" as const,
   },
-  {
-    productId: "PLAZO-CORP-01",
-    label: "Plazo fijo",
-    amount: 1_200_000,
-    termMonths: 12,
-    preferEntityType: "PM" as const,
-  },
 ] as const;

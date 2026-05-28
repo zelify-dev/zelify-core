@@ -100,7 +100,6 @@ export function LimTreasuryDepositsPanel({
 
       <div className="scotia-summary-row scotia-summary-row--4">
         <div><span>Saldo total</span><strong>{formatMxn(treasury.totalBalance)}</strong></div>
-        <div><span>NII anual</span><strong className="lim-val-up">{formatMxn(treasury.projectedNii)}</strong></div>
         <div><span>Clientes</span><strong>{state.clients.length}</strong></div>
         <div><span>Tasa prom. cartera</span><strong>{formatPct(avgRate)}</strong></div>
       </div>

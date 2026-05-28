@@ -150,7 +150,7 @@ function writeStored<T>(key: string, value: T) {
 function normalizeProductName(name: string) {
   if (name === "BNPL") return "Credito personal";
   if (name === "Prestamo personal") return "Credito automotriz";
-  if (name.toLowerCase().includes("plazo fijo")) return "Credito a plazo fijo";
+  if (name.toLowerCase().includes("plazo fijo")) return "Credito personal";
   return name;
 }
 

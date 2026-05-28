@@ -328,8 +328,7 @@ export default function CustomerDetailPage({ params }: CustomerDetailPageProps) 
                     <div className="zelify-customer-detail-list__item">
                       <span className="zelify-customer-detail-list__dot" aria-hidden />
                       <span>
-                        Precargando información de verificación para Nariat Osbaldo.
-                        {` Disponible en ${nariatRemainingSeconds}s.`}
+                        Esperando la información de verificación para Nariat Osbaldo.
                       </span>
                     </div>
                   </section>

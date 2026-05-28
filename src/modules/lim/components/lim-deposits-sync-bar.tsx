@@ -40,7 +40,6 @@ export function LimDepositsSyncBar({
       <div className="lim-deposits-sync__metrics">
         <div><span>TIIE 28d</span><strong>{formatPct(state.tiie.rate)}</strong></div>
         <div><span>Saldo cartera</span><strong>{formatMxn(treasury.totalBalance)}</strong></div>
-        <div><span>NII anual</span><strong>{formatMxn(treasury.projectedNii)}</strong></div>
         <div><span>Último recálculo</span><strong>{lastLabel}</strong></div>
       </div>
       <div className="lim-deposits-sync__nav">

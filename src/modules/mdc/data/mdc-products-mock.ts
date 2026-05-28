@@ -50,22 +50,6 @@ export const MDC_PRODUCTS: MdcProduct[] = [
       term: { min: 6, max: 48, frequency: "mensual" },
     },
   },
-  {
-    id: "product_003",
-    name: "Credito a plazo fijo",
-    description: "Financiamiento estructurado con plazo y tasa fija para capital de trabajo.",
-    status: "ACTIVO",
-    metrics: {
-      activeClients: 6,
-      totalPortfolio: 1_500_000,
-    },
-    configuration: {
-      interestRate: { min: 11, max: 14 },
-      amount: { min: 150_000, max: 1_500_000 },
-      residualAmount: 0,
-      term: { min: 12, max: 36, frequency: "mensual" },
-    },
-  },
 ];
 
 export function formatMdcNumber(value: number) {

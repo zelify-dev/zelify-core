@@ -18,7 +18,7 @@ function readStored<T>(key: string, fallback: T): T {
 function normalizeProductName(name: string) {
   if (name === "BNPL") return "Credito personal";
   if (name === "Prestamo personal") return "Credito automotriz";
-  if (name.toLowerCase().includes("plazo fijo")) return "Credito a plazo fijo";
+  if (name.toLowerCase().includes("plazo fijo")) return "Credito personal";
   return name;
 }
 
@@ -26,10 +26,6 @@ function normalizeRequestedAmount(product: string, requestedAmount: number) {
   if (product === "Credito personal") {
     if (requestedAmount < 25_000) return 25_000 + Math.round(requestedAmount * 60);
     return Math.min(Math.max(requestedAmount, 25_000), 800_000);
-  }
-  if (product === "Credito a plazo fijo") {
-    if (requestedAmount < 150_000) return 150_000 + Math.round(requestedAmount * 8);
-    return Math.min(Math.max(requestedAmount, 150_000), 1_500_000);
   }
   if (product === "Credito automotriz") {
     if (requestedAmount < 100_000) return 100_000 + Math.round(requestedAmount * 14);
@@ -50,40 +46,32 @@ function normalizeApps(apps: Application[]) {
 }
 
 function normalizeProducts(products: MdcProduct[]) {
-  return products.map((product) => {
-    const name = normalizeProductName(product.name);
-    if (name === "Credito automotriz") {
-      return {
-        ...product,
-        name,
-        metrics: {
-          activeClients: product.metrics.activeClients < 8 ? 10 : product.metrics.activeClients,
-          totalPortfolio: product.metrics.totalPortfolio < 1_000_000 ? 5_460_000 : product.metrics.totalPortfolio,
-        },
-      };
-    }
-    if (name === "Credito personal") {
-      return {
-        ...product,
-        name,
-        metrics: {
-          activeClients: product.metrics.activeClients < 6 ? 8 : product.metrics.activeClients,
-          totalPortfolio: product.metrics.totalPortfolio < 500_000 ? 1_880_000 : product.metrics.totalPortfolio,
-        },
-      };
-    }
-    if (name === "Credito a plazo fijo") {
-      return {
-        ...product,
-        name,
-        metrics: {
-          activeClients: product.metrics.activeClients < 4 ? 6 : product.metrics.activeClients,
-          totalPortfolio: product.metrics.totalPortfolio < 900_000 ? 1_500_000 : product.metrics.totalPortfolio,
-        },
-      };
-    }
-    return { ...product, name };
-  });
+  return products
+    .filter((product) => !product.name.toLowerCase().includes("plazo fijo"))
+    .map((product) => {
+      const name = normalizeProductName(product.name);
+      if (name === "Credito automotriz") {
+        return {
+          ...product,
+          name,
+          metrics: {
+            activeClients: product.metrics.activeClients < 8 ? 10 : product.metrics.activeClients,
+            totalPortfolio: product.metrics.totalPortfolio < 1_000_000 ? 5_460_000 : product.metrics.totalPortfolio,
+          },
+        };
+      }
+      if (name === "Credito personal") {
+        return {
+          ...product,
+          name,
+          metrics: {
+            activeClients: product.metrics.activeClients < 6 ? 8 : product.metrics.activeClients,
+            totalPortfolio: product.metrics.totalPortfolio < 500_000 ? 1_880_000 : product.metrics.totalPortfolio,
+          },
+        };
+      }
+      return { ...product, name };
+    });
 }
 
 export type MdcLccSnapshot = {
