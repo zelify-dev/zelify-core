@@ -1016,7 +1016,7 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
                 </select>
               </label>
               <label className="mdc-detail-field">
-                <span>Razon (auditoria)</span>
+                <span>Razon</span>
                 <textarea
                   rows={3}
                   value={overrideReason}
