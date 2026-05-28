@@ -914,7 +914,7 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
                 <table className="mdc-table mdc-table--detail">
                   <thead>
                     <tr>
-                      <th>Documento</th>
+                      <th>No. Documento</th>
                       <th>Archivo</th>
                       <th>Auto</th>
                       <th>Manual</th>

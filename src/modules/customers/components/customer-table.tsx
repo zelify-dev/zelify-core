@@ -7,8 +7,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SettingsDataTable } from "@/components/ui/organisms/settings-data-table/settings-data-table";
 import { AppAvatar } from "@/components/ui/atoms/avatar/app-avatar";
-import { AppBadge } from "@/components/ui/atoms/badge/app-badge";
-import { Customer, ClientState, KycStatus, AmlStatus } from "../types/customer.types";
+import { Customer, KycStatus, AmlStatus } from "../types/customer.types";
 import { useI18n } from "@/providers/i18n-provider";
 
 interface CustomerTableProps {
@@ -30,8 +29,6 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({ customers, onEdit,
             <th>Tipo doc.</th>
             <th>Documento</th>
             <th>Fecha nacimiento</th>
-            <th>{t("customers.list.columns.clientState")}</th>
-            <th>Motivo estado</th>
             <th>KYC</th>
             <th>AML</th>
             <th>Última actualización</th>
@@ -56,12 +53,6 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({ customers, onEdit,
               <td>{documentTypeLabel(customer.documentType)}</td>
               <td>{customer.documentNumber || "—"}</td>
               <td>{customer.birthDate || "—"}</td>
-              <td>
-                <AppBadge tone={clientStateToTone(customer.state)} size="sm">
-                  {clientStateLabel(customer.state, t)}
-                </AppBadge>
-              </td>
-              <td>{customer.statusReason || "—"}</td>
               <td>{kycLabel(customer.kycStatus)}</td>
               <td>{amlLabel(customer.amlStatus)}</td>
               <td>{customer.lastModified}</td>
@@ -112,38 +103,6 @@ function initialsFromName(fullName: string): string {
   if (parts.length === 0) return "?";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-
-type TFn = (key: string) => string;
-
-function clientStateLabel(state: ClientState, t: TFn): string {
-  switch (state) {
-    case ClientState.ACTIVE:
-      return t("customers.list.clientStates.active");
-    case ClientState.INACTIVE:
-      return t("customers.list.clientStates.inactive");
-    case ClientState.BLACKLISTED:
-      return t("customers.list.clientStates.blacklisted");
-    case ClientState.PENDING:
-      return t("customers.list.clientStates.pending");
-    default:
-      return state;
-  }
-}
-
-function clientStateToTone(state: ClientState): "success" | "error" | "warning" | "neutral" {
-  switch (state) {
-    case ClientState.ACTIVE:
-      return "success";
-    case ClientState.INACTIVE:
-      return "warning";
-    case ClientState.BLACKLISTED:
-      return "error";
-    case ClientState.PENDING:
-      return "neutral";
-    default:
-      return "neutral";
-  }
 }
 
 function kycLabel(status?: KycStatus): string {

@@ -54,6 +54,32 @@ const selectStyle: CSSProperties = {
   background: "#fff",
 };
 
+const NARIAT_OSBALDO_MATCH = "NARIAT OSBALDO";
+const NARIAT_OSBALDO_PRESET = {
+  documentType: "INE" as const,
+  documentNumber: "BNLNNR98081812H600",
+  birthDate: "1998-08-18",
+  address: "AV UNIVERSIDAD 2032 A 406\nCOL RODEO DE TEPEREROS 04310\nCOYOACAN, CDMX",
+};
+
+function normalizeNameForMatch(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
+}
+
+function shouldApplyNariatPreset(fullName: string): boolean {
+  return normalizeNameForMatch(fullName) === NARIAT_OSBALDO_MATCH;
+}
+
+function withNariatPreset(form: FormState): FormState {
+  if (!shouldApplyNariatPreset(form.fullName)) return form;
+  return { ...form, ...NARIAT_OSBALDO_PRESET };
+}
+
 export function CreateClientModal({
   open,
   onOpenChange,
@@ -93,27 +119,52 @@ export function CreateClientModal({
   }, [form.birthDate, form.documentNumber, form.fullName]);
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [key]: value };
+      if (!isEdit && key === "fullName") {
+        if (shouldApplyNariatPreset(next.fullName)) {
+          return withNariatPreset(next);
+        }
+        if (shouldApplyNariatPreset(prev.fullName)) {
+          const hadPresetValues =
+            prev.documentType === NARIAT_OSBALDO_PRESET.documentType &&
+            prev.documentNumber === NARIAT_OSBALDO_PRESET.documentNumber &&
+            prev.birthDate === NARIAT_OSBALDO_PRESET.birthDate &&
+            prev.address === NARIAT_OSBALDO_PRESET.address;
+          if (hadPresetValues) {
+            return {
+              ...next,
+              documentType: INITIAL_FORM.documentType,
+              documentNumber: INITIAL_FORM.documentNumber,
+              birthDate: INITIAL_FORM.birthDate,
+              address: INITIAL_FORM.address,
+            };
+          }
+        }
+      }
+      return next;
+    });
   };
 
   const handleSave = () => {
     if (!canSubmit) return;
+    const source = !isEdit ? withNariatPreset(form) : form;
     onSave({
-      id: form.id?.trim() || `CU-${Math.floor(100000 + Math.random() * 900000)}`,
-      fullName: form.fullName.trim(),
-      email: form.email.trim(),
-      mobilePhone: form.mobilePhone.trim(),
-      documentType: form.documentType,
-      documentNumber: form.documentNumber.trim(),
-      state: form.state,
-      statusReason: form.statusReason.trim() || undefined,
-      statusChangedAt: form.statusChangedAt || undefined,
-      address: form.address.trim() || undefined,
-      birthDate: form.birthDate,
+      id: source.id?.trim() || `CU-${Math.floor(100000 + Math.random() * 900000)}`,
+      fullName: source.fullName.trim(),
+      email: source.email.trim(),
+      mobilePhone: source.mobilePhone.trim(),
+      documentType: source.documentType,
+      documentNumber: source.documentNumber.trim(),
+      state: source.state,
+      statusReason: source.statusReason.trim() || undefined,
+      statusChangedAt: source.statusChangedAt || undefined,
+      address: source.address.trim() || undefined,
+      birthDate: source.birthDate,
       createdAt: new Date().toISOString(),
-      kycStatus: form.kycStatus || undefined,
-      kycVerifiedAt: form.kycVerifiedAt || undefined,
-      amlStatus: form.amlStatus || undefined,
+      kycStatus: source.kycStatus || undefined,
+      kycVerifiedAt: source.kycVerifiedAt || undefined,
+      amlStatus: source.amlStatus || undefined,
       lastModified: new Date().toISOString().slice(0, 10),
     });
     onOpenChange(false);
@@ -125,7 +176,7 @@ export function CreateClientModal({
         <Dialog.Overlay backgroundColor="#020617" opacity={0.55} />
         <Dialog.Content width={760} maxWidth="94vw" maxHeight="88vh" overflow="auto" gap="$4" padding="$5">
           <Dialog.Title>{isEdit ? "Editar cliente individual" : "Crear cliente individual"}</Dialog.Title>
-          <Dialog.Description>KYC y AML son opcionales para sincronización automática posterior.</Dialog.Description>
+          <Dialog.Description>Completa los datos base del cliente para crear el registro.</Dialog.Description>
           <YStack gap="$3">
             <YStack gap="$2"><Label>Nombre</Label><Input value={form.fullName} onChangeText={(v) => update("fullName", v)} /></YStack>
             <XStack gap="$3" flexWrap="wrap">
@@ -147,56 +198,36 @@ export function CreateClientModal({
                   <option value="RESIDENCIA">Tarjeta de residencia</option>
                 </select>
               </YStack>
-              <YStack gap="$2" minWidth={220} flex={1}><Label>Documento</Label><Input value={form.documentNumber} onChangeText={(v) => update("documentNumber", v)} /></YStack>
+              <YStack gap="$2" minWidth={220} flex={1}><Label>No. Documento</Label><Input value={form.documentNumber} onChangeText={(v) => update("documentNumber", v)} /></YStack>
               <YStack gap="$2" minWidth={220} flex={1}><Label>Fecha de nacimiento</Label><Input type="date" value={form.birthDate} onChangeText={(v) => update("birthDate", v)} /></YStack>
             </XStack>
             <YStack gap="$2"><Label>Dirección</Label><TextArea value={form.address} onChangeText={(v) => update("address", v)} minHeight={80} /></YStack>
             <XStack gap="$3" flexWrap="wrap">
               <YStack gap="$2" minWidth={220} flex={1}>
-                <Label>Estado</Label>
+                <Label>KYC</Label>
                 <select
-                  value={form.state}
-                  onChange={(e) => update("state", e.target.value as ClientState)}
-                  style={selectStyle}
+                  value="__none__"
+                  disabled
+                  style={{ ...selectStyle, background: "#F8FAFC", color: "#64748B", cursor: "not-allowed" }}
                 >
-                  <option value={ClientState.ACTIVE}>Activo</option>
-                  <option value={ClientState.INACTIVE}>Inactivo</option>
-                  <option value={ClientState.BLACKLISTED}>Lista negra</option>
+                  <option value="__none__">No definido</option>
                 </select>
               </YStack>
-              <YStack gap="$2" minWidth={220} flex={1}><Label>Fecha cambio estado</Label><Input type="date" value={form.statusChangedAt} onChangeText={(v) => update("statusChangedAt", v)} /></YStack>
-            </XStack>
-            <YStack gap="$2"><Label>Motivo del estado</Label><TextArea value={form.statusReason} onChangeText={(v) => update("statusReason", v)} minHeight={70} /></YStack>
-            <XStack gap="$3" flexWrap="wrap">
               <YStack gap="$2" minWidth={220} flex={1}>
-                <Label>KYC (opcional)</Label>
+                <Label>AML</Label>
                 <select
-                  value={form.kycStatus || "__none__"}
-                  onChange={(e) => update("kycStatus", e.target.value === "__none__" ? "" : (e.target.value as KycStatus))}
-                  style={selectStyle}
+                  value="__none__"
+                  disabled
+                  style={{ ...selectStyle, background: "#F8FAFC", color: "#64748B", cursor: "not-allowed" }}
                 >
-                  <option value="__none__">Sin definir</option>
-                  <option value="NOT_STARTED">No iniciado</option>
-                  <option value="PENDING">Pendiente</option>
-                  <option value="VERIFIED">Verificado</option>
-                  <option value="REJECTED">Rechazado</option>
+                  <option value="__none__">No definido</option>
                 </select>
               </YStack>
-              <YStack gap="$2" minWidth={220} flex={1}><Label>Fecha verificación KYC</Label><Input type="date" value={form.kycVerifiedAt} onChangeText={(v) => update("kycVerifiedAt", v)} /></YStack>
             </XStack>
-            <YStack gap="$2">
-              <Label>AML (opcional)</Label>
-              <select
-                value={form.amlStatus || "__none__"}
-                onChange={(e) => update("amlStatus", e.target.value === "__none__" ? "" : (e.target.value as AmlStatus))}
-                style={selectStyle}
-              >
-                <option value="__none__">Sin definir</option>
-                <option value="NOT_STARTED">No iniciado</option>
-                <option value="CLEAR">Limpio</option>
-                <option value="REVIEW">En revisión</option>
-                <option value="BLOCKED">Bloqueado</option>
-              </select>
+            <YStack borderWidth={1} borderColor="rgba(26,39,64,0.12)" borderRadius={10} padding="$3" backgroundColor="#F8FAFC">
+              <Dialog.Description style={{ marginTop: 0 }}>
+                El usuario deberá pasar por un proceso de validacion KYC para finalizar el registro.
+              </Dialog.Description>
             </YStack>
           </YStack>
           <XStack justifyContent="flex-end" gap="$3">
