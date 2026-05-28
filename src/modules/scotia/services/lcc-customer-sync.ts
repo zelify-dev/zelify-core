@@ -11,6 +11,26 @@ import { recalculateAllClientRates } from "@/modules/lim/services/deposit-pricin
 
 /** Disparado al registrar un cliente para LCC (misma pestaña u otra). */
 export const LCC_CUSTOMERS_CHANGED_EVENT = "zelify:lcc-customers-changed";
+const LEGACY_NARIAT_SOURCE_ID = "CU-841200";
+const LEGACY_NARIAT_BIRTH_DATE = "1990-01-01";
+const LEGACY_NARIAT_NAME = "NARIT OSBALD BENITEZ LEON";
+
+function normalizeName(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
+}
+
+function isLegacyNariatInboundCustomer(customer: Customer): boolean {
+  return (
+    customer.id === LEGACY_NARIAT_SOURCE_ID &&
+    customer.birthDate === LEGACY_NARIAT_BIRTH_DATE &&
+    normalizeName(customer.fullName) === LEGACY_NARIAT_NAME
+  );
+}
 
 function dateOnly(isoOrDate: string): string {
   return isoOrDate.slice(0, 10);
@@ -181,7 +201,12 @@ export function mergeCustomersIntoLimState(
 }
 
 export function readLccInboundCustomers(): Customer[] {
-  return readDemoJson<Customer[]>(DEMO_STORAGE_KEYS.lccInboundCustomers, []);
+  const list = readDemoJson<Customer[]>(DEMO_STORAGE_KEYS.lccInboundCustomers, []);
+  const cleaned = list.filter((customer) => !isLegacyNariatInboundCustomer(customer));
+  if (cleaned.length !== list.length) {
+    writeDemoJson(DEMO_STORAGE_KEYS.lccInboundCustomers, cleaned);
+  }
+  return cleaned;
 }
 
 /** Siempre guarda el cliente para LCC (sin filtro de fecha). */

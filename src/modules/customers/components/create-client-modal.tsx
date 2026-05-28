@@ -54,32 +54,6 @@ const selectStyle: CSSProperties = {
   background: "#fff",
 };
 
-const NARIAT_OSBALDO_MATCH = "NARIAT OSBALDO";
-const NARIAT_OSBALDO_PRESET = {
-  documentType: "INE" as const,
-  documentNumber: "BNLNNR98081812H600",
-  birthDate: "1998-08-18",
-  address: "AV UNIVERSIDAD 2032 A 406\nCOL RODEO DE TEPEREROS 04310\nCOYOACAN, CDMX",
-};
-
-function normalizeNameForMatch(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toUpperCase();
-}
-
-function shouldApplyNariatPreset(fullName: string): boolean {
-  return normalizeNameForMatch(fullName) === NARIAT_OSBALDO_MATCH;
-}
-
-function withNariatPreset(form: FormState): FormState {
-  if (!shouldApplyNariatPreset(form.fullName)) return form;
-  return { ...form, ...NARIAT_OSBALDO_PRESET };
-}
-
 export function CreateClientModal({
   open,
   onOpenChange,
@@ -119,36 +93,12 @@ export function CreateClientModal({
   }, [form.birthDate, form.documentNumber, form.fullName]);
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
-    setForm((prev) => {
-      const next = { ...prev, [key]: value };
-      if (!isEdit && key === "fullName") {
-        if (shouldApplyNariatPreset(next.fullName)) {
-          return withNariatPreset(next);
-        }
-        if (shouldApplyNariatPreset(prev.fullName)) {
-          const hadPresetValues =
-            prev.documentType === NARIAT_OSBALDO_PRESET.documentType &&
-            prev.documentNumber === NARIAT_OSBALDO_PRESET.documentNumber &&
-            prev.birthDate === NARIAT_OSBALDO_PRESET.birthDate &&
-            prev.address === NARIAT_OSBALDO_PRESET.address;
-          if (hadPresetValues) {
-            return {
-              ...next,
-              documentType: INITIAL_FORM.documentType,
-              documentNumber: INITIAL_FORM.documentNumber,
-              birthDate: INITIAL_FORM.birthDate,
-              address: INITIAL_FORM.address,
-            };
-          }
-        }
-      }
-      return next;
-    });
+    setForm((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleSave = () => {
     if (!canSubmit) return;
-    const source = !isEdit ? withNariatPreset(form) : form;
+    const source = form;
     onSave({
       id: source.id?.trim() || `CU-${Math.floor(100000 + Math.random() * 900000)}`,
       fullName: source.fullName.trim(),

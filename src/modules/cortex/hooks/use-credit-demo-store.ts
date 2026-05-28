@@ -18,16 +18,68 @@ import {
   fetchZelifyCustomersForLcc,
   mergeCustomersIntoCreditState,
 } from "@/modules/scotia/services/lcc-customer-sync";
+import type { CreditClientProfile } from "../types/credit-pricing.types";
+
+const LEGACY_NARIAT_SEED_ID = "CL-LCC-CU-841200";
+const LEGACY_NARIAT_SOURCE_ID = "CU-841200";
+const LEGACY_NARIAT_CURP = "BELN900101HDFNNR09";
+const LEGACY_NARIAT_BIRTH_DATE = "1990-01-01";
+
+function isLegacyNariatSeedClient(client: CreditClientProfile): boolean {
+  return (
+    client.id === LEGACY_NARIAT_SEED_ID &&
+    client.sourceCustomerId === LEGACY_NARIAT_SOURCE_ID &&
+    client.kyc?.curp === LEGACY_NARIAT_CURP &&
+    client.kyc?.birthDate === LEGACY_NARIAT_BIRTH_DATE
+  );
+}
+
+function stripLegacyNariatSeed(state: CreditDemoState): CreditDemoState {
+  const clients = state.clients.filter((client) => !isLegacyNariatSeedClient(client));
+  if (clients.length === state.clients.length) return state;
+
+  const nextSelectedClientId = clients.some((client) => client.id === state.selectedClientId)
+    ? state.selectedClientId
+    : (clients.find((client) => client.productId === state.selectedProductId)?.id ?? clients[0]?.id ?? "");
+
+  const nextSelectedProductId = clients.some((client) => client.id === nextSelectedClientId)
+    ? (clients.find((client) => client.id === nextSelectedClientId)?.productId ?? state.selectedProductId)
+    : state.selectedProductId;
+
+  return {
+    ...state,
+    clients,
+    selectedClientId: nextSelectedClientId,
+    selectedProductId: nextSelectedProductId,
+    aiBatchResults: state.aiBatchResults.filter((result) => result.clientId !== LEGACY_NARIAT_SEED_ID),
+    auditLog: [
+      {
+        id: `audit-remove-legacy-nariat-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        action: "DATA_CLEANUP",
+        details: "Se removió cliente seed heredado CU-841200 para pruebas de re-registro.",
+        user: "Sistema",
+        channel: "Consola",
+        correlationId: `corr-cleanup-${Date.now()}`,
+      },
+      ...state.auditLog,
+    ].slice(0, 50),
+  };
+}
 
 function loadCreditState(): CreditDemoState {
   const stored = readDemoJson<CreditDemoState | null>(DEMO_STORAGE_KEYS.credit, null);
-  if (stored?.version === 4) return stored;
+  if (stored?.version === 4) {
+    const cleaned = stripLegacyNariatSeed(stored);
+    if (cleaned !== stored) writeDemoJson(DEMO_STORAGE_KEYS.credit, cleaned);
+    return cleaned;
+  }
   if (stored?.version === 3) {
-    const migrated = recalcQuote(mergeCreditDemoState(stored));
+    const migrated = recalcQuote(stripLegacyNariatSeed(mergeCreditDemoState(stored)));
     writeDemoJson(DEMO_STORAGE_KEYS.credit, migrated);
     return migrated;
   }
-  const fresh = recalcQuote(createFreshCreditDemoState());
+  const fresh = recalcQuote(stripLegacyNariatSeed(createFreshCreditDemoState()));
   writeDemoJson(DEMO_STORAGE_KEYS.credit, fresh);
   return fresh;
 }
@@ -35,13 +87,13 @@ function loadCreditState(): CreditDemoState {
 export function seedScotiaCreditStorage(force = false): CreditDemoState {
   if (typeof window === "undefined") return createFreshCreditDemoState();
   const existing = readDemoJson<CreditDemoState | null>(DEMO_STORAGE_KEYS.credit, null);
-  if (existing?.version === 4 && !force) return existing;
+  if (existing?.version === 4 && !force) return stripLegacyNariatSeed(existing);
   if (existing?.version === 3 && !force) {
-    const migrated = recalcQuote(mergeCreditDemoState(existing));
+    const migrated = recalcQuote(stripLegacyNariatSeed(mergeCreditDemoState(existing)));
     writeDemoJson(DEMO_STORAGE_KEYS.credit, migrated);
     return migrated;
   }
-  const fresh = recalcQuote(createFreshCreditDemoState());
+  const fresh = recalcQuote(stripLegacyNariatSeed(createFreshCreditDemoState()));
   writeDemoJson(DEMO_STORAGE_KEYS.credit, fresh);
   return fresh;
 }
@@ -259,7 +311,7 @@ export function useCreditDemoStore() {
   const zelifyLccClients = state.clients.filter((c) => c.sourceCustomerId);
 
   const resetDemo = useCallback(() => {
-    persist(recalcQuote(createFreshCreditDemoState()));
+    persist(recalcQuote(stripLegacyNariatSeed(createFreshCreditDemoState())));
   }, [persist]);
 
   const selectCategory = useCallback(

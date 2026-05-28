@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import { notFound } from "next/navigation";
+import Image from "next/image";
 import { CustomerProfileHeader } from "@/components/ui/organisms/customers/customer-profile-header";
 import { CustomerOverview } from "@/components/ui/organisms/customers/customer-overview";
 import { CustomerActivityFeed } from "@/components/ui/organisms/customers/customer-activity-feed";
@@ -18,12 +19,52 @@ type CustomerDetailPageProps = {
 };
 
 type TabId = "overview" | "products" | "attachments" | "tasks" | "communications" | "comments";
+type CustomerDocument = {
+  id: string;
+  title: string;
+  description: string;
+  image: string;
+};
+type CedulaField = {
+  label: string;
+  value: string;
+};
+type VerificationMetric = {
+  label: string;
+  value: string;
+};
+const NARIAT_PRELOAD_DELAY_MS = 80_000;
+const NARIAT_FULL_NAME_MATCHES = new Set([
+  "NARIAT OSBALDO BENITEZ LEON",
+  "NARIAT OSBALDO BENITES LEON",
+]);
+
+function normalizeNameForMatch(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
+}
+
+function isNariatSpecialCustomer(customer: { fullName: string }): boolean {
+  const normalized = normalizeNameForMatch(customer.fullName);
+  return NARIAT_FULL_NAME_MATCHES.has(normalized);
+}
+
+function parseTimestampMs(value?: string): number | null {
+  if (!value) return null;
+  const ms = Date.parse(value);
+  return Number.isFinite(ms) ? ms : null;
+}
 
 export default function CustomerDetailPage({ params }: CustomerDetailPageProps) {
   const { customerId } = use(params);
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [listCustomers, setListCustomers] = useState<ListCustomer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
 
   useEffect(() => {
     let mounted = true;
@@ -43,6 +84,27 @@ export default function CustomerDetailPage({ params }: CustomerDetailPageProps) 
   }, []);
 
   const customer = resolveCustomerProfile(customerId, listCustomers);
+  const nariatListCustomer = listCustomers.find((row) => row.id === customerId);
+  const isNariatOsbaldoCustomer = customer ? isNariatSpecialCustomer(customer) : false;
+  const nariatCreatedAtMs = parseTimestampMs(nariatListCustomer?.createdAt);
+  const nariatRemainingMs = isNariatOsbaldoCustomer && nariatCreatedAtMs
+    ? Math.max(0, nariatCreatedAtMs + NARIAT_PRELOAD_DELAY_MS - nowMs)
+    : 0;
+  const isNariatInfoReady = isNariatOsbaldoCustomer && nariatRemainingMs <= 0;
+  const nariatRemainingSeconds = Math.max(0, Math.ceil(nariatRemainingMs / 1000));
+
+  useEffect(() => {
+    if (!isNariatOsbaldoCustomer || !nariatCreatedAtMs) return;
+    if (Date.now() >= nariatCreatedAtMs + NARIAT_PRELOAD_DELAY_MS) return;
+
+    const timer = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [isNariatOsbaldoCustomer, nariatCreatedAtMs]);
 
   if (loading) {
     return (
@@ -60,7 +122,48 @@ export default function CustomerDetailPage({ params }: CustomerDetailPageProps) 
     notFound();
   }
 
-  const documents = [
+  const nariatDocuments: CustomerDocument[] = [
+    {
+      id: "cedula-front",
+      title: "Cedula (anverso)",
+      description: "Documento oficial de identidad - frente",
+      image: "/mock-docs/cedula-frente-nariat.png",
+    },
+    {
+      id: "cedula-back",
+      title: "Cedula (reverso)",
+      description: "Documento oficial de identidad - reverso",
+      image: "/mock-docs/cedula-reverso-nariat.png",
+    },
+    {
+      id: "proof-of-life",
+      title: "Prueba de vida",
+      description: "Validacion biometrica (selfie)",
+      image: "/mock-docs/prueba-vida-nariat.png",
+    },
+  ];
+  const cedulaFrontFields: CedulaField[] = [
+    { label: "Documento", value: "MÉXICO — INSTITUTO NACIONAL ELECTORAL · CREDENCIAL PARA VOTAR" },
+    { label: "Nombre", value: "BENITEZ LEON NARIAT OSBALDO" },
+    { label: "Sexo", value: "H" },
+    { label: "Domicilio", value: "AV UNIVERSIDAD 2032 A 406 · COL RODEO DE TEPEREROS 04310 · COYOACAN, CDMX" },
+    { label: "Clave de elector", value: "BNLNNR98081812H600" },
+    { label: "CURP", value: "BELN980818HGRRNR06" },
+    { label: "Año de registro", value: "2016 02" },
+    { label: "Fecha de nacimiento", value: "18/08/1998" },
+    { label: "Sección", value: "0740" },
+    { label: "Vigencia", value: "2022 - 2032" },
+  ];
+  const cedulaBackLines: string[] = [
+    "IDMEX23324244648<<07400107182994",
+    "9808184H3212312MEX<02<<37306<1",
+    "BENITEZ<LEON<<NARIAT<OSBALDO<<",
+  ];
+  const verificationAnalytics: VerificationMetric[] = [
+    { label: "OCR CONFIDENCE", value: "95.37%" },
+    { label: "FACIAL MATCH", value: "99.31%" },
+  ];
+  const genericDocuments = [
     "Documento de identidad - verificado",
     "Comprobante de domicilio - vigente",
     "Declaración de origen de fondos - aprobada",
@@ -82,7 +185,7 @@ export default function CustomerDetailPage({ params }: CustomerDetailPageProps) 
   const tabs: { id: TabId; label: string; visible: boolean }[] = [
     { id: "overview", label: "Resumen", visible: true },
     { id: "products", label: `Productos (${customer.accounts.length})`, visible: customer.accounts.length > 0 },
-    { id: "attachments", label: "Documentos", visible: documents.length > 0 },
+    { id: "attachments", label: "Documentos", visible: true },
     { id: "tasks", label: "Tareas", visible: tasks.length > 0 },
     { id: "communications", label: "Comunicaciones", visible: communications.length > 0 },
     { id: "comments", label: "Notas", visible: notes.length > 0 },
@@ -162,7 +265,78 @@ export default function CustomerDetailPage({ params }: CustomerDetailPageProps) 
                 </section>
               )}
               {activeTab === "attachments" && (
-                renderSimpleListCard("Documentos KYC", documents)
+                isNariatOsbaldoCustomer ? (
+                isNariatInfoReady ? (
+                <section className="zelify-panel zelify-customer-detail-card">
+                  <div className="zelify-panel__header">
+                    <h2 className="zelify-panel__title">Documentos KYC</h2>
+                  </div>
+                  <div className="zelify-verification-analytics">
+                    <h3 className="zelify-verification-analytics__title">VERIFICATION ANALYTICS</h3>
+                    <div className="zelify-verification-analytics__grid">
+                      {verificationAnalytics.map((metric) => (
+                        <article key={metric.label} className="zelify-verification-analytics__item">
+                          <span>{metric.label}</span>
+                          <strong>{metric.value}</strong>
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="zelify-customer-documents-details">
+                    <h3 className="zelify-customer-documents-details__title">Datos de la cédula (frente)</h3>
+                    <div className="zelify-customer-documents-details__grid">
+                      {cedulaFrontFields.map((field) => (
+                        <article key={field.label} className="zelify-customer-documents-details__item">
+                          <span>{field.label}</span>
+                          <strong>{field.value}</strong>
+                        </article>
+                      ))}
+                    </div>
+
+                    <h3 className="zelify-customer-documents-details__title">Datos de la cédula (reverso)</h3>
+                    <div className="zelify-customer-documents-details__back">
+                      {cedulaBackLines.map((line) => (
+                        <code key={line}>{line}</code>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="zelify-customer-documents-grid">
+                    {nariatDocuments.map((doc) => (
+                      <article key={doc.id} className="zelify-customer-document-card">
+                        <div className="zelify-customer-document-card__meta">
+                          <h3>{doc.title}</h3>
+                          <p>{doc.description}</p>
+                        </div>
+                        <Image
+                          src={doc.image}
+                          alt={doc.title}
+                          className="zelify-customer-document-card__image"
+                          width={900}
+                          height={560}
+                          sizes="(max-width: 980px) 100vw, 33vw"
+                          loading="lazy"
+                        />
+                      </article>
+                    ))}
+                  </div>
+                </section>
+                ) : (
+                  <section className="zelify-panel zelify-customer-detail-card">
+                    <div className="zelify-panel__header">
+                      <h2 className="zelify-panel__title">Documentos KYC</h2>
+                    </div>
+                    <div className="zelify-customer-detail-list__item">
+                      <span className="zelify-customer-detail-list__dot" aria-hidden />
+                      <span>
+                        Precargando información de verificación para Nariat Osbaldo.
+                        {` Disponible en ${nariatRemainingSeconds}s.`}
+                      </span>
+                    </div>
+                  </section>
+                )
+                ) : (
+                  renderSimpleListCard("Documentos KYC", genericDocuments)
+                )
               )}
               {activeTab === "tasks" && (
                 renderSimpleListCard("Tareas Operativas", tasks)
