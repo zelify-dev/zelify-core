@@ -163,7 +163,7 @@ function writeStoredJson<T>(key: string, data: T) {
   try {
     window.localStorage.setItem(key, JSON.stringify(data));
   } catch {
-    // noop
+    // noop 
   }
 }
 
