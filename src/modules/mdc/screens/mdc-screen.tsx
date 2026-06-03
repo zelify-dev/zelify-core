@@ -14,7 +14,7 @@ import {
   type ApplicationStatus,
   type RiskLevel,
 } from "@/modules/mdc/data/mdc-credit-mock";
-import { creditRulesMock, type CreditRuleRow, type RuleDataType, type RuleOperator, type RuleSeverity } from "@/modules/mdc/data/mdc-rules-mock";
+import { creditRulesMock, type CreditRuleRow, type RuleDataType, type RuleOperator, type RuleProduct, type RuleSeverity } from "@/modules/mdc/data/mdc-rules-mock";
 import { MdcProductsTab } from "@/modules/mdc/components/mdc-products-tab";
 import { MdcPaymentsTab } from "@/modules/mdc/components/mdc-payments-tab";
 import { MdcCollectionsTab } from "@/modules/mdc/components/mdc-collections-tab";
@@ -26,13 +26,21 @@ type MdcTab = "overview" | "products" | "applications" | "rules" | "payments" | 
 
 type RuleFormState = {
   name: string;
+  product: RuleProduct;
   field: string;
+  evaluationMode: "single" | "bands";
   operator: RuleOperator;
   value: string;
   dataType: RuleDataType;
   severity: RuleSeverity;
   description: string;
   status: "active" | "inactive";
+  approveMin: string;
+  approveMax: string;
+  reviewMin: string;
+  reviewMax: string;
+  rejectMin: string;
+  rejectMax: string;
 };
 
 type RangePreset = "7d" | "30d" | "90d";
@@ -83,6 +91,25 @@ const RULE_TYPES: RuleDataType[] = ["string", "number", "boolean", "date", "perc
 
 const RULE_SEVERITIES: RuleSeverity[] = ["pass", "warn", "fail"];
 const REMOVED_RULE_FIELDS = new Set(["cards.utilization", "credit.hardInquiries30d"]);
+const PRODUCT_RULE_FIELDS: Record<RuleProduct, string[]> = {
+  "Credito automotriz": [
+    "applicant.age",
+    "ratios.dti",
+    "bureau.score",
+    "credit.maxDaysPastDue",
+    "credit.historyMonths",
+    "income.monthlyNet",
+  ],
+  "Credito personal": [
+    "applicant.age",
+    "ratios.dti",
+    "bureau.score",
+    "credit.maxDaysPastDue",
+    "credit.historyMonths",
+    "income.monthlyNet",
+    "employment.months",
+  ],
+};
 
 const RULE_FIELD_LABELS: Record<string, string> = {
   "applicant.age": "Edad del solicitante",
@@ -273,33 +300,209 @@ function nextAppNo(rows: Application[]) {
 function defaultRuleForm(): RuleFormState {
   return {
     name: "",
+    product: CREDIT_PRODUCTS[0],
     field: "",
+    evaluationMode: "single",
     operator: "gte",
     value: "",
     dataType: "number",
     severity: "warn",
     description: "",
     status: "active",
+    approveMin: "",
+    approveMax: "",
+    reviewMin: "",
+    reviewMax: "",
+    rejectMin: "",
+    rejectMax: "",
+  };
+}
+
+function numberToInput(value?: number) {
+  return value === undefined ? "" : String(value);
+}
+
+function parseOptionalNumber(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function buildDecisionBands(form: RuleFormState) {
+  if (form.evaluationMode !== "bands") return undefined;
+  const decisionBands = {
+    approveMin: parseOptionalNumber(form.approveMin),
+    approveMax: parseOptionalNumber(form.approveMax),
+    reviewMin: parseOptionalNumber(form.reviewMin),
+    reviewMax: parseOptionalNumber(form.reviewMax),
+    rejectMin: parseOptionalNumber(form.rejectMin),
+    rejectMax: parseOptionalNumber(form.rejectMax),
+  };
+
+  return Object.values(decisionBands).some((value) => value !== undefined) ? decisionBands : undefined;
+}
+
+function ruleToFormState(rule: CreditRuleRow, product: RuleProduct): RuleFormState {
+  return {
+    name: rule.name,
+    product,
+    field: rule.field,
+    evaluationMode: rule.decisionBands ? "bands" : "single",
+    operator: rule.operator,
+    value: rule.decisionBands ? "" : rule.value,
+    dataType: rule.dataType,
+    severity: rule.severity,
+    description: rule.description,
+    status: rule.status,
+    approveMin: numberToInput(rule.decisionBands?.approveMin),
+    approveMax: numberToInput(rule.decisionBands?.approveMax),
+    reviewMin: numberToInput(rule.decisionBands?.reviewMin),
+    reviewMax: numberToInput(rule.decisionBands?.reviewMax),
+    rejectMin: numberToInput(rule.decisionBands?.rejectMin),
+    rejectMax: numberToInput(rule.decisionBands?.rejectMax),
   };
 }
 
 function mergeRulesWithDefaults(rows: CreditRuleRow[]) {
-  const sanitizedRows = rows.filter((rule) => !REMOVED_RULE_FIELDS.has(rule.field));
+  const dedupeById = (items: CreditRuleRow[]) => {
+    const byId = new Map<string, CreditRuleRow>();
+    for (const item of items) {
+      byId.set(item.id, item);
+    }
+    return [...byId.values()];
+  };
+
+  const sanitizeRule = (rule: CreditRuleRow): CreditRuleRow[] => {
+    if (REMOVED_RULE_FIELDS.has(rule.field)) return [];
+    const baseId = rule.id.split("::")[0] ?? rule.id;
+    const baseRule = creditRulesMock.find((item) => item.id === baseId || item.id.split("::")[0] === baseId);
+    const needsBandsMigration = !rule.decisionBands && Boolean(baseRule?.decisionBands) && baseRule?.field === rule.field;
+    const normalizedRule = needsBandsMigration
+      ? {
+          ...rule,
+          value: baseRule?.value ?? rule.value,
+          description: baseRule?.description ?? rule.description,
+          severity: baseRule?.severity ?? rule.severity,
+          decisionBands: baseRule?.decisionBands,
+        }
+      : rule;
+    const products =
+      normalizedRule.products && normalizedRule.products.length > 0
+        ? normalizedRule.products.filter((product) => CREDIT_PRODUCTS.includes(product))
+        : (CREDIT_PRODUCTS.filter((product) => PRODUCT_RULE_FIELDS[product].includes(normalizedRule.field)) as RuleProduct[]);
+    if (products.length === 0) return [];
+    return products.map((product) => ({
+      ...normalizedRule,
+      id: `${baseId}::${product}`,
+      products: [product],
+    }));
+  };
+
+  const sanitizedRows = dedupeById(rows.flatMap(sanitizeRule));
   if (sanitizedRows.length === 0) {
-    return creditRulesMock.filter((rule) => !REMOVED_RULE_FIELDS.has(rule.field));
+    return dedupeById(creditRulesMock.flatMap(sanitizeRule));
   }
   const merged = [...sanitizedRows];
-  const byField = new Set(sanitizedRows.map((rule) => rule.field));
+  const byProductField = new Set(sanitizedRows.flatMap((rule) => rule.products.map((product) => `${product}:${rule.field}`)));
   for (const baseRule of creditRulesMock) {
-    if (!REMOVED_RULE_FIELDS.has(baseRule.field) && !byField.has(baseRule.field)) {
-      merged.push(baseRule);
+    const sanitizedRowsForBase = sanitizeRule(baseRule);
+    for (const sanitized of sanitizedRowsForBase) {
+      const product = sanitized.products[0]!;
+      const key = `${product}:${sanitized.field}`;
+      if (byProductField.has(key)) continue;
+      merged.push(sanitized);
+      byProductField.add(key);
     }
   }
-  return merged;
+  return dedupeById(merged);
 }
 
 function ruleFieldLabel(field: string) {
   return RULE_FIELD_LABELS[field] ?? field.replaceAll(".", " · ");
+}
+
+function getRuleFieldsForProduct(product: RuleProduct) {
+  return PRODUCT_RULE_FIELDS[product].map((field) => ({
+    value: field,
+    label: ruleFieldLabel(field),
+  }));
+}
+
+function renderRuleOperator(rule: CreditRuleRow) {
+  if (rule.decisionBands) {
+    return <span className="mdc-badge mdc-badge--neutral">Por bandas</span>;
+  }
+  return <span className="mdc-rule-operator-label">{RULE_OPERATOR_LABELS[rule.operator]}</span>;
+}
+
+function renderRuleValue(rule: CreditRuleRow) {
+  if (!rule.decisionBands) return rule.value;
+  return <span className="mdc-badge mdc-badge--neutral">Por bandas</span>;
+}
+
+function renderRuleSeverity(rule: CreditRuleRow) {
+  if (rule.decisionBands) {
+    return (
+      <div className="mdc-rule-bands">
+        {rule.decisionBands.approveMax !== undefined && (
+          <span className="mdc-rule-band mdc-rule-band--ok">Aprob. &le; {rule.decisionBands.approveMax.toFixed(2)}</span>
+        )}
+        {rule.decisionBands.reviewMin !== undefined && rule.decisionBands.reviewMax !== undefined && (
+          <span className="mdc-rule-band mdc-rule-band--warn">
+            Rev. {rule.decisionBands.reviewMin.toFixed(2)} - {(rule.decisionBands.reviewMax - 0.01).toFixed(2)}
+          </span>
+        )}
+        {rule.decisionBands.rejectMin !== undefined && (
+          <span className="mdc-rule-band mdc-rule-band--bad">Rech. &ge; {rule.decisionBands.rejectMin.toFixed(2)}</span>
+        )}
+      </div>
+    );
+  }
+
+  const severityClass =
+    rule.severity === "fail" ? "mdc-badge mdc-badge--bad" : rule.severity === "warn" ? "mdc-badge mdc-badge--warn" : "mdc-badge mdc-badge--ok";
+
+  return <span className={severityClass}>{RULE_SEVERITY_LABELS[rule.severity]}</span>;
+}
+
+function evaluateRuleResult(rule: CreditRuleRow, metricValue: number, appStatus: ApplicationStatus): RuleSeverity {
+  if (rule.decisionBands) {
+    const { approveMin, approveMax, reviewMin, reviewMax, rejectMin, rejectMax } = rule.decisionBands;
+    const inApprove =
+      (approveMin === undefined || metricValue >= approveMin) &&
+      (approveMax === undefined || metricValue <= approveMax);
+    if (inApprove) return "pass";
+
+    const inReview =
+      (reviewMin === undefined || metricValue >= reviewMin) &&
+      (reviewMax === undefined || metricValue < reviewMax);
+    if (inReview) return "warn";
+
+    const inReject =
+      (rejectMin === undefined || metricValue >= rejectMin) &&
+      (rejectMax === undefined || metricValue <= rejectMax);
+    if (inReject) return "fail";
+
+    return appStatus === "manualReview" ? "warn" : rule.severity;
+  }
+
+  const hasPolicyBreach =
+    (rule.field === "income.monthlyNet" && metricValue < Number(rule.value || 0)) ||
+    (rule.field === "ratios.dti" && metricValue > Number(rule.value || 0)) ||
+    (rule.field === "applicant.age" && metricValue < Number(rule.value || 0)) ||
+    (rule.field === "bureau.score" && metricValue < Number(rule.value || 0)) ||
+    (rule.field === "credit.maxDaysPastDue" && metricValue > Number(rule.value || 0)) ||
+    (rule.field === "credit.historyMonths" && metricValue < Number(rule.value || 0)) ||
+    (rule.field === "employment.months" && metricValue < Number(rule.value || 0));
+
+  if (hasPolicyBreach) {
+    return appStatus === "manualReview" && rule.severity !== "fail" ? "warn" : "fail";
+  }
+  if (appStatus === "manualReview" && rule.severity === "warn") {
+    return "warn";
+  }
+  return "pass";
 }
 
 function normalizeProductName(name: string) {
@@ -617,8 +820,18 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
     Math.min(120, Math.round(app.riskScore * 1.15 + (quickHash(`${app.id}-dpd`) % 21) - 8)),
   );
   const creditHistoryMonths = Math.max(3, Math.round(96 - app.riskScore + (quickHash(`${app.id}-hist`) % 36)));
+  const employmentMonths = Math.max(1, Math.round(12 + (quickHash(`${app.id}-employment`) % 36)));
   const hasDocumentAlerts = docs.filter((doc) => doc.automated === "Revision").length >= 2;
   const hasCapacityPressure = monthlyEstimate > estimatedIncomeMonthly * 0.45;
+  const metricByField: Partial<Record<CreditRuleRow["field"], number>> = {
+    "income.monthlyNet": estimatedIncomeMonthly,
+    "ratios.dti": dti,
+    "applicant.age": estimatedAge,
+    "bureau.score": bureauScoreEstimated,
+    "credit.maxDaysPastDue": maxDaysPastDue,
+    "credit.historyMonths": creditHistoryMonths,
+    "employment.months": employmentMonths,
+  };
   const policyByField: Partial<Record<CreditRuleRow["field"], boolean>> = {
     "income.monthlyNet": estimatedIncomeMonthly < incomeMin || hasCapacityPressure,
     "ratios.dti": dti > dtiMax,
@@ -638,10 +851,10 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
     .filter((rule) => rule.status === "active")
     .slice(0, 6)
     .map((rule) => {
-      const hasPolicyBreach = policyByField[rule.field] === true;
       let result: RuleSeverity = "pass";
-      if (hasPolicyBreach) {
-        result = app.status === "manualReview" && rule.severity !== "fail" ? "warn" : "fail";
+      const metricValue = metricByField[rule.field];
+      if (metricValue !== undefined) {
+        result = evaluateRuleResult(rule, metricValue, app.status);
       } else if (app.status === "manualReview" && (rule.severity === "warn" || (rule.field === "bureau.score" && bureauScoreEstimated < 700))) {
         result = "warn";
       }
@@ -703,6 +916,12 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
       return `Ingreso mensual estimado (${money(estimatedIncomeMonthly)}) por debajo del minimo requerido (${money(incomeMin)}).`;
     }
     if (rule.field === "ratios.dti") {
+      if (rule.decisionBands?.rejectMin !== undefined && dti >= rule.decisionBands.rejectMin) {
+        return `Relacion deuda/ingreso (DTI) en ${ratioLabel(dti)}, dentro del rango de rechazo automatico (>= ${ratioLabel(rule.decisionBands.rejectMin)}).`;
+      }
+      if (rule.decisionBands?.reviewMin !== undefined && rule.decisionBands?.reviewMax !== undefined) {
+        return `Relacion deuda/ingreso (DTI) en ${ratioLabel(dti)}, dentro de la banda de revision (${ratioLabel(rule.decisionBands.reviewMin)} a ${ratioLabel(rule.decisionBands.reviewMax)}).`;
+      }
       return `Relacion deuda/ingreso (DTI) en ${ratioLabel(dti)}, superior al limite permitido (${ratioLabel(dtiMax)}).`;
     }
     if (rule.field === "applicant.age") {
@@ -717,6 +936,9 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
     if (rule.field === "credit.historyMonths") {
       return `Antiguedad de historial (${creditHistoryMonths} meses) por debajo del minimo recomendado (${historyMinMonths} meses).`;
     }
+    if (rule.field === "employment.months") {
+      return `Antiguedad laboral estimada (${employmentMonths} meses) por debajo del minimo requerido (${rule.value} meses).`;
+    }
     return `${rule.name}: incumplimiento en ${ruleFieldLabel(rule.field)} (valor politica: ${rule.value}).`;
   };
 
@@ -729,6 +951,11 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
   if (dti > dtiMax) {
     declinedReasonsFromPolicy.push(
       `Relacion deuda/ingreso (DTI) en ${ratioLabel(dti)}, superior al limite permitido (${ratioLabel(dtiMax)}).`,
+    );
+  }
+  if (rules.some((rule) => rule.field === "employment.months" && rule.status === "active") && employmentMonths < 6) {
+    declinedReasonsFromPolicy.push(
+      `Antiguedad laboral estimada (${employmentMonths} meses) por debajo del minimo requerido.`,
     );
   }
   if (hasCapacityPressure) {
@@ -1069,14 +1296,23 @@ function RuleModal({
   open,
   onClose,
   initial,
+  availableFields,
+  isEditing,
   onSave,
 }: {
   open: boolean;
   onClose: () => void;
   initial: RuleFormState;
-  onSave: (form: RuleFormState) => void;
+  availableFields: { value: string; label: string }[];
+  isEditing: boolean;
+  onSave: (form: RuleFormState, duplicateToProduct?: RuleProduct) => void;
 }) {
   const [form, setForm] = useState<RuleFormState>(() => initial);
+  const [duplicateToProduct, setDuplicateToProduct] = useState<"" | RuleProduct>("");
+  const duplicateOptions = CREDIT_PRODUCTS.filter(
+    (product) => product !== form.product && PRODUCT_RULE_FIELDS[product].includes(form.field),
+  ) as RuleProduct[];
+  const isBandMode = form.evaluationMode === "bands";
 
   if (!open) return null;
 
@@ -1096,9 +1332,73 @@ function RuleModal({
             <input value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} />
           </label>
           <label>
-            <span>Campo</span>
-            <input value={form.field} onChange={(e) => setForm((s) => ({ ...s, field: e.target.value }))} />
+            <span>Producto</span>
+            <input value={form.product} disabled />
           </label>
+          {isEditing && (
+            <label>
+              <span>Copiar regla a</span>
+              <select value={duplicateToProduct} onChange={(e) => setDuplicateToProduct(e.target.value as "" | RuleProduct)}>
+                <option value="">No copiar</option>
+                {duplicateOptions.map((product) => (
+                  <option key={product} value={product}>{product}</option>
+                ))}
+              </select>
+            </label>
+          )}
+          <label>
+            <span>Campo</span>
+            <select value={form.field} onChange={(e) => setForm((s) => ({ ...s, field: e.target.value }))}>
+              <option value="">Selecciona variable</option>
+              {availableFields.map((field) => (
+                <option key={field.value} value={field.value}>{field.label}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Modo de evaluacion</span>
+            <select
+              value={form.evaluationMode}
+              onChange={(e) =>
+                setForm((s) => ({
+                  ...s,
+                  evaluationMode: e.target.value as "single" | "bands",
+                }))
+              }
+            >
+              <option value="single">Umbral unico</option>
+              <option value="bands">Por bandas</option>
+            </select>
+          </label>
+          {isBandMode ? (
+            <>
+              <label>
+                <span>Aprobacion desde</span>
+                <input value={form.approveMin} onChange={(e) => setForm((s) => ({ ...s, approveMin: e.target.value }))} type="number" step="0.01" />
+              </label>
+              <label>
+                <span>Aprobacion hasta</span>
+                <input value={form.approveMax} onChange={(e) => setForm((s) => ({ ...s, approveMax: e.target.value }))} type="number" step="0.01" />
+              </label>
+              <label>
+                <span>Revision desde</span>
+                <input value={form.reviewMin} onChange={(e) => setForm((s) => ({ ...s, reviewMin: e.target.value }))} type="number" step="0.01" />
+              </label>
+              <label>
+                <span>Revision hasta</span>
+                <input value={form.reviewMax} onChange={(e) => setForm((s) => ({ ...s, reviewMax: e.target.value }))} type="number" step="0.01" />
+              </label>
+              <label>
+                <span>Rechazo desde</span>
+                <input value={form.rejectMin} onChange={(e) => setForm((s) => ({ ...s, rejectMin: e.target.value }))} type="number" step="0.01" />
+              </label>
+              <label>
+                <span>Rechazo hasta</span>
+                <input value={form.rejectMax} onChange={(e) => setForm((s) => ({ ...s, rejectMax: e.target.value }))} type="number" step="0.01" />
+              </label>
+            </>
+          ) : (
+            <>
           <label>
             <span>Operador</span>
             <select value={form.operator} onChange={(e) => setForm((s) => ({ ...s, operator: e.target.value as RuleOperator }))}>
@@ -1111,6 +1411,8 @@ function RuleModal({
             <span>Valor</span>
             <input value={form.value} onChange={(e) => setForm((s) => ({ ...s, value: e.target.value }))} />
           </label>
+            </>
+          )}
           <label>
             <span>Tipo</span>
             <select value={form.dataType} onChange={(e) => setForm((s) => ({ ...s, dataType: e.target.value as RuleDataType }))}>
@@ -1119,14 +1421,21 @@ function RuleModal({
               ))}
             </select>
           </label>
-          <label>
-            <span>Severidad</span>
-            <select value={form.severity} onChange={(e) => setForm((s) => ({ ...s, severity: e.target.value as RuleSeverity }))}>
-              {RULE_SEVERITIES.map((severity) => (
-                <option key={severity} value={severity}>{RULE_SEVERITY_LABELS[severity]}</option>
-              ))}
-            </select>
-          </label>
+          {isBandMode ? (
+            <label>
+              <span>Severidad base</span>
+              <input value="Definida por bandas" disabled />
+            </label>
+          ) : (
+            <label>
+              <span>Severidad</span>
+              <select value={form.severity} onChange={(e) => setForm((s) => ({ ...s, severity: e.target.value as RuleSeverity }))}>
+                {RULE_SEVERITIES.map((severity) => (
+                  <option key={severity} value={severity}>{RULE_SEVERITY_LABELS[severity]}</option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="mdc-form-grid__full">
             <span>Descripcion</span>
             <textarea
@@ -1149,7 +1458,7 @@ function RuleModal({
             type="button"
             className="mdc-btn mdc-btn--primary"
             onClick={() => {
-              onSave(form);
+              onSave(form, duplicateToProduct || undefined);
               onClose();
             }}
           >
@@ -1195,15 +1504,17 @@ export function MdcScreen() {
   const [showRuleModal, setShowRuleModal] = useState(false);
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [ruleModalState, setRuleModalState] = useState<RuleFormState>(defaultRuleForm());
+  const [ruleProductFilter, setRuleProductFilter] = useState<RuleProduct>(CREDIT_PRODUCTS[0]);
   const [rangeFilter, setRangeFilter] = useState<RangePreset>("7d");
+  const normalizedRules = useMemo(() => mergeRulesWithDefaults(rules), [rules]);
 
   useEffect(() => {
     writeStoredJson(APP_STORAGE_KEY, apps);
   }, [apps]);
 
   useEffect(() => {
-    writeStoredJson(RULES_STORAGE_KEY, rules);
-  }, [rules]);
+    writeStoredJson(RULES_STORAGE_KEY, normalizedRules);
+  }, [normalizedRules]);
 
   useEffect(() => {
     const closeOpenRowMenus = () => {
@@ -1349,28 +1660,28 @@ export function MdcScreen() {
 
   const filteredRules = useMemo(() => {
     const q = ruleQuery.trim().toLowerCase();
-    if (!q) return rules;
-    return rules.filter((r) => `${r.name} ${r.field} ${r.description}`.toLowerCase().includes(q));
-  }, [ruleQuery, rules]);
+    const scopedRules = normalizedRules.filter((rule) => rule.products.includes(ruleProductFilter));
+    if (!q) return scopedRules;
+    return scopedRules.filter((r) => `${r.name} ${r.field} ${r.description}`.toLowerCase().includes(q));
+  }, [normalizedRules, ruleProductFilter, ruleQuery]);
+
+  const ruleFieldOptions = useMemo(() => getRuleFieldsForProduct(ruleProductFilter), [ruleProductFilter]);
 
   const openCreateRule = () => {
     setEditingRuleId(null);
-    setRuleModalState(defaultRuleForm());
+    setRuleModalState({
+      ...defaultRuleForm(),
+      product: ruleProductFilter,
+      field: PRODUCT_RULE_FIELDS[ruleProductFilter][0] ?? "",
+    });
     setShowRuleModal(true);
   };
 
   const openEditRule = (rule: CreditRuleRow) => {
+    const activeProduct = rule.products.includes(ruleProductFilter) ? ruleProductFilter : rule.products[0] ?? ruleProductFilter;
+    setRuleProductFilter(activeProduct);
     setEditingRuleId(rule.id);
-    setRuleModalState({
-      name: rule.name,
-      field: rule.field,
-      operator: rule.operator,
-      value: rule.value,
-      dataType: rule.dataType,
-      severity: rule.severity,
-      description: rule.description,
-      status: rule.status,
-    });
+    setRuleModalState(ruleToFormState(rule, activeProduct));
     setShowRuleModal(true);
   };
 
@@ -1485,7 +1796,7 @@ export function MdcScreen() {
                   </button>
                 </div>
                 <div className="mdc-table-wrap">
-                  <table className="mdc-table">
+                  <table className="mdc-table mdc-table--rules">
                     <thead>
                       <tr>
                         <th>No.</th>
@@ -1606,7 +1917,7 @@ export function MdcScreen() {
                 </p>
 
                 <div className="mdc-table-wrap">
-                  <table className="mdc-table">
+                  <table className="mdc-table mdc-table--rules">
                     <thead>
                       <tr>
                         <th>No.</th>
@@ -1755,6 +2066,17 @@ export function MdcScreen() {
 
                 <div className="mdc-filters mdc-filters--single">
                   <label>
+                    <span>Producto activo</span>
+                    <select
+                      value={ruleProductFilter}
+                      onChange={(e) => setRuleProductFilter(e.target.value as RuleProduct)}
+                    >
+                      {CREDIT_PRODUCTS.map((product) => (
+                        <option key={product} value={product}>{product}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
                     <span>Buscar regla</span>
                     <input
                       value={ruleQuery}
@@ -1765,11 +2087,11 @@ export function MdcScreen() {
                 </div>
 
                 <div className="mdc-table-wrap">
-                  <table className="mdc-table">
+                  <table className="mdc-table mdc-table--rules">
                     <thead>
                       <tr>
                         <th>Nombre</th>
-                        <th>Campo</th>
+                        <th>Descripción</th>
                         <th>Operador</th>
                         <th>Valor</th>
                         <th>Tipo</th>
@@ -1782,11 +2104,11 @@ export function MdcScreen() {
                       {filteredRules.map((rule) => (
                         <tr key={rule.id}>
                           <td>{rule.name}</td>
-                          <td>{ruleFieldLabel(rule.field)}</td>
-                          <td>{RULE_OPERATOR_LABELS[rule.operator]}</td>
-                          <td>{rule.value}</td>
+                          <td>{rule.description}</td>
+                          <td>{renderRuleOperator(rule)}</td>
+                          <td>{renderRuleValue(rule)}</td>
                           <td>{RULE_TYPE_LABELS[rule.dataType]}</td>
-                          <td>{RULE_SEVERITY_LABELS[rule.severity]}</td>
+                          <td>{renderRuleSeverity(rule)}</td>
                           <td>
                             <span className={rule.status === "active" ? "mdc-badge mdc-badge--ok" : "mdc-badge mdc-badge--neutral"}>
                               {rule.status === "active" ? "Activa" : "Inactiva"}
@@ -1896,31 +2218,76 @@ export function MdcScreen() {
         }}
       />
 
-      {detailApp && <AppDetailModal app={detailApp} rules={rules} onClose={() => setDetailApp(null)} />}
+      {detailApp && (
+        <AppDetailModal
+          app={detailApp}
+          rules={normalizedRules.filter((rule) => rule.products.includes(detailApp.product as RuleProduct))}
+          onClose={() => setDetailApp(null)}
+        />
+      )}
 
       <RuleModal
         key={`${editingRuleId ?? "new"}-${showRuleModal ? "open" : "closed"}`}
         open={showRuleModal}
         onClose={() => setShowRuleModal(false)}
         initial={ruleModalState}
-        onSave={(form) => {
+        availableFields={ruleFieldOptions}
+        isEditing={Boolean(editingRuleId)}
+        onSave={(form, duplicateToProduct) => {
+          const decisionBands = buildDecisionBands(form);
+          const updatedRule = {
+            name: form.name,
+            products: [form.product] as RuleProduct[],
+            field: form.field,
+            operator: form.operator,
+            value: form.evaluationMode === "bands" ? "" : form.value,
+            dataType: form.dataType,
+            severity: form.evaluationMode === "bands" ? "warn" : form.severity,
+            description: form.description,
+            status: form.status,
+            decisionBands,
+          };
+
           if (editingRuleId) {
             setRules((current) =>
-              current.map((rule) =>
-                rule.id === editingRuleId
-                  ? {
-                      ...rule,
-                      name: form.name,
-                      field: form.field,
-                      operator: form.operator,
-                      value: form.value,
-                      dataType: form.dataType,
-                      severity: form.severity,
-                      description: form.description,
-                      status: form.status,
-                    }
-                  : rule,
-              ),
+              {
+                const next = current.map((rule) =>
+                  rule.id === editingRuleId
+                    ? {
+                        ...rule,
+                        ...updatedRule,
+                      }
+                    : rule,
+                );
+
+                if (!duplicateToProduct || !PRODUCT_RULE_FIELDS[duplicateToProduct].includes(form.field)) {
+                  return next;
+                }
+
+                const existingTargetIndex = next.findIndex(
+                  (rule) => rule.id !== editingRuleId && rule.products.includes(duplicateToProduct) && rule.field === form.field,
+                );
+
+                if (existingTargetIndex >= 0) {
+                  const existingTarget = next[existingTargetIndex]!;
+                  next[existingTargetIndex] = {
+                    ...existingTarget,
+                    ...updatedRule,
+                    products: [duplicateToProduct],
+                  };
+                  return next;
+                }
+
+                return [
+                  ...next,
+                  {
+                    id: `cr-local-${Date.now()}-${duplicateToProduct.toLowerCase().replaceAll(" ", "-")}`,
+                    createdAt: new Date().toISOString(),
+                    ...updatedRule,
+                    products: [duplicateToProduct],
+                  },
+                ];
+              },
             );
             return;
           }
@@ -1928,14 +2295,11 @@ export function MdcScreen() {
           const nextRule: CreditRuleRow = {
             id: `cr-local-${Date.now()}`,
             name: form.name || "Nueva regla",
+            products: [form.product],
             field: form.field || "custom.field",
-            operator: form.operator,
-            value: form.value || "0",
-            dataType: form.dataType,
-            severity: form.severity,
-            status: form.status,
-            description: form.description,
             createdAt: new Date().toISOString(),
+            ...updatedRule,
+            value: form.evaluationMode === "bands" ? "" : form.value || "0",
           };
           setRules((current) => [...current, nextRule]);
         }}

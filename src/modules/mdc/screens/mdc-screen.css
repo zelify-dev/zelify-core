@@ -420,6 +420,26 @@
   background: #f8fafc;
 }
 
+.mdc-table--rules th,
+.mdc-table--rules td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.mdc-table--rules .mdc-badge,
+.mdc-table--rules .mdc-rule-bands,
+.mdc-table--rules .mdc-actions,
+.mdc-table--rules .mdc-row-menu {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.mdc-table--rules td > :not(.mdc-row-menu):not(.mdc-actions),
+.mdc-table--rules th > * {
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .mdc-badge {
   display: inline-flex;
   align-items: center;
@@ -427,6 +447,7 @@
   font-size: 11px;
   font-weight: 700;
   padding: 4px 8px;
+  white-space: nowrap;
 }
 
 .mdc-badge--ok {
@@ -452,6 +473,44 @@
 .mdc-badge--neutral {
   background: #f1f5f9;
   color: #475569;
+}
+
+.mdc-rule-bands {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  min-width: max-content;
+  white-space: nowrap;
+}
+
+.mdc-rule-band {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 3px 6px;
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.mdc-rule-band--ok {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.mdc-rule-band--warn {
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.mdc-rule-band--bad {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.mdc-rule-operator-label {
+  display: inline-block;
+  white-space: nowrap;
 }
 
 .mdc-filters {
