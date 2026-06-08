@@ -1176,7 +1176,7 @@ export function LimScreen() {
                 <thead><tr>{["Instrumento", "Plazo", "Monto", "Rendimiento", "Vencimiento"].map((h) => <th key={h}>{h}</th>)}</tr></thead>
                 <tbody>
                   {[
-                    { i: "Money Market AAA", p: "30 días", m: investMoneyMarket6m, r: "5.1% TNA", v: "07 Jun 2026" },
+                    { i: "Pagaré bancario", p: "30 días", m: investMoneyMarket6m, r: "5.1% TNA", v: "07 Jun 2026" },
                     { i: "CETE 90 días", p: "90 días", m: investCete90d, r: "6.67% TNA", v: "12 Ago 2026" },
                     { i: "CETE 28 días", p: "28 días", m: investCete28d, r: "6.54% TNA", v: "11 Jun 2026" },
                     { i: "Repo Overnight", p: "1 día", m: investRepo1d, r: "3.8% TNA", v: "15 May 2026" },
@@ -1202,7 +1202,7 @@ export function LimScreen() {
                 </div>
                 <div className="lim-section-head" style={{ marginTop: 8 }}>Oportunidad de inversión recomendada</div>
                 <div className="lim-section-subhead">
-                  Total disponible: <strong style={{ color: "#111827" }}>{formatMxnFull(investedTotalCurrent + scenarioLiquidityImmediate)}</strong> ·
+                  Total disponible: <strong style={{ color: "#111827" }}>{formatMxnFull(portfolioBalanceMxn)}</strong> ·
                   Reserva de liquidez inmediata: <strong style={{ color: "#111827" }}>{formatMxnFull(scenarioLiquidityImmediate)}</strong> ·
                   Monto sugerido a invertir: <strong style={{ color: "#111827" }}>{formatMxnFull(investedTotalCurrent)}</strong>
                 </div>
@@ -1211,8 +1211,8 @@ export function LimScreen() {
                   <tbody>
                     {[
                       {
-                        i: "Money Market AAA",
-                        p: "6 meses",
+                        i: "Pagaré bancario",
+                        p: "30 días",
                         e: formatMxnFull(investMoneyMarket6m),
                         t: "2.9% TNA",
                         ip: formatMxnFull(scaleToPortfolio(10_150, portfolioBalanceMxn)),
@@ -1253,8 +1253,8 @@ export function LimScreen() {
                 <div className="lim-ai-cards">
                   <div className="lim-ai-card lim-ai-card--green">
                     <span className="lim-ai-tag lim-ai-tag--green">Oportunidad</span>
-                    <div className="lim-ai-card-title">Optimizar Money Market</div>
-                    <div className="lim-ai-card-body">Con {formatMxnCompact(investedTotalCurrent + scenarioLiquidityImmediate)} disponibles, la IA sugiere asignar {formatMxnCompact(investedTotalCurrent)} a inversiones y mantener {formatMxnCompact(scenarioLiquidityImmediate)} como liquidez inmediata para cubrir operación diaria.</div>
+                    <div className="lim-ai-card-title">Optimizar distribución de liquidez</div>
+                    <div className="lim-ai-card-body">Con {formatMxnCompact(portfolioBalanceMxn)} disponibles en caja y depósitos, la IA sugiere asignar {formatMxnCompact(investedTotalCurrent)} a inversiones líquidas y mantener {formatMxnCompact(scenarioLiquidityImmediate)} como liquidez inmediata para cubrir operación diaria.</div>
                     <button className="lim-ai-action" type="button">Aplicar →</button>
                   </div>
                   <div className="lim-ai-card lim-ai-card--yellow">
