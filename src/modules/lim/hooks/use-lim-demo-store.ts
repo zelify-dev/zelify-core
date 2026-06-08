@@ -2,7 +2,7 @@
 
 import { startTransition, useCallback, useEffect, useMemo, useState } from "react";
 import { DEMO_STORAGE_KEYS, readDemoJson, writeDemoJson } from "@/lib/demo-storage";
-import { createFreshScotiaDemoState } from "../data/scotiabank-demo.seed";
+import { createFreshScotiaDemoState, enrichLimAuditLog } from "../data/scotiabank-demo.seed";
 import {
   buildFullLimClientList,
   syncLimBalancesFromCredit,
@@ -24,12 +24,20 @@ function migrateToCurrentVersion(stored: LimDemoState): LimDemoState {
     version: fresh.version,
     tiie: fresh.tiie,
     clients: buildFullLimClientList(SCOTIA_CREDIT_SEED.clients),
+    auditLog: enrichLimAuditLog(stored.auditLog ?? []),
   });
 }
 
 function loadState(): LimDemoState {
   const stored = readDemoJson<LimDemoState | null>(DEMO_STORAGE_KEYS.lim, null);
-  if (stored?.version === 3) return stored;
+  if (stored?.version === 3) {
+    const enriched = {
+      ...stored,
+      auditLog: enrichLimAuditLog(stored.auditLog ?? []),
+    };
+    if (enriched !== stored) writeDemoJson(DEMO_STORAGE_KEYS.lim, enriched);
+    return enriched;
+  }
   if (stored?.version === 2) {
     const migrated = migrateToCurrentVersion(stored);
     writeDemoJson(DEMO_STORAGE_KEYS.lim, migrated);
@@ -47,7 +55,14 @@ function loadState(): LimDemoState {
 export function seedScotiaDemoStorage(force = false): LimDemoState {
   if (typeof window === "undefined") return createFreshScotiaDemoState();
   const existing = readDemoJson<LimDemoState | null>(DEMO_STORAGE_KEYS.lim, null);
-  if (existing?.version === 3 && !force) return existing;
+  if (existing?.version === 3 && !force) {
+    const enriched = {
+      ...existing,
+      auditLog: enrichLimAuditLog(existing.auditLog ?? []),
+    };
+    writeDemoJson(DEMO_STORAGE_KEYS.lim, enriched);
+    return enriched;
+  }
   if ((existing?.version === 2 || existing?.version === 1) && !force) {
     const migrated = migrateToCurrentVersion(existing as LimDemoState);
     writeDemoJson(DEMO_STORAGE_KEYS.lim, migrated);

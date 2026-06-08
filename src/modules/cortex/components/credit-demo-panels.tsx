@@ -321,7 +321,7 @@ export function CreditAuditPanel({ store }: { store: Store }) {
       <ScotiaSectionHeader badge="CORTEX · Auditoría" title="Trazabilidad" subtitle="Reglas, IA, cross-sell y fijaciones." />
       <section className="scotia-card">
         <table className="lim-tbl lim-tbl--list scotia-table-compact">
-          <thead><tr>{["Fecha", "Acción", "Detalle", "Canal", "Usuario", "Tasa"].map((h) => <th key={h}>{h}</th>)}</tr></thead>
+          <thead><tr>{["Fecha", "Acción", "Detalle", "Canal", "Usuario", "Correlación", "Tasa antes", "Tasa después"].map((h) => <th key={h}>{h}</th>)}</tr></thead>
           <tbody>
             {state.auditLog.map((e) => (
               <tr key={e.id}>
@@ -330,6 +330,8 @@ export function CreditAuditPanel({ store }: { store: Store }) {
                 <td className="lim-td-muted">{e.details}</td>
                 <td>{e.channel}</td>
                 <td>{e.user}</td>
+                <td className="lim-td-muted">{e.correlationId}</td>
+                <td className="lim-td-n">{e.rateBefore !== undefined ? formatPctCredit(e.rateBefore) : "—"}</td>
                 <td className="lim-td-n">{e.rateAfter !== undefined ? formatPctCredit(e.rateAfter) : "—"}</td>
               </tr>
             ))}

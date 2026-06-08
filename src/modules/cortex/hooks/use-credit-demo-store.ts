@@ -5,6 +5,7 @@ import { DEMO_STORAGE_KEYS, readDemoJson, writeDemoJson } from "@/lib/demo-stora
 import {
   clientsForProduct,
   createFreshCreditDemoState,
+  enrichCreditAuditLog,
   getClient,
   getProduct,
   getDefaultQuoteContext,
@@ -87,7 +88,10 @@ function stripLegacyNariatSeed(state: CreditDemoState): CreditDemoState {
 function loadCreditState(): CreditDemoState {
   const stored = readDemoJson<CreditDemoState | null>(DEMO_STORAGE_KEYS.credit, null);
   if (stored?.version === 6) {
-    const cleaned = normalizeSelectedClient(stripLegacyNariatSeed(stored));
+    const cleaned = normalizeSelectedClient(stripLegacyNariatSeed({
+      ...stored,
+      auditLog: enrichCreditAuditLog(stored.auditLog ?? []),
+    }));
     if (cleaned !== stored) writeDemoJson(DEMO_STORAGE_KEYS.credit, cleaned);
     return cleaned;
   }
@@ -100,7 +104,10 @@ function loadCreditState(): CreditDemoState {
     return migrated;
   }
   if (stored?.version === 4) {
-    const cleaned = normalizeSelectedClient(stripLegacyNariatSeed(stored));
+    const cleaned = normalizeSelectedClient(stripLegacyNariatSeed({
+      ...stored,
+      auditLog: enrichCreditAuditLog(stored.auditLog ?? []),
+    }));
     if (cleaned !== stored) writeDemoJson(DEMO_STORAGE_KEYS.credit, cleaned);
     return cleaned;
   }
@@ -117,7 +124,14 @@ function loadCreditState(): CreditDemoState {
 export function seedScotiaCreditStorage(force = false): CreditDemoState {
   if (typeof window === "undefined") return createFreshCreditDemoState();
   const existing = readDemoJson<CreditDemoState | null>(DEMO_STORAGE_KEYS.credit, null);
-  if (existing?.version === 6 && !force) return normalizeSelectedClient(stripLegacyNariatSeed(existing));
+  if (existing?.version === 6 && !force) {
+    const enriched = normalizeSelectedClient(stripLegacyNariatSeed({
+      ...existing,
+      auditLog: enrichCreditAuditLog(existing.auditLog ?? []),
+    }));
+    writeDemoJson(DEMO_STORAGE_KEYS.credit, enriched);
+    return enriched;
+  }
   if (existing?.version === 5 && !force) {
     const migrated = recalcQuote({
       ...stripLegacyNariatSeed(mergeCreditDemoState(existing)),

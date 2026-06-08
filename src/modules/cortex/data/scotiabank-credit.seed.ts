@@ -3,7 +3,7 @@ import {
   DEFAULT_PRODUCTS,
   DEFAULT_RULES,
 } from "./credit-catalog";
-import type { CreditClientProfile, CreditDemoState } from "../types/credit-pricing.types";
+import type { CreditAuditEntry, CreditClientProfile, CreditDemoState } from "../types/credit-pricing.types";
 
 export function getDefaultQuoteContext(product: { amountMin: number; amountMax: number; termMinMonths: number; termMaxMonths: number }) {
   return {
@@ -437,6 +437,101 @@ function emptyCrossSellAccepted(): Record<string, boolean> {
   return acc;
 }
 
+const CREDIT_AUDIT_BASELINE: CreditAuditEntry[] = [
+  {
+    id: "credit-audit-cross-04",
+    timestamp: "2026-06-08T16:31:17.000Z",
+    action: "CROSS_SELL",
+    details: "Cross-sell actualizado · Seguro de vida + inversión patrimonial",
+    user: "Ejecutivo Frontline",
+    channel: "Sucursal",
+    correlationId: "corr-1780954277709",
+    rateBefore: 19.0,
+    rateAfter: 19.0,
+  },
+  {
+    id: "credit-audit-cross-03",
+    timestamp: "2026-06-08T16:06:47.000Z",
+    action: "CROSS_SELL",
+    details: "Cross-sell actualizado · Inversión patrimonial activada",
+    user: "Ejecutivo Frontline",
+    channel: "Sucursal",
+    correlationId: "corr-1780952807077",
+    rateBefore: 19.25,
+    rateAfter: 19.0,
+  },
+  {
+    id: "credit-audit-cross-02",
+    timestamp: "2026-06-08T16:06:45.000Z",
+    action: "CROSS_SELL",
+    details: "Cross-sell actualizado · Tarjeta de crédito activada",
+    user: "Ejecutivo Frontline",
+    channel: "Sucursal",
+    correlationId: "corr-1780952805654",
+    rateBefore: 19.75,
+    rateAfter: 19.25,
+  },
+  {
+    id: "credit-audit-cross-01",
+    timestamp: "2026-06-08T16:06:44.000Z",
+    action: "CROSS_SELL",
+    details: "Cross-sell actualizado · Seguro de vida activado",
+    user: "Ejecutivo Frontline",
+    channel: "Sucursal",
+    correlationId: "corr-1780952804038",
+    rateBefore: 20.25,
+    rateAfter: 19.75,
+  },
+  {
+    id: "credit-audit-ai-01",
+    timestamp: "2026-06-08T16:06:27.000Z",
+    action: "AI_VERIFY",
+    details: "IA · 3 aprobados / 1 rechazados",
+    user: "Ejecutivo Frontline",
+    channel: "Sucursal",
+    correlationId: "corr-1780952787521",
+  },
+  {
+    id: "credit-audit-sync-02",
+    timestamp: "2026-06-08T15:41:18.000Z",
+    action: "LCC_SYNC",
+    details: "+4 cliente(s) Zelify → LCC · Jose Luis Leon · PERS-LIB-01, Carla Beltrán · AUTO-EV-01, Jose Luis Molina · AUTO-EV-01, Andrea Molina · PERS-LIB-01",
+    user: "Sistema LCC",
+    channel: "Consola",
+    correlationId: "corr-lcc-1780951278060",
+  },
+  {
+    id: "credit-audit-sync-01",
+    timestamp: "2026-06-08T15:41:17.000Z",
+    action: "LCC_SYNC",
+    details: "+4 cliente(s) Zelify → LCC · Andrea López Hernández · PERS-LIB-01, Camila López Hernández · AUTO-EV-01, Nariat osbaldo benites León · PERS-LIB-01, Nariat osbaldo benitez leon · AUTO-EV-01",
+    user: "Sistema LCC",
+    channel: "Consola",
+    correlationId: "corr-lcc-1780951277858",
+  },
+  {
+    id: "credit-audit-seed",
+    timestamp: "2026-06-08T15:41:01.000Z",
+    action: "SEED",
+    details: "Catálogo CORTEX v5 · clientes personalizados por línea (Personal/Automotriz)",
+    user: "Admin Producto",
+    channel: "Consola",
+    correlationId: "corr-seed-002",
+  },
+];
+
+export function enrichCreditAuditLog(auditLog: CreditAuditEntry[]): CreditAuditEntry[] {
+  const merged = [...auditLog];
+  for (const entry of CREDIT_AUDIT_BASELINE) {
+    if (!merged.some((item) => item.id === entry.id)) {
+      merged.push(entry);
+    }
+  }
+  return merged
+    .sort((a, b) => +new Date(b.timestamp) - +new Date(a.timestamp))
+    .slice(0, 50);
+}
+
 export const SCOTIA_CREDIT_SEED: CreditDemoState = {
   version: 6,
   products: JSON.parse(JSON.stringify(DEFAULT_PRODUCTS)),
@@ -453,17 +548,7 @@ export const SCOTIA_CREDIT_SEED: CreditDemoState = {
   quoteFixed: false,
   quoteFixedAt: null,
   managerApproved: false,
-  auditLog: [
-    {
-      id: "credit-audit-seed",
-      timestamp: new Date().toISOString(),
-      action: "SEED",
-      details: "Catálogo CORTEX v5 · clientes personalizados por línea (Personal/Automotriz)",
-      user: "Admin Producto",
-      channel: "Consola",
-      correlationId: "corr-seed-002",
-    },
-  ],
+  auditLog: enrichCreditAuditLog([]),
 };
 
 export function createFreshCreditDemoState(): CreditDemoState {
@@ -488,7 +573,7 @@ export function mergeCreditDemoState(stored: CreditDemoState): CreditDemoState {
     version: 6,
     ...getDefaultQuoteContext(fresh.products.find((p) => p.id === stored.selectedProductId) ?? fresh.products[0]!),
     clients: [...stored.clients, ...added],
-    auditLog: [
+    auditLog: enrichCreditAuditLog([
       {
         id: `credit-audit-migrate-${Date.now()}`,
         timestamp: new Date().toISOString(),
@@ -499,7 +584,7 @@ export function mergeCreditDemoState(stored: CreditDemoState): CreditDemoState {
         correlationId: `corr-migrate-${Date.now()}`,
       },
       ...stored.auditLog,
-    ].slice(0, 50),
+    ]),
   };
 }
 
