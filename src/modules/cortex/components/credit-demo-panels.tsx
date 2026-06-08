@@ -24,7 +24,6 @@ type Store = ReturnType<typeof useCreditDemoStore>;
 export function CreditAdminPanel({ store, activeCategory }: { store: Store; activeCategory: CreditProductCategory }) {
   const { state, selectClient, updateProduct } = store;
   const product = store.getProduct();
-  const [clientFilter, setClientFilter] = useState<"all" | CreditProductCategory>(activeCategory);
   const [local, dispatchLocal] = useReducer(
     (_state: CreditProductTemplate, action: { type: "sync"; product: CreditProductTemplate } | { type: "patch"; patch: Partial<CreditProductTemplate> }) => {
       if (action.type === "sync") return action.product;
@@ -36,10 +35,9 @@ export function CreditAdminPanel({ store, activeCategory }: { store: Store; acti
   const [detailClient, setDetailClient] = useState<CreditClientProfile | null>(null);
 
   const categoryProducts = state.products.filter((p) => p.category === activeCategory);
-  const visibleCategory = clientFilter === "all" ? activeCategory : clientFilter;
   const filteredClients = state.clients.filter((c) => {
     const category = state.products.find((p) => p.id === c.productId)?.category;
-    return clientFilter === "all" ? true : category === clientFilter;
+    return category === activeCategory;
   });
 
   return (
@@ -54,23 +52,11 @@ export function CreditAdminPanel({ store, activeCategory }: { store: Store; acti
         <div className="scotia-card__head">
           <div>
             <h3>Clientes</h3>
-            <span className="lim-td-muted">Filtra por línea y abre el detalle KYC/KYB con un click</span>
+            <span className="lim-td-muted">Selecciona un cliente y abre el detalle KYC/KYB con un click</span>
           </div>
-          <label>
-            <span className="scotia-filter-label">Filtro</span>
-            <select
-              className="lim-sel"
-              value={clientFilter}
-              onChange={(e) => setClientFilter(e.target.value as "all" | CreditProductCategory)}
-            >
-              <option value="all">Todos</option>
-              <option value="automotriz">Crédito Automotriz</option>
-              <option value="personal">Crédito Personal / Línea</option>
-            </select>
-          </label>
         </div>
         <p className="scotia-card__hint">
-          {filteredClients.length} cliente(s) visibles · {CATEGORY_LABELS[visibleCategory]}
+          {filteredClients.length} cliente(s) visibles · {CATEGORY_LABELS[activeCategory]}
         </p>
         <div className="scotia-credit-client-table-wrap">
           <table className="lim-table scotia-credit-client-table">
