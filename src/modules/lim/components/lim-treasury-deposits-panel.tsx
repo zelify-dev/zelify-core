@@ -35,7 +35,7 @@ function ClientRatesTable({
       <table className="lim-tbl lim-tbl--list scotia-table-compact">
         <thead>
           <tr>
-            {["Cliente", "Saldo depósito", ...(showLoanColumn ? ["Crédito activo"] : []), "Tier", "Tasa"].map((h) => (
+            {["Cliente", "Saldo depósito", ...(showLoanColumn ? ["Depósito activo"] : []), "Tier", "Tasa"].map((h) => (
               <th key={h}>{h}</th>
             ))}
           </tr>

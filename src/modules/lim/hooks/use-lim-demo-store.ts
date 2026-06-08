@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useState } from "react";
 import { DEMO_STORAGE_KEYS, readDemoJson, writeDemoJson } from "@/lib/demo-storage";
 import { createFreshScotiaDemoState } from "../data/scotiabank-demo.seed";
 import {
@@ -17,15 +17,26 @@ import {
 } from "../services/deposit-pricing.engine";
 import type { LimDemoState, TierRow } from "../types/deposit-pricing.types";
 
+function migrateToCurrentVersion(stored: LimDemoState): LimDemoState {
+  const fresh = createFreshScotiaDemoState();
+  return recalculateAllClientRates({
+    ...stored,
+    version: fresh.version,
+    tiie: fresh.tiie,
+    clients: buildFullLimClientList(SCOTIA_CREDIT_SEED.clients),
+  });
+}
+
 function loadState(): LimDemoState {
   const stored = readDemoJson<LimDemoState | null>(DEMO_STORAGE_KEYS.lim, null);
-  if (stored?.version === 2) return stored;
+  if (stored?.version === 3) return stored;
+  if (stored?.version === 2) {
+    const migrated = migrateToCurrentVersion(stored);
+    writeDemoJson(DEMO_STORAGE_KEYS.lim, migrated);
+    return migrated;
+  }
   if (stored?.version === 1) {
-    const migrated = recalculateAllClientRates({
-      ...stored,
-      version: 2,
-      clients: buildFullLimClientList(SCOTIA_CREDIT_SEED.clients),
-    });
+    const migrated = migrateToCurrentVersion(stored as LimDemoState);
     writeDemoJson(DEMO_STORAGE_KEYS.lim, migrated);
     return migrated;
   }
@@ -36,13 +47,9 @@ function loadState(): LimDemoState {
 export function seedScotiaDemoStorage(force = false): LimDemoState {
   if (typeof window === "undefined") return createFreshScotiaDemoState();
   const existing = readDemoJson<LimDemoState | null>(DEMO_STORAGE_KEYS.lim, null);
-  if (existing?.version === 2 && !force) return existing;
-  if (existing?.version === 1 && !force) {
-    const migrated = recalculateAllClientRates({
-      ...existing,
-      version: 2,
-      clients: buildFullLimClientList(SCOTIA_CREDIT_SEED.clients),
-    });
+  if (existing?.version === 3 && !force) return existing;
+  if ((existing?.version === 2 || existing?.version === 1) && !force) {
+    const migrated = migrateToCurrentVersion(existing as LimDemoState);
     writeDemoJson(DEMO_STORAGE_KEYS.lim, migrated);
     writeDemoJson(DEMO_STORAGE_KEYS.seeded, true);
     return migrated;
@@ -62,11 +69,11 @@ export function useLimDemoStore() {
     if (!loaded.clientRates || Object.keys(loaded.clientRates).length === 0) {
       const recalced = recalculateAllClientRates(loaded);
       writeDemoJson(DEMO_STORAGE_KEYS.lim, recalced);
-      setState(recalced);
+      startTransition(() => setState(recalced));
     } else {
-      setState(loaded);
+      startTransition(() => setState(loaded));
     }
-    setHydrated(true);
+    startTransition(() => setHydrated(true));
   }, []);
 
   useEffect(() => {
@@ -74,15 +81,9 @@ export function useLimDemoStore() {
       if (event.key !== DEMO_STORAGE_KEYS.lim || !event.newValue) return;
       try {
         const parsed = JSON.parse(event.newValue) as LimDemoState;
-        if (parsed?.version === 2) setState(parsed);
-        else if (parsed?.version === 1) {
-          setState(
-            recalculateAllClientRates({
-              ...parsed,
-              version: 2,
-              clients: buildFullLimClientList(SCOTIA_CREDIT_SEED.clients),
-            }),
-          );
+        if (parsed?.version === 3) setState(parsed);
+        else if (parsed?.version === 2 || parsed?.version === 1) {
+          setState(migrateToCurrentVersion(parsed));
         }
       } catch {
         /* ignore */

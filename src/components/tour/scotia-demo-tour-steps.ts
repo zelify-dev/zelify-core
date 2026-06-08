@@ -145,7 +145,7 @@ export const SCOTIA_DEMO_TOUR_STEPS: ScotiaTourStep[] = [
     tab: "pricing",
     target: "lim-tiers-config",
     title: "Tablas tier",
-    hint: "PM/PF · TIIE 10.50% vigente.",
+    hint: "PM/PF · TIIE 6.50% vigente.",
     action: "reset-tiie",
   },
   {
@@ -156,7 +156,7 @@ export const SCOTIA_DEMO_TOUR_STEPS: ScotiaTourStep[] = [
     tab: "pricing",
     target: "lim-client-pm002",
     title: "Caso 1 · Estándar",
-    hint: "Tier 2 · 10.50% × 30% = 3.15%.",
+    hint: "Tier 2 · 6.50% × 30% = 1.95%.",
     action: "select-client-pm002",
   },
   {
@@ -167,7 +167,7 @@ export const SCOTIA_DEMO_TOUR_STEPS: ScotiaTourStep[] = [
     tab: "pricing",
     target: "lim-tiie-recalc",
     title: "Recálculo TIIE",
-    hint: "9.50% → corporativo pasa a 2.85%.",
+    hint: "6.50% → corporativo pasa a 1.95%.",
     action: "simulate-tiie-drop",
   },
   {

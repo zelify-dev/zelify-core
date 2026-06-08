@@ -160,10 +160,10 @@ factor_efectivo = factor_tier + bono_adicional (ej. +5%)
 **Tiempo:** 4 min
 
 **Qué decir:**
-> La consola LIM muestra las tablas tier para Persona Moral (5 niveles) y Persona Física (4 niveles). La TIIE 28d vigente es 10.50%. Cualquier cambio en un tier se aplica al siguiente ciclo de evaluación de saldo promedio.
+> La consola LIM muestra las tablas tier para Persona Moral (5 niveles) y Persona Física (4 niveles). La TIIE 28d vigente es 6.50%. Cualquier cambio en un tier se aplica al siguiente ciclo de evaluación de saldo promedio.
 
 **Mostrar:**
-- TIIE 28d: **10.50%**
+- TIIE 28d: **6.50%**
 - Tabla PM: Tier 2 = factor 30% para saldos $10M – $100M
 - Tabla PF: factores 20%, 30%, 50%, 90%
 
@@ -179,7 +179,7 @@ factor_efectivo = factor_tier + bono_adicional (ej. +5%)
 **Cálculo:**
 ```
 SPM = $50,000,000  →  Tier 2 PM  →  factor 30%
-Tasa = 10.50% × 30% = 3.15%
+Tasa = 6.50% × 30% = 3.15%
 ```
 
 **Acción:** Seleccionar cliente en el dropdown (o avanzar guía).
@@ -191,11 +191,11 @@ Tasa = 10.50% × 30% = 3.15%
 **Tiempo:** 4 min
 
 **Qué decir:**
-> Simulamos que la TIIE baja de 10.50% a 9.50%. El motor recalcula automáticamente toda la cartera — hoy esto es trabajo manual en muchos bancos.
+> Simulamos que la TIIE baja de 6.50% a 9.50%. El motor recalcula automáticamente toda la cartera — hoy esto es trabajo manual en muchos bancos.
 
 **Cálculo:**
 ```
-Antes:  10.50% × 30% = 3.15%
+Antes:  6.50% × 30% = 3.15%
 Después: 9.50% × 30% = 2.85%
 ```
 

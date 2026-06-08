@@ -134,10 +134,10 @@ export function ScotiaDemoTourHost({
           onSelectedClientChange("PM-DEMO-004");
           break;
         case "simulate-tiie-drop":
-          limStore.simulateTiieChange(9.5);
+          limStore.simulateTiieChange(6.2);
           break;
         case "reset-tiie":
-          limStore.simulateTiieChange(10.5);
+          limStore.simulateTiieChange(6.6);
           break;
       }
     },

@@ -2,37 +2,12 @@
 
 import { useState } from "react";
 import type { CreditClientProfile } from "@/modules/cortex/types/credit-pricing.types";
-import { getCreditClientForDeposit } from "@/modules/scotia/data/scotia-demo-bridge";
 import { ScotiaSectionHeader, displayClientId } from "@/modules/scotia/components/scotia-section-header";
 import { formatMxn, formatPct } from "../services/deposit-pricing.engine";
 import type { useLimDemoStore } from "../hooks/use-lim-demo-store";
-import type { DemoClient, TierRow } from "../types/deposit-pricing.types";
+import type { TierRow } from "../types/deposit-pricing.types";
 
 type Store = ReturnType<typeof useLimDemoStore>;
-
-const PRICING_CASES = [
-  {
-    id: "PM-DEMO-002",
-    caseLabel: "Caso 1",
-    caseTitle: "Pricing estándar",
-    tourId: "lim-client-pm002",
-    accent: "standard" as const,
-  },
-  {
-    id: "PM-DEMO-003",
-    caseLabel: "Caso 2",
-    caseTitle: "Tasa mínima VIP",
-    tourId: "lim-override-pm003",
-    accent: "vip" as const,
-  },
-  {
-    id: "PM-DEMO-004",
-    caseLabel: "Caso 3",
-    caseTitle: "Bonificación",
-    tourId: "lim-bonus-pm004",
-    accent: "bonus" as const,
-  },
-];
 
 function normalizeMoney(value: number): number {
   if (!Number.isFinite(value)) return 0;
@@ -296,100 +271,18 @@ function TierTableEditor({
   );
 }
 
-function ClientCaseCard({
-  client,
-  pricing,
-  caseLabel,
-  caseTitle,
-  accent,
-  tourId,
-  selected,
-  override,
-  bonus,
-  linkedCredit,
-  onSelect,
-  onToggleBonus,
-}: {
-  client: DemoClient;
-  pricing: NonNullable<ReturnType<Store["getClientPricing"]>>;
-  caseLabel: string;
-  caseTitle: string;
-  accent: "standard" | "vip" | "bonus";
-  tourId: string;
-  selected: boolean;
-  override?: { capMin?: number; notes?: string };
-  bonus?: { id: string; active: boolean; conditionLabel: string };
-  linkedCredit?: CreditClientProfile;
-  onSelect: () => void;
-  onToggleBonus?: (active: boolean) => void;
-}) {
-  return (
-    <article
-      className={`scotia-case-card scotia-case-card--${accent}${selected ? " scotia-case-card--active" : ""}`}
-      data-tour={tourId}
-      onClick={onSelect}
-      onKeyDown={(e) => e.key === "Enter" && onSelect()}
-      role="button"
-      tabIndex={0}
-    >
-      <header className="scotia-case-card__head">
-        <span className="scotia-case-card__label">{caseLabel}</span>
-        <span className="scotia-case-card__type">{caseTitle}</span>
-      </header>
-      <h4 className="scotia-case-card__name">{client.name}</h4>
-      <p className="scotia-case-card__meta">
-        {displayClientId(client.id)} · {formatMxn(client.averageBalance)} · T{pricing.tier}
-      </p>
-      <p className="scotia-case-card__rate">{formatPct(pricing.rate)}</p>
-      {linkedCredit && (
-        <p className="scotia-case-card__detail scotia-case-card__detail--credit">
-          Crédito CORTEX · {displayClientId(linkedCredit.id)} · {formatMxn(linkedCredit.amount)}
-        </p>
-      )}
-      {accent === "standard" && (
-        <p className="scotia-case-card__detail">
-          {formatPct(pricing.tiieRate)} × {Math.round(pricing.factor * 100)}%
-        </p>
-      )}
-      {override && (
-        <p className="scotia-case-card__detail scotia-case-card__detail--vip">
-          Mínimo acordado {formatPct(override.capMin ?? 0)}
-        </p>
-      )}
-      {bonus && (
-        <div className="scotia-case-card__bonus" onClick={(e) => e.stopPropagation()}>
-          <span>{bonus.conditionLabel}</span>
-          <label className="lim-pricing-toggle">
-            <input type="checkbox" checked={bonus.active} onChange={(e) => onToggleBonus?.(e.target.checked)} />
-            {bonus.active ? "Activa" : "Off"}
-          </label>
-        </div>
-      )}
-    </article>
-  );
-}
-
-export function LimDepositPricingPanel({
-  store,
-  creditClients = [],
-  selectedClient,
-  onSelectedClientChange,
-}: {
+export function LimDepositPricingPanel(props: {
   store: Store;
   creditClients?: CreditClientProfile[];
-  selectedClient: string;
-  onSelectedClientChange: (id: string) => void;
 }) {
-  const { state, updateTiersPm, updateTiersPf, simulateTiieChange, approvePendingTiie, toggleBonus } = store;
-  const [simulating, setSimulating] = useState(false);
+  const { store } = props;
+  const { state, updateTiersPm, updateTiersPf } = store;
   const pmTierSignature = state.tiersPm
     .map((tier) => `${tier.id}-${tier.tier}-${tier.balanceMin}-${tier.balanceMax ?? "open"}-${tier.tiieFactor}`)
     .join("|");
   const pfTierSignature = state.tiersPf
     .map((tier) => `${tier.id}-${tier.tier}-${tier.balanceMin}-${tier.balanceMax ?? "open"}-${tier.tiieFactor}`)
     .join("|");
-
-  const recalcPm002 = state.auditLog.find((e) => e.clientId === "PM-DEMO-002" && e.action === "RECALC_TIIE");
   const creditPortfolio = state.clients.filter((c) => !c.featuredCase);
 
   return (
@@ -427,94 +320,15 @@ export function LimDepositPricingPanel({
         </div>
       </section>
 
-      <section className="scotia-card" data-tour="lim-tiie-recalc">
-        <div className="scotia-card__head">
-          <h3>Recálculo por TIIE</h3>
-        </div>
-        <div className="lim-pricing-actions">
-          <button
-            type="button"
-            className={`lim-btn-primary${simulating ? " lim-btn--loading" : ""}`}
-            onClick={() => {
-              setSimulating(true);
-              simulateTiieChange(9.5);
-              setTimeout(() => setSimulating(false), 800);
-            }}
-          >
-            TIIE 9.50%
-          </button>
-          <button type="button" className="lim-btn-ghost" onClick={() => simulateTiieChange(10.5)}>
-            Restaurar 10.50%
-          </button>
-        </div>
-        {state.pendingApproval?.status === "PENDING" && (
-          <div className="lim-pricing-alert lim-pricing-alert--warn">
-            <strong>Aprobación tesorería</strong>
-            <span>
-              {state.pendingApproval.variationBps >= 0 ? "+" : ""}
-              {state.pendingApproval.variationBps} pbs
-            </span>
-            <button type="button" className="lim-btn-primary lim-btn-sm" onClick={approvePendingTiie}>
-              Aprobar
-            </button>
-          </div>
-        )}
-        {recalcPm002?.rateBefore !== undefined && recalcPm002.rateAfter !== undefined && (
-          <div className="lim-recalc-before-after">
-            <strong>Caso 1 · recálculo automático</strong>
-            <div className="lim-recalc-values">
-              <span className="lim-recalc-before">{formatPct(recalcPm002.rateBefore)}</span>
-              <span className="lim-recalc-arrow">→</span>
-              <span className="lim-recalc-after">{formatPct(recalcPm002.rateAfter)}</span>
-            </div>
-          </div>
-        )}
-      </section>
-
-      <section className="scotia-card" data-tour="lim-client-pricing">
-        <div className="scotia-card__head">
-          <h3>Casos corporativos</h3>
-          <span className="lim-td-muted">Comparación en paralelo</span>
-        </div>
-        <div className="scotia-cases-grid">
-          {PRICING_CASES.map((c) => {
-            const client = state.clients.find((cl) => cl.id === c.id);
-            const pricing = client ? store.getClientPricing(client.id) : null;
-            if (!client || !pricing) return null;
-            return (
-              <ClientCaseCard
-                key={c.id}
-                client={client}
-                pricing={pricing}
-                caseLabel={c.caseLabel}
-                caseTitle={c.caseTitle}
-                accent={c.accent}
-                tourId={c.tourId}
-                selected={selectedClient === c.id}
-                override={state.overrides.find((o) => o.clientId === c.id)}
-                bonus={state.bonuses.find((b) => b.clientId === c.id)}
-                linkedCredit={getCreditClientForDeposit(client, creditClients)}
-                onSelect={() => onSelectedClientChange(c.id)}
-                onToggleBonus={(active) => {
-                  const b = state.bonuses.find((x) => x.clientId === c.id);
-                  if (b) toggleBonus(b.id, active);
-                }}
-              />
-            );
-          })}
-        </div>
-      </section>
-
       {creditPortfolio.length > 0 && (
         <section className="scotia-card scotia-card--flat lim-pricing-credit-portfolio" data-tour="lim-credit-deposits">
           <div className="scotia-card__head">
             <h3>Cartera CORTEX · depósitos vinculados</h3>
-            <span className="lim-td-muted">Saldo depósito = monto del préstamo · sincronizado con cotización</span>
+            <span className="lim-td-muted">Clientes vinculados con relación activa en CORTEX y tasa de depósito calculada por LIM.</span>
           </div>
           <div className="lim-credit-deposit-grid">
             {creditPortfolio.map((client) => {
               const pricing = store.getClientPricing(client.id);
-              const credit = getCreditClientForDeposit(client, creditClients);
               if (!pricing) return null;
               return (
                 <article key={client.id} className="lim-credit-deposit-card">
@@ -528,12 +342,6 @@ export function LimDepositPricingPanel({
                     <span>Tasa</span>
                     <strong className="lim-val-up">{formatPct(pricing.rate)}</strong>
                   </div>
-                  {credit && (
-                    <div className="lim-credit-deposit-card__row">
-                      <span>Crédito</span>
-                      <strong>{formatMxn(credit.amount)} · {credit.termMonths}m</strong>
-                    </div>
-                  )}
                 </article>
               );
             })}

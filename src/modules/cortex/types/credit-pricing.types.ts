@@ -136,6 +136,8 @@ export interface CreditDemoState {
   crossSellByCategory: Record<CreditProductCategory, CrossSellOption[]>;
   selectedProductId: string;
   selectedClientId: string;
+  quoteAmountMxn: number;
+  quoteTermMonths: number;
   crossSellAccepted: Record<string, boolean>;
   aiVerificationRun: boolean;
   aiBatchResults: AiVerificationResult[];

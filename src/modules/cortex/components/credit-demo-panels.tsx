@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
+import { Eye } from "lucide-react";
 import { CATEGORY_LABELS } from "../data/credit-catalog";
 import type { useCreditDemoStore } from "../hooks/use-credit-demo-store";
 import {
@@ -23,87 +24,116 @@ type Store = ReturnType<typeof useCreditDemoStore>;
 export function CreditAdminPanel({ store, activeCategory }: { store: Store; activeCategory: CreditProductCategory }) {
   const { state, selectClient, updateProduct } = store;
   const product = store.getProduct();
-  const [local, setLocal] = useState(product);
+  const [clientFilter, setClientFilter] = useState<"all" | CreditProductCategory>(activeCategory);
+  const [local, dispatchLocal] = useReducer(
+    (_state: CreditProductTemplate, action: { type: "sync"; product: CreditProductTemplate } | { type: "patch"; patch: Partial<CreditProductTemplate> }) => {
+      if (action.type === "sync") return action.product;
+      return { ..._state, ...action.patch };
+    },
+    product,
+  );
   const [saved, setSaved] = useState(false);
   const [detailClient, setDetailClient] = useState<CreditClientProfile | null>(null);
 
-  useEffect(() => setLocal(store.getProduct()), [state.selectedProductId, store]);
-
   const categoryProducts = state.products.filter((p) => p.category === activeCategory);
-  const clientsInCategory = state.clients.filter(
-    (c) => state.products.find((p) => p.id === c.productId)?.category === activeCategory,
-  );
-  const zelifyInCategory = clientsInCategory.filter((c) => c.sourceCustomerId);
+  const visibleCategory = clientFilter === "all" ? activeCategory : clientFilter;
+  const filteredClients = state.clients.filter((c) => {
+    const category = state.products.find((p) => p.id === c.productId)?.category;
+    return clientFilter === "all" ? true : category === clientFilter;
+  });
 
   return (
     <div className="lim-panel scotia-workspace" data-tour="credit-product-admin">
       <ScotiaSectionHeader
         badge="CORTEX · Crédito"
         title="Catálogo de productos"
-        subtitle={`${CATEGORY_LABELS[activeCategory]} · selecciona cliente y parametriza producto.`}
+        subtitle={`${CATEGORY_LABELS[activeCategory]}`}
       />
-
-      {store.zelifyLccClients.length > 0 && (
-        <section className="scotia-card scotia-card--flat lim-lcc-zelify-strip">
-          <div className="scotia-card__head">
-            <h3>Clientes Zelify · LCC</h3>
-            <span className="lim-td-muted">
-              Alta desde Clientes individuales · cambia de línea según producto asignado
-            </span>
-          </div>
-          <div className="scotia-credit-clients-grid">
-            {store.zelifyLccClients.map((c) => {
-              const cat = state.products.find((p) => p.id === c.productId)?.category;
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  className={`scotia-credit-client-card scotia-credit-client-card--zelify${state.selectedClientId === c.id ? " scotia-credit-client-card--active" : ""}${cat !== activeCategory ? " scotia-credit-client-card--muted" : ""}`}
-                  onClick={() => {
-                    selectClient(c.id);
-                    setDetailClient(c);
-                  }}
-                >
-                  <span className="scotia-credit-client-card__type">
-                    {cat === activeCategory ? CATEGORY_LABELS[activeCategory] : cat ?? "Crédito"}
-                  </span>
-                  <strong>{c.name}</strong>
-                  <span>{displayClientId(c.id)} · {c.sourceCustomerId}</span>
-                  <span className="lim-pill lim-pill--blue">Cliente Zelify</span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      )}
 
       <section className="scotia-card">
         <div className="scotia-card__head">
-          <h3>Clientes · {CATEGORY_LABELS[activeCategory]}</h3>
-          <span className="lim-td-muted">Selecciona cliente activo · clic para KYC/KYB</span>
-        </div>
-        <div className="scotia-credit-clients-grid">
-          {clientsInCategory.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              className={`scotia-credit-client-card${state.selectedClientId === c.id ? " scotia-credit-client-card--active" : ""}`}
-              onClick={() => {
-                selectClient(c.id);
-                setDetailClient(c);
-              }}
+          <div>
+            <h3>Clientes</h3>
+            <span className="lim-td-muted">Filtra por línea y abre el detalle KYC/KYB con un click</span>
+          </div>
+          <label>
+            <span className="scotia-filter-label">Filtro</span>
+            <select
+              className="lim-sel"
+              value={clientFilter}
+              onChange={(e) => setClientFilter(e.target.value as "all" | CreditProductCategory)}
             >
-              <span className="scotia-credit-client-card__type">{c.entityType === "PM" ? "Empresa" : "Persona"}</span>
-              <strong>{c.name}</strong>
-              <span>{displayClientId(c.id)} · Score {c.creditScore}</span>
-              {c.sourceCustomerId && (
-                <span className="lim-pill lim-pill--blue">Cliente Zelify · {c.sourceCustomerId}</span>
-              )}
-              <span className={`lim-pill lim-pill--${c.aiApproved === false ? "red" : c.aiApproved ? "green" : "yellow"}`}>
-                {c.aiApproved === false ? "Rechazado IA" : c.aiApproved ? "Aprobado IA" : "Pendiente IA"}
-              </span>
-            </button>
-          ))}
+              <option value="all">Todos</option>
+              <option value="automotriz">Crédito Automotriz</option>
+              <option value="personal">Crédito Personal / Línea</option>
+            </select>
+          </label>
+        </div>
+        <p className="scotia-card__hint">
+          {filteredClients.length} cliente(s) visibles · {CATEGORY_LABELS[visibleCategory]}
+        </p>
+        <div className="scotia-credit-client-table-wrap">
+          <table className="lim-table scotia-credit-client-table">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Cliente</th>
+                <th>Score</th>
+                <th>KYC</th>
+                <th>AML</th>
+                <th>PEP</th>
+                <th>Detalle</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredClients.map((c) => {
+                const cat = state.products.find((p) => p.id === c.productId)?.category;
+                const overview = getClientOverview(c);
+                const amlStatus = overview.statuses.find((status) => status.key === "aml")!;
+                const kycStatus = overview.statuses.find((status) => status.key === "kyc")!;
+                const pepStatus = overview.statuses.find((status) => status.key === "pep")!;
+
+                return (
+                  <tr
+                    key={c.id}
+                    className={state.selectedClientId === c.id ? "scotia-credit-client-table__row--active" : ""}
+                    onClick={() => {
+                      selectClient(c.id);
+                      setDetailClient(c);
+                    }}
+                  >
+                    <td>{cat === "automotriz" ? CATEGORY_LABELS.automotriz : CATEGORY_LABELS.personal}</td>
+                    <td>
+                      <strong className="scotia-credit-client-table__name">{c.name}</strong>
+                    </td>
+                    <td>
+                      <span className={`scotia-credit-client-table__score scotia-credit-client-table__score--${overview.score.tone}`}>
+                        {c.creditScore}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`scotia-credit-client-table__status scotia-credit-client-table__status--${kycStatus.tone}`}>
+                        {kycStatus.value}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`scotia-credit-client-table__status scotia-credit-client-table__status--${amlStatus.tone}`}>
+                        {amlStatus.value}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`scotia-credit-client-table__status scotia-credit-client-table__status--${pepStatus.tone}`}>{pepStatus.value}</span>
+                    </td>
+                    <td className="scotia-credit-client-table__detail-cell">
+                      <span className="scotia-credit-client-table__link" aria-label={`Ver detalle de ${c.name}`}>
+                        <Eye size={16} strokeWidth={2} />
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </section>
 
@@ -122,8 +152,9 @@ export function CreditAdminPanel({ store, activeCategory }: { store: Store; acti
             className="lim-sel"
             value={local.id}
             onChange={(e) => {
+              const nextProduct = store.getProduct(e.target.value);
               store.selectProduct(e.target.value);
-              setLocal(store.getProduct(e.target.value));
+              dispatchLocal({ type: "sync", product: nextProduct });
             }}
           >
             {categoryProducts.map((p) => (
@@ -146,12 +177,12 @@ export function CreditAdminPanel({ store, activeCategory }: { store: Store; acti
           <div><span>Monto máx.</span><strong>{formatMxnCredit(local.amountMax)}</strong></div>
         </div>
         <div className="lim-credit-params-grid">
-          <ParamField label="Tasa base (%)" type="number" value={String(local.baseRate)} onChange={(v) => setLocal({ ...local, baseRate: parseFloat(v) || 0 })} />
-          <ParamField label="Banda mín (%)" type="number" value={String(local.discountBandMin)} onChange={(v) => setLocal({ ...local, discountBandMin: parseFloat(v) || 0 })} />
-          <ParamField label="Banda máx (%)" type="number" value={String(local.discountBandMax)} onChange={(v) => setLocal({ ...local, discountBandMax: parseFloat(v) || 0 })} />
-          <ParamField label="Plazo mín" type="number" value={String(local.termMinMonths)} onChange={(v) => setLocal({ ...local, termMinMonths: parseInt(v) || 0 })} />
-          <ParamField label="Plazo máx" type="number" value={String(local.termMaxMonths)} onChange={(v) => setLocal({ ...local, termMaxMonths: parseInt(v) || 0 })} />
-          <ParamField label="Comisión (%)" type="number" value={String(local.openingFeePct)} onChange={(v) => setLocal({ ...local, openingFeePct: parseFloat(v) || 0 })} />
+          <ParamField label="Tasa base (%)" type="number" value={String(local.baseRate)} onChange={(v) => dispatchLocal({ type: "patch", patch: { baseRate: parseFloat(v) || 0 } })} />
+          <ParamField label="Banda mín (%)" type="number" value={String(local.discountBandMin)} onChange={(v) => dispatchLocal({ type: "patch", patch: { discountBandMin: parseFloat(v) || 0 } })} />
+          <ParamField label="Banda máx (%)" type="number" value={String(local.discountBandMax)} onChange={(v) => dispatchLocal({ type: "patch", patch: { discountBandMax: parseFloat(v) || 0 } })} />
+          <ParamField label="Plazo mín" type="number" value={String(local.termMinMonths)} onChange={(v) => dispatchLocal({ type: "patch", patch: { termMinMonths: parseInt(v) || 0 } })} />
+          <ParamField label="Plazo máx" type="number" value={String(local.termMaxMonths)} onChange={(v) => dispatchLocal({ type: "patch", patch: { termMaxMonths: parseInt(v) || 0 } })} />
+          <ParamField label="Comisión (%)" type="number" value={String(local.openingFeePct)} onChange={(v) => dispatchLocal({ type: "patch", patch: { openingFeePct: parseFloat(v) || 0 } })} />
         </div>
         <button
           type="button"
@@ -170,7 +201,7 @@ export function CreditAdminPanel({ store, activeCategory }: { store: Store; acti
 }
 
 export function CreditQuotePanel({ store, activeCategory }: { store: Store; activeCategory: CreditProductCategory }) {
-  const { state, runQuote, setCrossSellOption, runAiVerification, approveManager, fixQuote, toggleRule, selectClient } = store;
+  const { state, runQuote, setCrossSellOption, runAiVerification, approveManager, fixQuote, toggleRule } = store;
   const product = store.getProduct();
   const client = store.getClient();
   const q = state.quote;
@@ -178,12 +209,6 @@ export function CreditQuotePanel({ store, activeCategory }: { store: Store; acti
   const crossSellOptions = state.crossSellByCategory[product.category];
   const crossSellLabels = crossSellOptions.map((o) => o.label);
   const propensity = aiPropensity(client);
-  const categoryClients = state.clients.filter(
-    (c) => state.products.find((p) => p.id === c.productId)?.category === activeCategory,
-  );
-  const zelifyInCategory = categoryClients.filter((c) => c.sourceCustomerId);
-  const othersInCategory = categoryClients.filter((c) => !c.sourceCustomerId);
-  const batchClients = [...zelifyInCategory, ...othersInCategory].slice(0, 8);
   const compliance = evaluateRuleCompliance(client, product, state.rulesByCategory[activeCategory]);
   const complianceOk = compliance.every((r) => r.passed);
   const scoreOk = client.creditScore >= 650;
@@ -202,19 +227,10 @@ export function CreditQuotePanel({ store, activeCategory }: { store: Store; acti
       <ScotiaSectionHeader
         badge="CORTEX · Cotización"
         title="Motor de decisión"
-        subtitle={`${CATEGORY_LABELS[activeCategory]} · ${client.name}`}
+        subtitle={CATEGORY_LABELS[activeCategory]}
         metric={q ? formatPctCredit(q.finalRate) : "—"}
         metricLabel="Tasa"
       />
-
-      <section className="scotia-card scotia-card--inline-metrics" data-tour="credit-active-params">
-        <div className="scotia-inline-metrics">
-          <span>Producto <strong>{product.id}</strong></span>
-          <span>Banda <strong>{product.discountBandMin}%–{product.discountBandMax}%</strong></span>
-          <span>Plazo <strong>{client.termMonths} meses</strong></span>
-          <span>Monto <strong>{formatMxnCredit(client.amount)}</strong></span>
-        </div>
-      </section>
 
       <section className="scotia-card scotia-data-layer scotia-data-layer--compact" data-tour="credit-data-layer">
         <div className="scotia-card__head scotia-card__head--minimal">
@@ -235,37 +251,6 @@ export function CreditQuotePanel({ store, activeCategory }: { store: Store; acti
         rules={state.rulesByCategory[activeCategory]}
         onToggle={(ruleId, enabled) => toggleRule(activeCategory, ruleId, enabled)}
       />
-
-      <section className="scotia-card scotia-card--flat" data-tour="credit-quote-clients">
-        <div className="scotia-card__head">
-          <h3>Clientes · verificación KYC/KYB</h3>
-          <span className="lim-td-muted">
-            {zelifyInCategory.length > 0
-              ? `${zelifyInCategory.length} de Zelify · ${batchClients.length} en esta línea`
-              : `Batch de ${batchClients.length} · selecciona para cotizar`}
-          </span>
-        </div>
-        <div className="scotia-credit-clients-grid scotia-credit-clients-grid--4">
-          {batchClients.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              className={`scotia-credit-client-card${state.selectedClientId === c.id ? " scotia-credit-client-card--active" : ""}`}
-              onClick={() => selectClient(c.id)}
-            >
-              <span className="scotia-credit-client-card__type">{c.entityType === "PM" ? "Empresa" : "Persona"}</span>
-              <strong>{c.name}</strong>
-              <span>{displayClientId(c.id)} · Score {c.creditScore}</span>
-              {c.sourceCustomerId && (
-                <span className="lim-pill lim-pill--blue">Cliente Zelify · {c.sourceCustomerId}</span>
-              )}
-              <span className={`lim-pill lim-pill--${c.aiApproved === false ? "red" : c.aiApproved ? "green" : "yellow"}`}>
-                {c.aiApproved === false ? "Rechazado IA" : c.aiApproved ? "Aprobado IA" : "Pendiente IA"}
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
 
       <section className="cortex-ai-panel" data-tour="credit-ai-recommend">
         <header className="cortex-ai-panel__header">
@@ -378,44 +363,134 @@ function ClientDetailModal({
   product: CreditProductTemplate;
   onClose: () => void;
 }) {
+  const overview = getClientOverview(client);
+  const scoreFill = Math.max(0, Math.min(100, ((client.creditScore - 400) / 450) * 100));
+
   return (
     <div className="scotia-modal-backdrop" onClick={onClose}>
       <div className="scotia-modal" onClick={(e) => e.stopPropagation()}>
         <div className="scotia-modal__head">
-          <h3>{client.name}</h3>
+          <div>
+            <p className="scotia-modal__eyebrow">{client.entityType === "PM" ? "Persona moral" : "Persona física"} · {displayClientId(client.id)}</p>
+            <h3>{client.name}</h3>
+          </div>
           <button type="button" className="scotia-tour-close" onClick={onClose}>×</button>
         </div>
-        <p className="scotia-card__hint">{product.name} · {formatMxnCredit(client.amount)} · {client.termMonths} meses</p>
-        <div className="scotia-modal__grid">
-          <div><span>Score</span><strong>{client.creditScore}</strong></div>
-          <div><span>Tipo</span><strong>{client.entityType === "PM" ? "Persona moral" : "Persona física"}</strong></div>
-          <div><span>RFC</span><strong>{client.kyc.rfc}</strong></div>
-          {client.kyc.curp && <div><span>CURP</span><strong>{client.kyc.curp}</strong></div>}
-          <div><span>Teléfono</span><strong>{client.kyc.phone}</strong></div>
-          <div><span>Email</span><strong>{client.kyc.email}</strong></div>
-          {client.kyc.birthDate && <div><span>Nacimiento</span><strong>{client.kyc.birthDate}</strong></div>}
-          <div><span>Dirección</span><strong>{client.kyc.address}</strong></div>
-          {client.kyc.idDocument && <div><span>INE</span><strong>{client.kyc.idDocument}</strong></div>}
-          <div><span>KYC</span><strong>{client.kyc.idVerified ? "Verificado" : "Pendiente"}</strong></div>
-          <div><span>AML</span><strong>{client.kyc.amlApproved ? "Aprobado" : client.kyb?.amlRisk ?? "Pendiente"}</strong></div>
-          <div><span>PEP</span><strong>{client.kyc.pep ? "Sí" : "No"}</strong></div>
-          {client.kyc.incomeMonthly && <div><span>Ingreso</span><strong>{formatMxnCredit(client.kyc.incomeMonthly)}/mes</strong></div>}
-        </div>
-        {client.kyb && (
-          <>
-            <h4>KYB · Persona moral</h4>
-            <div className="scotia-modal__grid">
-              <div><span>Razón social</span><strong>{client.kyb.legalName}</strong></div>
-              <div><span>Sector</span><strong>{client.kyb.sector}</strong></div>
-              <div><span>Empleados</span><strong>{client.kyb.employees}</strong></div>
-              <div><span>AML</span><strong>{client.kyb.amlRisk}</strong></div>
-              <div><span>Beneficiarios</span><strong>{client.kyb.beneficialOwnersVerified ? "Verificados" : "Pendiente"}</strong></div>
+        <div className="scotia-modal__summary">
+          <div className={`scotia-modal__score-card scotia-modal__score-card--${overview.score.tone}`}>
+            <div className="scotia-modal__score-head">
+              <span>Score crediticio</span>
+              <em>{client.creditScore}/850</em>
             </div>
-          </>
+            <div className="scotia-modal__score-body">
+              <strong>{client.creditScore}</strong>
+              <p>{overview.score.label}</p>
+            </div>
+            <div className="scotia-modal__score-meter" aria-hidden="true">
+              <span style={{ width: `${scoreFill}%` }} />
+            </div>
+            <div className="scotia-modal__score-meta">
+              <span>{overview.entityLabel}</span>
+              <span>{product.name}</span>
+            </div>
+          </div>
+          <div className="scotia-modal__status-panel">
+            <div className="scotia-modal__status-grid">
+              {overview.statuses.map((status) => (
+                <div key={status.key} className={`scotia-modal__status-card scotia-modal__status-card--${status.tone}`}>
+                  <span>{status.label}</span>
+                  <strong>{status.value}</strong>
+                </div>
+              ))}
+            </div>
+            <div className="scotia-modal__identity-row">
+              <span>{displayClientId(client.id)}</span>
+              <span>{client.sourceCustomerId ? `Origen ${client.sourceCustomerId}` : "Origen cliente base"}</span>
+            </div>
+          </div>
+        </div>
+
+        <section className="scotia-modal__section">
+          <div className="scotia-modal__section-head">
+            <h4>Datos KYC</h4>
+            <span>{product.name}</span>
+          </div>
+          <div className="scotia-modal__grid">
+            <div><span>RFC</span><strong>{client.kyc.rfc}</strong></div>
+            {client.kyc.curp && <div><span>CURP</span><strong>{client.kyc.curp}</strong></div>}
+            <div><span>Teléfono</span><strong>{client.kyc.phone}</strong></div>
+            <div><span>Email</span><strong>{client.kyc.email}</strong></div>
+            {client.kyc.birthDate && <div><span>Nacimiento</span><strong>{client.kyc.birthDate}</strong></div>}
+            <div><span>Dirección</span><strong>{client.kyc.address}</strong></div>
+            {client.kyc.idDocument && <div><span>INE</span><strong>{client.kyc.idDocument}</strong></div>}
+            {client.kyc.incomeMonthly && <div><span>Ingreso</span><strong>{formatMxnCredit(client.kyc.incomeMonthly)}/mes</strong></div>}
+          </div>
+        </section>
+
+        {client.entityType === "PM" ? (
+          <section className="scotia-modal__section">
+            <div className="scotia-modal__section-head">
+              <h4>Datos KYB</h4>
+              <span>{client.kyb?.amlRisk ?? "Sin riesgo"}</span>
+            </div>
+            <div className="scotia-modal__grid">
+              <div><span>Razón social</span><strong>{client.kyb?.legalName ?? "—"}</strong></div>
+              <div><span>Sector</span><strong>{client.kyb?.sector ?? "—"}</strong></div>
+              <div><span>Empleados</span><strong>{client.kyb?.employees ?? "—"}</strong></div>
+              <div><span>AML</span><strong>{client.kyb?.amlRisk ?? "—"}</strong></div>
+              <div><span>Beneficiarios</span><strong>{client.kyb?.beneficialOwnersVerified ? "Verificados" : "Pendiente"}</strong></div>
+            </div>
+          </section>
+        ) : (
+          <section className="scotia-modal__section">
+            <div className="scotia-modal__section-head">
+              <h4>Persona física</h4>
+              <span>No aplica KYB</span>
+            </div>
+            <p className="scotia-modal__empty">
+              Este cliente es una persona física. La validación central es KYC.
+            </p>
+          </section>
         )}
       </div>
     </div>
   );
+}
+
+function getClientOverview(client: CreditClientProfile) {
+  const score =
+    client.creditScore >= 700
+      ? { label: "Perfil fuerte", shortLabel: "Fuerte", tone: "strong" as const }
+      : client.creditScore >= 650
+        ? { label: "Perfil estandar", shortLabel: "Estandar", tone: "standard" as const }
+        : { label: "Perfil de revision", shortLabel: "Revision", tone: "review" as const };
+
+  const statuses = [
+    {
+      key: "kyc",
+      label: "KYC",
+      value: client.kyc.idVerified ? "Verificado" : "Pendiente",
+      tone: client.kyc.idVerified ? ("ok" as const) : ("warn" as const),
+    },
+    {
+      key: "aml",
+      label: "AML",
+      value: client.kyc.amlApproved ? "Aprobado" : client.kyc.amlApproved === false ? "Bloqueado" : "Pendiente",
+      tone: client.kyc.amlApproved ? ("ok" as const) : client.kyc.amlApproved === false ? ("bad" as const) : ("warn" as const),
+    },
+    {
+      key: "pep",
+      label: "PEP",
+      value: client.kyc.pep ? "Si" : "No",
+      tone: client.kyc.pep ? ("warn" as const) : ("ok" as const),
+    },
+  ];
+
+  return {
+    entityLabel: client.entityType === "PM" ? "Persona moral" : "Persona fisica",
+    score,
+    statuses,
+  };
 }
 
 function ParamField({ label, value, onChange, type = "text" }: { label: string; value: string; onChange: (v: string) => void; type?: string }) {

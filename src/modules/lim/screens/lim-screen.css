@@ -1703,11 +1703,6 @@
   color: #64748b;
 }
 
-.scotia-case-card__detail--credit {
-  color: #1d4ed8;
-  font-weight: 600;
-}
-
 .scotia-credit-client-card--zelify {
   border-color: #93c5fd;
   background: linear-gradient(180deg, #f8fafc 0%, #eff6ff 100%);
@@ -2050,6 +2045,13 @@
   font-weight: 600;
 }
 
+.scotia-case-card__subdetail {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #64748b;
+}
+
 .scotia-case-card__bonus {
   margin-top: 10px;
   padding-top: 10px;
@@ -2059,6 +2061,17 @@
   gap: 8px;
   font-size: 11px;
   color: #475569;
+}
+
+.scotia-case-card__bonus-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.scotia-case-card__bonus-copy small {
+  font-size: 11px;
+  color: #64748b;
 }
 
 @media (max-width: 1024px) {

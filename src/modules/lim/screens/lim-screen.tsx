@@ -437,10 +437,14 @@ function IncomeUseChart({
   suppliers,
   payroll,
   net,
+  centerLabel = "Uso del ingreso",
+  centerSubLabel = "Mes activo",
 }: {
   suppliers: number;
   payroll: number;
   net: number;
+  centerLabel?: string;
+  centerSubLabel?: string;
 }) {
   const W = 980, H = 320;
   const cx = 260, cy = 160, ro = 112, ri = 62;
@@ -491,9 +495,9 @@ function IncomeUseChart({
       ))}
       <circle cx={cx} cy={cy} r={ri - 3} fill="#ffffff" />
 
-      <text x={cx} y={146} textAnchor="middle" fontSize={11} fill="#6b7280">Uso del ingreso</text>
+      <text x={cx} y={146} textAnchor="middle" fontSize={11} fill="#6b7280">{centerLabel}</text>
       <text x={cx} y={166} textAnchor="middle" fontSize={18} fill="#0f172a" fontWeight="700">{formatMxnFull(total)}</text>
-      <text x={cx} y={184} textAnchor="middle" fontSize={10} fill="#94a3b8">Promedio mensual</text>
+      <text x={cx} y={184} textAnchor="middle" fontSize={10} fill="#94a3b8">{centerSubLabel}</text>
 
       <g transform="translate(520,78)">
         {arcs.map((a, i) => (
@@ -642,24 +646,20 @@ export function LimScreen() {
 
   const projectedOutflows30d = scaleToPortfolio(LCC_FLOW_30D_BASE.projectedOutflows, portfolioBalanceMxn);
   const recognizedInflows30d = scaleToPortfolio(LCC_FLOW_30D_BASE.recognizedInflows, portfolioBalanceMxn);
-  const netCashOutflows30d = projectedOutflows30d - recognizedInflows30d;
-
-  const hqla = liquidityImmediate + investCete90d + investCete28d;
-  const lcr = hqla / netCashOutflows30d;
-
-  const cashEquivalents = liquidityImmediate + bucket1d + bucket30d;
   const currentLiabilities = scaleToPortfolio(LCC_FLOW_30D_BASE.currentLiabilities, portfolioBalanceMxn);
-  const cashRatio = cashEquivalents / currentLiabilities;
 
   const avgMonthlyInflow = Math.round(totals.totalInflow / rows.length);
   const avgMonthlyOutflow = Math.round(totals.totalOutflow / rows.length);
   const monthlyNetCashflow = avgMonthlyInflow - avgMonthlyOutflow;
-  const avgMonthlySuppliers = Math.round(rows.reduce((s, r) => s + r.outflowSuppliers, 0) / rows.length);
-  const avgMonthlyPayroll = Math.round(rows.reduce((s, r) => s + r.outflowPayroll, 0) / rows.length);
+  const activeRow = rows[safeActiveMonth] ?? rows[0];
+  const activeMonthSuppliers = activeRow?.outflowSuppliers ?? 0;
+  const activeMonthPayroll = activeRow?.outflowPayroll ?? 0;
+  const activeMonthNetCashflow = activeRow ? activeRow.inflow - activeRow.outflow : 0;
   const scenarioLiquidityImmediate = Math.max(
     liquidityImmediate + Math.round(monthlyNetCashflow * 0.3),
     scaleToPortfolio(100_000, portfolioBalanceMxn),
   );
+  const totalLiquidAssetsCurrent = scenarioLiquidityImmediate + investedTotalCurrent;
 
   const expectedInflows30d =
     !isScotiaTab && mdcSnapshot.expectedInflows30dMxn > 0
@@ -1202,8 +1202,8 @@ export function LimScreen() {
                 </div>
                 <div className="lim-section-head" style={{ marginTop: 8 }}>Oportunidad de inversión recomendada</div>
                 <div className="lim-section-subhead">
-                  Total disponible: <strong style={{ color: "#111827" }}>{formatMxnFull(investedTotalCurrent + liquidityImmediate)}</strong> ·
-                  Reserva de liquidez inmediata: <strong style={{ color: "#111827" }}>{formatMxnFull(liquidityImmediate)}</strong> ·
+                  Total disponible: <strong style={{ color: "#111827" }}>{formatMxnFull(investedTotalCurrent + scenarioLiquidityImmediate)}</strong> ·
+                  Reserva de liquidez inmediata: <strong style={{ color: "#111827" }}>{formatMxnFull(scenarioLiquidityImmediate)}</strong> ·
                   Monto sugerido a invertir: <strong style={{ color: "#111827" }}>{formatMxnFull(investedTotalCurrent)}</strong>
                 </div>
                 <table className="lim-tbl lim-tbl--list">
@@ -1254,7 +1254,7 @@ export function LimScreen() {
                   <div className="lim-ai-card lim-ai-card--green">
                     <span className="lim-ai-tag lim-ai-tag--green">Oportunidad</span>
                     <div className="lim-ai-card-title">Optimizar Money Market</div>
-                    <div className="lim-ai-card-body">Con {formatMxnCompact(investedTotalCurrent + liquidityImmediate)} disponibles, la IA sugiere asignar {formatMxnCompact(investedTotalCurrent)} a inversiones y mantener {formatMxnCompact(liquidityImmediate)} como liquidez inmediata para cubrir operación diaria.</div>
+                    <div className="lim-ai-card-body">Con {formatMxnCompact(investedTotalCurrent + scenarioLiquidityImmediate)} disponibles, la IA sugiere asignar {formatMxnCompact(investedTotalCurrent)} a inversiones y mantener {formatMxnCompact(scenarioLiquidityImmediate)} como liquidez inmediata para cubrir operación diaria.</div>
                     <button className="lim-ai-action" type="button">Aplicar →</button>
                   </div>
                   <div className="lim-ai-card lim-ai-card--yellow">
@@ -1294,36 +1294,39 @@ export function LimScreen() {
                 <article className="lim-dash-kpi">
                   <div className="lim-dash-kpi-title">Liquidez inmediata (Caja disponible)</div>
                   <div className="lim-dash-kpi-range">Efectivo operativo disponible hoy</div>
-                  <div className="lim-dash-kpi-val">{formatMxnFull(liquidityImmediate)}</div>
+                  <div className="lim-dash-kpi-val">{formatMxnFull(scenarioLiquidityImmediate)}</div>
                 </article>
 
                 <article className="lim-dash-kpi">
                   <div className="lim-dash-kpi-title">Flujo neto mensual de efectivo</div>
                   <div className="lim-dash-kpi-range">Entradas mensuales - salidas mensuales</div>
-                  <div className="lim-dash-kpi-val">+{formatMxnFull(Math.round(totals.totalInflow / rows.length - totals.totalOutflow / rows.length))}</div>
+                  <div className="lim-dash-kpi-val">
+                    {activeMonthNetCashflow >= 0 ? "+" : ""}{formatMxnFull(activeMonthNetCashflow)}
+                  </div>
                 </article>
 
                 <article className="lim-dash-kpi">
                   <div className="lim-dash-kpi-title">LCR (Liquidity Coverage Ratio)</div>
                   <div className="lim-dash-kpi-range">LCR = HQLA / Salidas netas 30d</div>
-                  <div className="lim-dash-kpi-val">{(lcr * 100).toFixed(1)}%</div>
+                  <div className="lim-dash-kpi-val">{(scenarioLcr * 100).toFixed(1)}%</div>
                 </article>
 
                 <article className="lim-dash-kpi">
                   <div className="lim-dash-kpi-title">Cash Ratio (Razón de efectivo)</div>
                   <div className="lim-dash-kpi-range">(Efectivo + equivalentes) / Pasivo circulante</div>
-                  <div className="lim-dash-kpi-val">{cashRatio.toFixed(2)}x</div>
+                  <div className="lim-dash-kpi-val">{scenarioCashRatio.toFixed(2)}x</div>
                 </article>
               </div>
 
               <div className="lim-section-head" style={{ marginTop: 14 }}>Ingresos vs uso del ingreso mensual</div>
               <div className="lim-section-subhead">
-                Muestra cuánto ingresa en promedio y en qué se utiliza: proveedores, nómina y flujo neto.
+                Muestra el uso del ingreso del mes activo del cashflow: proveedores, nómina y flujo neto.
               </div>
               <IncomeUseChart
-                suppliers={avgMonthlySuppliers}
-                payroll={avgMonthlyPayroll}
-                net={monthlyNetCashflow}
+                suppliers={activeMonthSuppliers}
+                payroll={activeMonthPayroll}
+                net={activeMonthNetCashflow}
+                centerSubLabel={activeRow?.label ? activeRow.label.toUpperCase() : "Mes activo"}
               />
 
               <div className="lim-section-head">Activos líquidos por bucket de vencimiento</div>
@@ -1350,8 +1353,8 @@ export function LimScreen() {
                   </tr>
                   <tr>
                     <td>Activos líquidos</td>
-                    <td className="lim-td-n">{formatMxnFull(investedTotalCurrent)}</td>
-                    <td>Total invertido del escenario activo</td>
+                    <td className="lim-td-n">{formatMxnFull(totalLiquidAssetsCurrent)}</td>
+                    <td>Caja disponible + total invertido del escenario activo</td>
                   </tr>
                 </tbody>
               </table>

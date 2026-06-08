@@ -131,7 +131,7 @@ Con bonificación: `factor_ajustado = factor × (1 + bono)`
 
 ### TIIE inicial
 
-**10.50%** (28 días)
+**6.50%** (28 días)
 
 ---
 
@@ -144,7 +144,7 @@ Con bonificación: `factor_ajustado = factor × (1 + bono)`
 | Cliente | PM-002 · Grupo Industrial del Norte |
 | Saldo SPM | $50,000,000 |
 | Tier | T2 PM (factor 30%) |
-| **Tasa** | **10.50% × 30% = 3.15%** |
+| **Tasa** | **6.50% × 30% = 3.15%** |
 
 Tras recálculo TIIE a 9.50%: **2.85%**
 
@@ -173,7 +173,7 @@ Tras recálculo TIIE a 9.50%: **2.85%**
 
 | Paso | Pantalla | Qué decir |
 |------|----------|-----------|
-| B1 | Depósitos · Pricing | Tablas tier PM/PF, TIIE 10.50%. |
+| B1 | Depósitos · Pricing | Tablas tier PM/PF, TIIE 6.50%. |
 | B2 | Caso 1 (tarjeta) | Estándar: tier 2, 3.15%. |
 | B3 | Recálculo TIIE | Bajar a 9.50% → Caso 1 pasa a 2.85%. |
 | B4 | Caso 2 (tarjeta) | VIP: override 3.50%. |

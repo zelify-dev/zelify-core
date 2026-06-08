@@ -5,6 +5,13 @@ import {
 } from "./credit-catalog";
 import type { CreditClientProfile, CreditDemoState } from "../types/credit-pricing.types";
 
+export function getDefaultQuoteContext(product: { amountMin: number; amountMax: number; termMinMonths: number; termMaxMonths: number }) {
+  return {
+    quoteAmountMxn: Math.round(((product.amountMin + product.amountMax) / 2) / 1000) * 1000,
+    quoteTermMonths: Math.round((product.termMinMonths + product.termMaxMonths) / 2),
+  };
+}
+
 const CLIENTS: CreditClientProfile[] = [
   {
     id: "CL-AUTO-001",
@@ -431,13 +438,14 @@ function emptyCrossSellAccepted(): Record<string, boolean> {
 }
 
 export const SCOTIA_CREDIT_SEED: CreditDemoState = {
-  version: 5,
+  version: 6,
   products: JSON.parse(JSON.stringify(DEFAULT_PRODUCTS)),
   clients: JSON.parse(JSON.stringify(CLIENTS)),
   rulesByCategory: JSON.parse(JSON.stringify(DEFAULT_RULES)),
   crossSellByCategory: JSON.parse(JSON.stringify(DEFAULT_CROSS_SELL)),
   selectedProductId: "AUTO-EV-01",
-  selectedClientId: "CL-AUTO-001",
+  selectedClientId: "CL-LCC-CU-479948",
+  ...getDefaultQuoteContext(DEFAULT_PRODUCTS[0]!),
   crossSellAccepted: emptyCrossSellAccepted(),
   aiVerificationRun: false,
   aiBatchResults: [],
@@ -464,23 +472,28 @@ export function createFreshCreditDemoState(): CreditDemoState {
 
 /** Incorpora clientes nuevos del seed sin perder estado de cotización del usuario. */
 export function mergeCreditDemoState(stored: CreditDemoState): CreditDemoState {
-  if (stored.version >= 5) return stored;
+  if (stored.version >= 6) return stored;
   const fresh = createFreshCreditDemoState();
   const ids = new Set(stored.clients.map((c) => c.id));
   const added = fresh.clients.filter((c) => !ids.has(c.id));
   if (added.length === 0) {
-    return { ...stored, version: 5 };
+    return {
+      ...stored,
+      version: 6,
+      ...getDefaultQuoteContext(fresh.products.find((p) => p.id === stored.selectedProductId) ?? fresh.products[0]!),
+    };
   }
   return {
     ...stored,
-    version: 5,
+    version: 6,
+    ...getDefaultQuoteContext(fresh.products.find((p) => p.id === stored.selectedProductId) ?? fresh.products[0]!),
     clients: [...stored.clients, ...added],
     auditLog: [
       {
         id: `credit-audit-migrate-${Date.now()}`,
         timestamp: new Date().toISOString(),
         action: "MIGRATE_CLIENTS",
-        details: `CORTEX v5 · +${added.length} cliente(s): ${added.map((c) => c.name).join(", ")}`,
+        details: `CORTEX v6 · +${added.length} cliente(s): ${added.map((c) => c.name).join(", ")}`,
         user: "Sistema",
         channel: "Consola",
         correlationId: `corr-migrate-${Date.now()}`,
