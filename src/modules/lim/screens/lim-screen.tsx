@@ -743,10 +743,10 @@ export function LimScreen() {
   const TABS: { id: MainTab; label: string; badge?: string }[] = [
     { id: "credito-admin", label: "Crédito · Admin", badge: "A" },
     { id: "credito-cotizacion", label: "Crédito · Cotización" },
-    { id: "credito-auditoria", label: "Crédito · Auditoría" },
+    { id: "credito-trazabilidad", label: "Crédito · Trazabilidad" },
     { id: "pricing", label: "Depósitos · Pricing", badge: "B" },
     { id: "tesoreria", label: "Depósitos · Tesorería" },
-    { id: "auditoria", label: "Depósitos · Auditoría" },
+    { id: "trazabilidad", label: "Depósitos · Trazabilidad" },
     { id: "dashboard", label: "LCC Dashboard" },
     { id: "cashflow", label: "Cashflow" },
     { id: "expected", label: "Flujo Esperado", badge: "4" },

@@ -1012,7 +1012,7 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
       setFeedback("Debe registrar una razon para override manual.");
       return;
     }
-    setFeedback(`Override aplicado: ${STATUS_LABELS[overrideChoice]}. Queda registrado en auditoria.`);
+    setFeedback(`Override aplicado: ${STATUS_LABELS[overrideChoice]}. Queda registrado en Trazabilidad.`);
   };
 
   return (

@@ -1,10 +1,10 @@
 export type ScotiaDemoTab =
   | "credito-admin"
   | "credito-cotizacion"
-  | "credito-auditoria"
+  | "credito-trazabilidad"
   | "pricing"
   | "tesoreria"
-  | "auditoria";
+  | "trazabilidad";
 
 export type ScotiaTourAction =
   | "select-client-pm002"
@@ -132,7 +132,7 @@ export const SCOTIA_DEMO_TOUR_STEPS: ScotiaTourStep[] = [
     module: "A",
     stepInModule: 10,
     totalInModule: MODULE_A_TOTAL,
-    tab: "credito-auditoria",
+    tab: "credito-trazabilidad",
     target: "credit-audit-log",
     title: "Auditoría",
     hint: "Datos, IA, reglas y cross-sell trazados.",

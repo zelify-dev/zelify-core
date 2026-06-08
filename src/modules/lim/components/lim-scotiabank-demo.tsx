@@ -50,7 +50,7 @@ export function ScotiaDemoSection({
 
   if (activeTab === "credito-admin") return <CreditAdminPanel store={creditStore} activeCategory={creditCategory} />;
   if (activeTab === "credito-cotizacion") return <CreditQuotePanel store={creditStore} activeCategory={creditCategory} />;
-  if (activeTab === "credito-auditoria") return <CreditAuditPanel store={creditStore} />;
+  if (activeTab === "credito-trazabilidad") return <CreditAuditPanel store={creditStore} />;
   if (activeTab === "tesoreria") {
     return (
       <>
@@ -63,7 +63,7 @@ export function ScotiaDemoSection({
       </>
     );
   }
-  if (activeTab === "auditoria") return <LimPricingAuditPanel store={limStore} />;
+  if (activeTab === "trazabilidad") return <LimPricingAuditPanel store={limStore} />;
   return (
     <>
       <LimDepositsSyncBar
@@ -248,9 +248,9 @@ export function isScotiaDemoTab(tab: string): tab is ScotiaDemoTab {
   return [
     "credito-admin",
     "credito-cotizacion",
-    "credito-auditoria",
+    "credito-trazabilidad",
     "pricing",
     "tesoreria",
-    "auditoria",
+    "trazabilidad",
   ].includes(tab);
 }
