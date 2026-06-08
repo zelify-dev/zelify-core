@@ -324,7 +324,7 @@ export function LimDepositPricingPanel(props: {
         <section className="scotia-card scotia-card--flat lim-pricing-credit-portfolio" data-tour="lim-credit-deposits">
           <div className="scotia-card__head">
             <h3>Cartera CORTEX · depósitos vinculados</h3>
-            <span className="lim-td-muted">Clientes vinculados con relación activa en CORTEX y tasa de depósito calculada por LIM.</span>
+            <span className="lim-td-muted">Clientes vinculados con relación activa en CORTEX y tasa de depósito calculada por LCC.</span>
           </div>
           <div className="lim-credit-deposit-grid">
             {creditPortfolio.map((client) => {

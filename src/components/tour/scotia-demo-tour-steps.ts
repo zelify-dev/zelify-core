@@ -92,7 +92,7 @@ export const SCOTIA_DEMO_TOUR_STEPS: ScotiaTourStep[] = [
     tab: "credito-cotizacion",
     target: "credit-quote-potential",
     title: "Oportunidades",
-    hint: "100 pbs pendientes · piso posible 13.00%.",
+    hint: "Descuentos pendientes · piso posible 13.75%.",
   },
   {
     id: "a7-seguro",
@@ -102,7 +102,7 @@ export const SCOTIA_DEMO_TOUR_STEPS: ScotiaTourStep[] = [
     tab: "credito-cotizacion",
     target: "credit-cross-sell-seguro",
     title: "Paso 1 · Seguro auto",
-    hint: "Activa checkbox 1 → 14% baja a 13.50%.",
+    hint: "Activa checkbox 1 → la tasa baja hasta el piso de 13.75%.",
     action: "enable-cross-sell-seguro",
   },
   {
@@ -113,7 +113,7 @@ export const SCOTIA_DEMO_TOUR_STEPS: ScotiaTourStep[] = [
     tab: "credito-cotizacion",
     target: "credit-cross-sell-inversion",
     title: "Paso 2 · Inversión",
-    hint: "Activa checkbox 2 → 13.50% baja a 13.00%.",
+    hint: "Activa checkbox 2 → se mantiene el piso de 13.75%.",
     action: "enable-cross-sell",
   },
   {
@@ -124,7 +124,7 @@ export const SCOTIA_DEMO_TOUR_STEPS: ScotiaTourStep[] = [
     tab: "credito-cotizacion",
     target: "credit-fix-quote",
     title: "Fijar cotización",
-    hint: "Tasa 13.00% fija · envío REST al Core.",
+    hint: "Tasa 13.75% fija · envío REST al Core.",
     action: "fix-credit-quote",
   },
   {
