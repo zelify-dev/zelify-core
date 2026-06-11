@@ -13,27 +13,7 @@ export type TopNavDropdownEntry =
   | { kind: "item"; label: string; href: string }
   | { kind: "separator" };
 
-const Q = (base: string, view: string) => `${base}?view=${encodeURIComponent(view)}`;
-
 const topNavDropdownsByNavId: Record<string, TopNavDropdownSourceEntry[]> = {
-  clients: [
-    { kind: "item", labelKey: "nav.dropdowns.clients.pendingApproval", href: Q("/customers", "pending-approval") },
-    { kind: "item", labelKey: "nav.dropdowns.clients.allClients", href: "/customers" },
-  ],
-  groups: [
-    { kind: "item", labelKey: "nav.dropdowns.groups.noActiveAccounts", href: Q("/groups", "sin-cuentas-activas") },
-  ],
-  loans: [
-    { kind: "item", labelKey: "nav.dropdowns.loans.activeLoan", href: Q("/loans", "active-loan") },
-    { kind: "item", labelKey: "nav.dropdowns.loans.overdue", href: Q("/loans", "en-atraso") },
-    { kind: "item", labelKey: "nav.dropdowns.loans.cancelled", href: Q("/loans", "cancelada") },
-  ],
-  activities: [{ kind: "item", labelKey: "nav.dropdowns.activities.allActivities", href: "/activities" }],
-  reporting: [
-    { kind: "item", labelKey: "nav.dropdowns.reporting.indicators", href: Q("/reports", "indicators") },
-    { kind: "item", labelKey: "nav.dropdowns.reporting.earnings", href: Q("/reports", "earnings") },
-    { kind: "item", labelKey: "nav.dropdowns.reporting.risk", href: Q("/reports", "risk") },
-  ],
   accounting: [
     { kind: "item", labelKey: "nav.dropdowns.accounting.balanceSheet", href: "/accounting/balance-sheet" },
     {
