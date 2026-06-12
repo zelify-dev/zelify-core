@@ -9,7 +9,7 @@ import { AppSelect } from "@/components/ui/atoms/select/app-select";
 import { SettingsDataTable } from "@/components/ui/organisms/settings-data-table/settings-data-table";
 import { SandboxBanner } from "@/modules/customers/components/sandbox-banner";
 import { loansLifecycleService } from "../services/loans-lifecycle.service";
-import { Loan, LoanProductDefinition, LoanScheduleItem, LoanTransaction, LoanTranche } from "../types/loan-lifecycle.types";
+import { Loan, LoanProductDefinition, LoanScheduleItem, LoanTransaction } from "../types/loan-lifecycle.types";
 
 import "@/components/ui/templates/workspace-page.css";
 import "./loans-screen.css";
@@ -17,19 +17,37 @@ const money = (n: number, c: string) => new Intl.NumberFormat("es-MX", { style: 
 type CustomerLite = { id: string; fullName: string };
 type CompanyLite = { id: string; name: string };
 
+async function fetchJsonWithTimeout<T>(url: string): Promise<T> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+  try {
+    const response = await fetch(url, { cache: "no-store", signal: controller.signal });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.json() as T;
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Tiempo de espera agotado.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export function LoansScreen() {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [products, setProducts] = useState<LoanProductDefinition[]>([]);
   const [selectedLoanId, setSelectedLoanId] = useState<string>("");
   const [schedule, setSchedule] = useState<LoanScheduleItem[]>([]);
   const [transactions, setTransactions] = useState<LoanTransaction[]>([]);
-  const [tranches, setTranches] = useState<LoanTranche[]>([]);
   const [loading, setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [msg, setMsg] = useState<{ text: string; tone: "success" | "error" } | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [tab, setTab] = useState<"ciclo" | "calendario" | "movimientos" | "configuracion">("ciclo");
   const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [activeLoanModal, setActiveLoanModal] = useState<null | "calendar" | "transactions" | "config">(null);
+  const [openActionMenuLoanId, setOpenActionMenuLoanId] = useState<string | null>(null);
   const [customers, setCustomers] = useState<CustomerLite[]>([]);
   const [companies, setCompanies] = useState<CompanyLite[]>([]);
 
@@ -42,53 +60,125 @@ export function LoansScreen() {
 
   const loadAll = async () => {
     setLoading(true);
-    const [loanRows, productRows] = await Promise.all([loansLifecycleService.listLoans(), loansLifecycleService.listLoanProducts()]);
-    const [customersRes, companiesRes] = await Promise.all([
-      fetch("/api/customers", { cache: "no-store" }),
-      fetch("/api/groups", { cache: "no-store" }),
+    setMsg(null);
+    const results = await Promise.allSettled([
+      loansLifecycleService.listLoans(),
+      loansLifecycleService.listLoanProducts(),
+      fetchJsonWithTimeout<{ data: Array<{ id: string; fullName: string }> }>("/api/customers"),
+      fetchJsonWithTimeout<{ data: Array<{ id: string; name: string }> }>("/api/groups"),
     ]);
-    if (customersRes.ok) {
-      const cJson = (await customersRes.json()) as { data: Array<{ id: string; fullName: string }> };
-      setCustomers(cJson.data ?? []);
+
+    const [loansResult, productsResult, customersResult, companiesResult] = results;
+    const errors: string[] = [];
+
+    if (loansResult.status === "fulfilled") {
+      setLoans(loansResult.value);
+      setSelectedLoanId((prev) => prev || loansResult.value[0]?.id || "");
+    } else {
+      setLoans([]);
+      errors.push(`Préstamos: ${loansResult.reason instanceof Error ? loansResult.reason.message : "error desconocido"}`);
     }
-    if (companiesRes.ok) {
-      const gJson = (await companiesRes.json()) as { data: Array<{ id: string; name: string }> };
-      setCompanies(gJson.data ?? []);
+
+    if (productsResult.status === "fulfilled") {
+      setProducts(productsResult.value.filter((x) => x.isActive));
+    } else {
+      setProducts([]);
+      errors.push(`Productos: ${productsResult.reason instanceof Error ? productsResult.reason.message : "error desconocido"}`);
     }
-    setLoans(loanRows);
-    setProducts(productRows.filter((x) => x.isActive));
-    setSelectedLoanId((prev) => prev || loanRows[0]?.id || "");
+
+    if (customersResult.status === "fulfilled") {
+      setCustomers(customersResult.value.data ?? []);
+    } else {
+      setCustomers([]);
+      errors.push(`Clientes: ${customersResult.reason instanceof Error ? customersResult.reason.message : "error desconocido"}`);
+    }
+
+    if (companiesResult.status === "fulfilled") {
+      setCompanies(companiesResult.value.data ?? []);
+    } else {
+      setCompanies([]);
+      errors.push(`Grupos: ${companiesResult.reason instanceof Error ? companiesResult.reason.message : "error desconocido"}`);
+    }
+
+    if (errors.length) {
+      setMsg({
+        tone: "error",
+        text: `No se pudo cargar toda la información. ${errors.join(" · ")}`,
+      });
+    }
+
     setLoading(false);
   };
 
   const loadLoanDetail = async (loanId: string) => {
     if (!loanId) return;
-    const [s, t, tr] = await Promise.all([
+    setDetailLoading(true);
+    const results = await Promise.allSettled([
       loansLifecycleService.getSchedule(loanId),
       loansLifecycleService.getTransactions(loanId),
-      loansLifecycleService.getTranches(loanId),
     ]);
-    setSchedule(s);
-    setTransactions(t);
-    setTranches(tr);
+
+    const [scheduleResult, transactionsResult] = results;
+    const errors: string[] = [];
+
+    if (scheduleResult.status === "fulfilled") {
+      setSchedule(scheduleResult.value);
+    } else {
+      setSchedule([]);
+      errors.push(`Calendario: ${scheduleResult.reason instanceof Error ? scheduleResult.reason.message : "error desconocido"}`);
+    }
+
+    if (transactionsResult.status === "fulfilled") {
+      setTransactions(transactionsResult.value);
+    } else {
+      setTransactions([]);
+      errors.push(`Transacciones: ${transactionsResult.reason instanceof Error ? transactionsResult.reason.message : "error desconocido"}`);
+    }
+
+    if (errors.length) {
+      setMsg({
+        tone: "error",
+        text: `No se pudo cargar todo el detalle del préstamo. ${errors.join(" · ")}`,
+      });
+    }
+    setDetailLoading(false);
   };
 
   useEffect(() => {
-    void loadAll();
+    queueMicrotask(() => {
+      void loadAll();
+    });
   }, []);
   useEffect(() => {
-    if (selectedLoanId) void loadLoanDetail(selectedLoanId);
+    if (!selectedLoanId) return;
+    queueMicrotask(() => {
+      void loadLoanDetail(selectedLoanId);
+    });
   }, [selectedLoanId]);
+  useEffect(() => {
+    const handlePointerDown = () => setOpenActionMenuLoanId(null);
+    window.addEventListener("mousedown", handlePointerDown);
+    return () => window.removeEventListener("mousedown", handlePointerDown);
+  }, []);
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setActiveLoanModal(null);
+      }
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, []);
 
-  const runAction = async (action: string, extras: Record<string, unknown> = {}) => {
-    if (!selectedLoanId || !selectedLoan) return;
+  const runLoanAction = async (loan: Loan, action: string, extras: Record<string, unknown> = {}) => {
     setActionLoading(action);
     setMsg(null);
     try {
-      const previousState = selectedLoan.lifecycleState;
-      const result = await loansLifecycleService.applyAction(selectedLoanId, { action, ...extras });
+      const previousState = loan.lifecycleState;
+      const result = await loansLifecycleService.applyAction(loan.id, { action, ...extras });
       await loadAll();
-      await loadLoanDetail(selectedLoanId);
+      setSelectedLoanId(loan.id);
+      await loadLoanDetail(loan.id);
       const nextState = result.lifecycleState as Loan["lifecycleState"] | undefined;
       const statusMessage = nextState && previousState !== nextState
         ? `Estado actualizado: ${stateLabel(previousState)} -> ${stateLabel(nextState)}.`
@@ -107,6 +197,11 @@ export function LoansScreen() {
     }
   };
 
+  const openLoanModal = (loanId: string, modal: "calendar" | "transactions" | "config") => {
+    setSelectedLoanId(loanId);
+    setActiveLoanModal(modal);
+  };
+
   return (
     <div className="zelify-workspace-page">
       <ZelifyTopNavbar />
@@ -115,20 +210,6 @@ export function LoansScreen() {
       <div className="zelify-workspace-page__scroll">
         <div className="zelify-workspace-page__inner">
           <h1 className="zelify-workspace-page__title">Préstamos</h1>
-          <div className="zelify-loans-tabs">
-            <button className={tab === "ciclo" ? "is-active" : ""} onClick={() => setTab("ciclo")} type="button">
-              Ciclo de vida
-            </button>
-            <button className={tab === "calendario" ? "is-active" : ""} onClick={() => setTab("calendario")} type="button">
-              Calendario de pagos
-            </button>
-            <button className={tab === "movimientos" ? "is-active" : ""} onClick={() => setTab("movimientos")} type="button">
-              Repagos y transacciones
-            </button>
-            <button className={tab === "configuracion" ? "is-active" : ""} onClick={() => setTab("configuracion")} type="button">
-              Interés, mora y comisiones
-            </button>
-          </div>
           {msg ? (
             <div
               className={`zelify-loans-feedback ${msg.tone === "error" ? "is-error" : "is-success"}`}
@@ -155,11 +236,19 @@ export function LoansScreen() {
                     <th>Estado</th>
                     <th>Monto</th>
                     <th>Canal</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredLoans.map((row) => (
-                    <tr key={row.id} className={selectedLoanId === row.id ? "is-selected" : ""} onClick={() => setSelectedLoanId(row.id)}>
+                    <tr
+                      key={row.id}
+                      className={selectedLoanId === row.id ? "is-selected" : ""}
+                      onClick={() => {
+                        setSelectedLoanId(row.id);
+                        openLoanModal(row.id, "calendar");
+                      }}
+                    >
                       <td className="zelify-mono">{row.id}</td>
                       <td>{row.customerName}</td>
                       <td>{row.productName}</td>
@@ -170,104 +259,118 @@ export function LoansScreen() {
                       </td>
                       <td>{money(row.principalAmount, row.currency)}</td>
                       <td>{row.disbursementChannel ?? "N/D"}</td>
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <div className="zelify-loans-row-actions">
+                          <button
+                            type="button"
+                            className="zelify-loans-row-actions__trigger"
+                            aria-label={`Abrir acciones de ${row.id}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenActionMenuLoanId((current) => current === row.id ? null : row.id);
+                            }}
+                          >
+                            ...
+                          </button>
+                          {openActionMenuLoanId === row.id ? (
+                            <div className="zelify-loans-row-actions__menu">
+                              <button
+                                type="button"
+                                onClick={() => void runLoanAction(row, "DISBURSE_TRANCHE", { amount: 1000, channel: "SPEI" })}
+                                disabled={Boolean(actionLoading)}
+                              >
+                                {actionLoading === "DISBURSE_TRANCHE" ? "Procesando..." : "Desembolso por tramo"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void runLoanAction(row, "RESCHEDULE", { reason: "Ajuste de términos" })}
+                                disabled={Boolean(actionLoading)}
+                              >
+                                {actionLoading === "RESCHEDULE" ? "Procesando..." : "Reprogramar"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void runLoanAction(row, "REFINANCE", { reason: "Nuevo préstamo sobre saldo" })}
+                                disabled={Boolean(actionLoading)}
+                              >
+                                {actionLoading === "REFINANCE" ? "Procesando..." : "Refinanciar"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void runLoanAction(row, "REPAYMENT", { amount: 1500, channel: "CAJA" })}
+                                disabled={Boolean(actionLoading)}
+                              >
+                                {actionLoading === "REPAYMENT" ? "Procesando..." : "Repago individual"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void runLoanAction(row, "REPAYMENT_FROM_DEPOSIT", { amount: 2000, channel: "DEPOSIT_TRANSFER" })}
+                                disabled={Boolean(actionLoading)}
+                              >
+                                {actionLoading === "REPAYMENT_FROM_DEPOSIT" ? "Procesando..." : "Repago desde depósito"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void runLoanAction(row, "WRITE_OFF", { reason: "Castigo por recuperación nula" })}
+                                disabled={Boolean(actionLoading)}
+                              >
+                                {actionLoading === "WRITE_OFF" ? "Procesando..." : "Baja de activos"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openLoanModal(row.id, "transactions")}
+                                disabled={Boolean(actionLoading)}
+                              >
+                                Ver repagos y transacciones
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openLoanModal(row.id, "config")}
+                                disabled={Boolean(actionLoading)}
+                              >
+                                Ver interés, mora y comisiones
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </SettingsDataTable>
             </>
           )}
-          {selectedLoan ? (
-            <div style={{ marginTop: 12, border: "1px solid #e2e8f0", borderRadius: 12, padding: 12 }}>
-              {tab === "ciclo" ? (
-                <>
-                  <h3>{selectedLoan.id} · {selectedLoan.customerName}</h3>
-                  <p style={{ marginTop: 0 }}>{selectedLoan.productName} ({selectedLoan.productCode})</p>
-                  <div className="zelify-loans-action-section">
-                    <p className="zelify-loans-action-title">Acciones de estado</p>
-                    <div className="zelify-loans-action-grid">
-                      {availableActions(selectedLoan.lifecycleState).map((a) => (
-                        <AppButton
-                          key={a}
-                          tone="secondary"
-                          onClick={() => runAction(a)}
-                          disabled={Boolean(actionLoading)}
-                        >
-                          {actionLoading === a ? "Procesando..." : actionLabel(a)}
-                        </AppButton>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="zelify-loans-action-section">
-                    <p className="zelify-loans-action-title">Gestión avanzada del préstamo</p>
-                    <div className="zelify-loans-action-grid">
-                      <AppButton tone="primary" onClick={() => runAction("DISBURSE_TRANCHE", { amount: 1000, channel: "SPEI" })} disabled={Boolean(actionLoading)}>
-                        {actionLoading === "DISBURSE_TRANCHE" ? "Procesando..." : "Desembolso por tramo"}
-                      </AppButton>
-                      <AppButton tone="primary" onClick={() => runAction("RESCHEDULE", { reason: "Ajuste de términos" })} disabled={Boolean(actionLoading)}>
-                        {actionLoading === "RESCHEDULE" ? "Procesando..." : "Reprogramar"}
-                      </AppButton>
-                      <AppButton tone="primary" onClick={() => runAction("REFINANCE", { reason: "Nuevo préstamo sobre saldo" })} disabled={Boolean(actionLoading)}>
-                        {actionLoading === "REFINANCE" ? "Procesando..." : "Refinanciar"}
-                      </AppButton>
-                      <AppButton tone="primary" onClick={() => runAction("CAPITALIZE_INTEREST", { reason: "Capitalización de intereses" })} disabled={Boolean(actionLoading)}>
-                        {actionLoading === "CAPITALIZE_INTEREST" ? "Procesando..." : "Capitalizar interés"}
-                      </AppButton>
-                      <AppButton tone="neutral" onClick={() => runAction("PAY_OFF", { amount: selectedLoan.outstandingPrincipal + selectedLoan.outstandingInterest })} disabled={Boolean(actionLoading)}>
-                        {actionLoading === "PAY_OFF" ? "Procesando..." : "Pay-off anticipado"}
-                      </AppButton>
-                      <AppButton tone="neutral" onClick={() => runAction("TERMINATE", { reason: "Terminación solicitada" })} disabled={Boolean(actionLoading)}>
-                        {actionLoading === "TERMINATE" ? "Procesando..." : "Terminación"}
-                      </AppButton>
-                    </div>
-                  </div>
-                  <h4 style={{ marginTop: 12 }}>Tramos de desembolso</h4>
-                  <ul className="zelify-loans-tranches-list">
-                    {tranches.map((t) => (
-                      <li key={t.id}>{`Tramo ${t.trancheNo}: ${money(t.amount, selectedLoan.currency)} · ${trancheStatusLabel(t.status)}`}</li>
-                    ))}
-                  </ul>
-                </>
-              ) : null}
-              {tab === "calendario" ? (
-                <SettingsDataTable variant="clients">
-                  <thead><tr><th>Cuota</th><th>Vence</th><th>Principal</th><th>Interés</th><th>Cargos</th><th>Penalidades</th><th>Estado</th></tr></thead>
-                  <tbody>{schedule.map((s) => <tr key={s.id}><td>{s.installmentNo}</td><td>{s.dueDate}</td><td>{money(s.principalDue, selectedLoan.currency)}</td><td>{money(s.interestDue, selectedLoan.currency)}</td><td>{money(s.feesDue, selectedLoan.currency)}</td><td>{money(s.penaltiesDue, selectedLoan.currency)}</td><td>{s.status}</td></tr>)}</tbody>
-                </SettingsDataTable>
-              ) : null}
-              {tab === "movimientos" ? (
-                <>
-                  <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                    <AppButton tone="primary" onClick={() => runAction("REPAYMENT", { amount: 1500, channel: "CAJA" })}>Repago individual</AppButton>
-                    <AppButton tone="primary" onClick={() => runAction("BULK_REPAYMENT", { amount: 5000, channel: "BULK" })}>Repago bulk</AppButton>
-                    <AppButton tone="secondary" onClick={() => runAction("REPAYMENT_FROM_DEPOSIT", { amount: 2000, channel: "DEPOSIT_TRANSFER" })}>Repago desde depósito</AppButton>
-                    <AppButton tone="neutral" onClick={() => runAction("WRITE_OFF", { reason: "Castigo por recuperación nula" })}>Write-off</AppButton>
-                  </div>
-                  <SettingsDataTable variant="clients">
-                    <thead><tr><th>Fecha</th><th>Tipo</th><th>Monto</th><th>Principal</th><th>Interés</th><th>Fees</th><th>Penalidades</th><th>Canal</th></tr></thead>
-                    <tbody>{transactions.map((tx) => <tr key={tx.id}><td>{tx.txDate}</td><td>{tx.txType}</td><td>{money(tx.amountTotal, selectedLoan.currency)}</td><td>{money(tx.principalComponent, selectedLoan.currency)}</td><td>{money(tx.interestComponent, selectedLoan.currency)}</td><td>{money(tx.feesComponent, selectedLoan.currency)}</td><td>{money(tx.penaltiesComponent, selectedLoan.currency)}</td><td>{tx.channel ?? "N/A"}</td></tr>)}</tbody>
-                  </SettingsDataTable>
-                </>
-              ) : null}
-              {tab === "configuracion" ? (
-                <ul>
-                  <li>Método de cálculo: {selectedLoan.interestCalculationMethod}</li>
-                  <li>Tasa: {selectedLoan.rateMode} · {selectedLoan.nominalRate}%</li>
-                  <li>Acumulación diaria: {selectedLoan.accruedDaily ? "Sí" : "No"}</li>
-                  <li>Gracia: {selectedLoan.gracePeriodType ?? "N/D"} · {selectedLoan.gracePeriodDays} días</li>
-                  <li>Mora: {selectedLoan.arrearsCountingMethod} · tolerancia {selectedLoan.arrearsToleranceDays} días / {selectedLoan.arrearsTolerancePct}%</li>
-                  <li>Penalidad diaria: {selectedLoan.penaltyDailyRate}%</li>
-                  <li>Asignación: {selectedLoan.allocationMethod} · prioridad {selectedLoan.allocationPriority.join(" → ")}</li>
-                </ul>
-              ) : null}
-            </div>
-          ) : null}
         </div>
       </div>
-      <CreateLoanModal open={createOpen} products={products} customers={customers} companies={companies} onClose={() => setCreateOpen(false)} onCreate={async (payload) => {
-        await loansLifecycleService.createLoan(payload);
-        setCreateOpen(false);
-        await loadAll();
-      }} />
+      {createOpen ? (
+        <CreateLoanModal products={products} customers={customers} companies={companies} onClose={() => setCreateOpen(false)} onCreate={async (payload) => {
+          await loansLifecycleService.createLoan(payload);
+          setCreateOpen(false);
+          await loadAll();
+        }} />
+      ) : null}
+      {activeLoanModal === "calendar" && selectedLoan ? (
+        <LoanCalendarModal
+          loan={selectedLoan}
+          schedule={schedule}
+          loading={detailLoading}
+          onClose={() => setActiveLoanModal(null)}
+        />
+      ) : null}
+      {activeLoanModal === "transactions" && selectedLoan ? (
+        <LoanTransactionsModal
+          loan={selectedLoan}
+          transactions={transactions}
+          loading={detailLoading}
+          onClose={() => setActiveLoanModal(null)}
+        />
+      ) : null}
+      {activeLoanModal === "config" && selectedLoan ? (
+        <LoanConfigModal
+          loan={selectedLoan}
+          onClose={() => setActiveLoanModal(null)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -313,32 +416,189 @@ function actionLabel(action: string): string {
   };
   return map[action] ?? action;
 }
-function trancheStatusLabel(status: LoanTranche["status"]): string {
-  const map: Record<LoanTranche["status"], string> = {
-    PLANNED: "Planificado",
-    DISBURSED: "Desembolsado",
-    CANCELLED: "Cancelado",
+
+function scheduleStatusLabel(status: LoanScheduleItem["status"]) {
+  const map: Record<LoanScheduleItem["status"], string> = {
+    PAID: "Pagada",
+    PARTIAL: "Parcial",
+    DUE: "Pendiente",
+    OVERDUE: "Vencida",
   };
   return map[status];
 }
-function availableActions(state: Loan["lifecycleState"]): string[] {
-  const byState: Record<Loan["lifecycleState"], string[]> = {
-    PARTIAL_APPLICATION: ["SUBMIT"],
-    PENDING_APPROVAL: ["APPROVE"],
-    APPROVED: ["DISBURSE"],
-    ACTIVE: ["MARK_ARREARS", "LOCK", "CLOSE", "WRITE_OFF"],
-    ACTIVE_IN_ARREARS: ["LOCK", "WRITE_OFF"],
-    LOCKED: ["UNLOCK"],
-    CLOSED: [],
-    WRITTEN_OFF: [],
-  };
-  return byState[state];
+
+function LoanCalendarModal({
+  loan,
+  schedule,
+  loading,
+  onClose,
+}: {
+  loan: Loan;
+  schedule: LoanScheduleItem[];
+  loading: boolean;
+  onClose: () => void;
+}) {
+  const amortizationRows = schedule.reduce<Array<LoanScheduleItem & { remainingPrincipal: number }>>((rows, item) => {
+    const previousBalance = rows.at(-1)?.remainingPrincipal ?? loan.principalAmount;
+    const remainingPrincipal = Math.max(0, Number((previousBalance - item.principalDue).toFixed(2)));
+    rows.push({
+      ...item,
+      remainingPrincipal,
+    });
+    return rows;
+  }, []);
+
+  return (
+    <div className="zelify-loans-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="zelify-loans-modal zelify-loans-calendar-modal" role="dialog" aria-modal="true" aria-label={`Calendario de pagos de ${loan.customerName}`}>
+        <div className="zelify-loans-calendar-modal__header">
+          <div>
+            <p className="zelify-loans-calendar-modal__eyebrow">Calendario de pagos</p>
+            <h3>{loan.customerName}</h3>
+            <p>{loan.id} · {loan.productName}</p>
+          </div>
+          <button type="button" className="zelify-loans-calendar-modal__close" onClick={onClose} aria-label="Cerrar calendario">
+            ×
+          </button>
+        </div>
+
+        <div className="zelify-loans-calendar-modal__summary">
+          <div className="zelify-loans-calendar-modal__card">
+            <span>Estado</span>
+            <strong>{stateLabel(loan.lifecycleState)}</strong>
+          </div>
+          <div className="zelify-loans-calendar-modal__card">
+            <span>Monto</span>
+            <strong>{money(loan.principalAmount, loan.currency)}</strong>
+          </div>
+          <div className="zelify-loans-calendar-modal__card">
+            <span>Canal</span>
+            <strong>{loan.disbursementChannel ?? "N/D"}</strong>
+          </div>
+          <div className="zelify-loans-calendar-modal__card">
+            <span>Tasa</span>
+            <strong>{loan.nominalRate}%</strong>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="zelify-loans-calendar-modal__empty">Cargando calendario...</div>
+        ) : (
+          <SettingsDataTable variant="clients">
+            <thead>
+              <tr>
+                <th>Cuota</th>
+                <th>Vence</th>
+                <th>Principal</th>
+                <th>Interés</th>
+                <th>Saldo insoluto</th>
+                <th>Cargos</th>
+                <th>Penalidades</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {amortizationRows.map((item) => (
+                <tr key={item.id}>
+                  <td>{item.installmentNo}</td>
+                  <td>{item.dueDate}</td>
+                  <td>{money(item.principalDue, loan.currency)}</td>
+                  <td>{money(item.interestDue, loan.currency)}</td>
+                  <td>{money(item.remainingPrincipal, loan.currency)}</td>
+                  <td>{money(item.feesDue, loan.currency)}</td>
+                  <td>{money(item.penaltiesDue, loan.currency)}</td>
+                  <td>
+                    <AppBadge
+                      tone={item.status === "PAID" ? "success" : item.status === "PARTIAL" ? "warning" : item.status === "OVERDUE" ? "error" : "neutral"}
+                      size="sm"
+                    >
+                      {scheduleStatusLabel(item.status)}
+                    </AppBadge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </SettingsDataTable>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LoanTransactionsModal({
+  loan,
+  transactions,
+  loading,
+  onClose,
+}: {
+  loan: Loan;
+  transactions: LoanTransaction[];
+  loading: boolean;
+  onClose: () => void;
+}) {
+  return (
+    <div className="zelify-loans-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="zelify-loans-modal zelify-loans-calendar-modal" role="dialog" aria-modal="true" aria-label={`Repagos y transacciones de ${loan.customerName}`}>
+        <div className="zelify-loans-calendar-modal__header">
+          <div>
+            <p className="zelify-loans-calendar-modal__eyebrow">Repagos y transacciones</p>
+            <h3>{loan.customerName}</h3>
+            <p>{loan.id} · {loan.productName}</p>
+          </div>
+          <button type="button" className="zelify-loans-calendar-modal__close" onClick={onClose} aria-label="Cerrar repagos y transacciones">
+            ×
+          </button>
+        </div>
+        {loading ? (
+          <div className="zelify-loans-calendar-modal__empty">Cargando transacciones...</div>
+        ) : (
+          <SettingsDataTable variant="clients">
+            <thead><tr><th>Fecha</th><th>Tipo</th><th>Monto</th><th>Principal</th><th>Interés</th><th>Fees</th><th>Penalidades</th><th>Canal</th></tr></thead>
+            <tbody>{transactions.map((tx) => <tr key={tx.id}><td>{tx.txDate}</td><td>{tx.txType}</td><td>{money(tx.amountTotal, loan.currency)}</td><td>{money(tx.principalComponent, loan.currency)}</td><td>{money(tx.interestComponent, loan.currency)}</td><td>{money(tx.feesComponent, loan.currency)}</td><td>{money(tx.penaltiesComponent, loan.currency)}</td><td>{tx.channel ?? "N/A"}</td></tr>)}</tbody>
+          </SettingsDataTable>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LoanConfigModal({
+  loan,
+  onClose,
+}: {
+  loan: Loan;
+  onClose: () => void;
+}) {
+  return (
+    <div className="zelify-loans-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="zelify-loans-modal zelify-loans-calendar-modal" role="dialog" aria-modal="true" aria-label={`Configuración de ${loan.customerName}`}>
+        <div className="zelify-loans-calendar-modal__header">
+          <div>
+            <p className="zelify-loans-calendar-modal__eyebrow">Interés, mora y comisiones</p>
+            <h3>{loan.customerName}</h3>
+            <p>{loan.id} · {loan.productName}</p>
+          </div>
+          <button type="button" className="zelify-loans-calendar-modal__close" onClick={onClose} aria-label="Cerrar configuración">
+            ×
+          </button>
+        </div>
+        <div className="zelify-loans-config-list">
+          <div className="zelify-loans-config-item"><span>Método de cálculo</span><strong>{loan.interestCalculationMethod}</strong></div>
+          <div className="zelify-loans-config-item"><span>Tasa</span><strong>{loan.rateMode} · {loan.nominalRate}%</strong></div>
+          <div className="zelify-loans-config-item"><span>Acumulación diaria</span><strong>{loan.accruedDaily ? "Sí" : "No"}</strong></div>
+          <div className="zelify-loans-config-item"><span>Gracia</span><strong>{loan.gracePeriodType ?? "N/D"} · {loan.gracePeriodDays} días</strong></div>
+          <div className="zelify-loans-config-item"><span>Mora</span><strong>{loan.arrearsCountingMethod} · {loan.arrearsToleranceDays} días / {loan.arrearsTolerancePct}%</strong></div>
+          <div className="zelify-loans-config-item"><span>Penalidad diaria</span><strong>{loan.penaltyDailyRate}%</strong></div>
+          <div className="zelify-loans-config-item"><span>Asignación</span><strong>{loan.allocationMethod} · {loan.allocationPriority.join(" → ")}</strong></div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function CreateLoanModal({
-  open, products, customers, companies, onClose, onCreate,
+  products, customers, companies, onClose, onCreate,
 }: {
-  open: boolean;
   products: LoanProductDefinition[];
   customers: CustomerLite[];
   companies: CompanyLite[];
@@ -349,16 +609,16 @@ function CreateLoanModal({
 }) {
   const [entityType, setEntityType] = useState<"CUSTOMER" | "COMPANY">("CUSTOMER");
   const [partyQuery, setPartyQuery] = useState("");
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => ({
     id: `LN-${Date.now()}`,
-    productTypeId: "",
+    productTypeId: products[0]?.id ?? "",
     customerId: "",
     customerName: "",
     principalAmount: 0,
     expectedDisbursementDate: new Date().toISOString().slice(0, 10),
     nominalRate: 24,
     disbursementChannel: "CAJA",
-  });
+  }));
   const partyOptions = useMemo(() => {
     const base = entityType === "CUSTOMER"
       ? customers.map((c) => ({ id: c.id, name: c.fullName }))
@@ -368,12 +628,6 @@ function CreateLoanModal({
     return base.filter((x) => x.name.toLowerCase().includes(q) || x.id.toLowerCase().includes(q));
   }, [entityType, customers, companies, partyQuery]);
 
-  useEffect(() => {
-    if (!open) return;
-    setForm((p) => ({ ...p, productTypeId: products[0]?.id ?? "", customerId: "", customerName: "" }));
-    setPartyQuery("");
-  }, [open, products]);
-  if (!open) return null;
   return (
     <div className="zelify-loans-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="zelify-loans-modal" role="dialog" aria-modal="true">

@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient, isSupabaseConfigured } from "@/lib/supabase/server";
 import { logSystemActivity } from "@/lib/activity-log";
+import { ensureLoanDemoDataset } from "./_demo-seed";
 
 export async function GET() {
   if (!isSupabaseConfigured()) return NextResponse.json({ error: "Supabase no configurado." }, { status: 503 });
   const supabase = getSupabaseServerClient();
+  try {
+    await ensureLoanDemoDataset(supabase);
+  } catch (seedError) {
+    console.error("Loan demo seed failed:", seedError);
+  }
   const { data, error } = await supabase.from("loans").select("*").order("created_at", { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({

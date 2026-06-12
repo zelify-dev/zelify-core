@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient, isSupabaseConfigured } from "@/lib/supabase/server";
+import { ensureLoanDemoDataset } from "../../_demo-seed";
 
 function addMonths(date: Date, months: number): Date {
   const d = new Date(date);
@@ -11,6 +12,11 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   if (!isSupabaseConfigured()) return NextResponse.json({ error: "Supabase no configurado." }, { status: 503 });
   const { id } = await params;
   const supabase = getSupabaseServerClient();
+  try {
+    await ensureLoanDemoDataset(supabase);
+  } catch (seedError) {
+    console.error("Loan schedule demo seed failed:", seedError);
+  }
   const { data, error } = await supabase
     .from("loan_schedule_items")
     .select("*")

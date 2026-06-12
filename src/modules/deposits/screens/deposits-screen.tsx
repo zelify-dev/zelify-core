@@ -133,7 +133,7 @@ export function DepositsScreen() {
                   <p style={{ marginTop: 0 }}>{selected.productName} ({selected.productCode})</p>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                     {availableLifecycleActions(selected.state).map((a) => <AppButton key={a} tone="secondary" onClick={() => runAction(a)}>{actionLabel(a)}</AppButton>)}
-                    <AppButton tone="neutral" onClick={() => runAction("WRITE_OFF", { amount: Math.abs(selected.balance), reason: "Sobregiro no recuperado" })}>Write-off por sobregiro</AppButton>
+                    <AppButton tone="neutral" onClick={() => runAction("WRITE_OFF", { amount: Math.abs(selected.balance), reason: "Sobregiro no recuperado" })}>Baja de activos por sobregiro</AppButton>
                   </div>
                 </>
               ) : null}
