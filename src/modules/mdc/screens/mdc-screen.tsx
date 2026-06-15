@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Eye, Settings } from "lucide-react";
+import { CreditAuditPanel } from "@/modules/cortex/components/credit-demo-panels";
+import { seedScotiaCreditStorage, useCreditDemoStore } from "@/modules/cortex/hooks/use-credit-demo-store";
+import { AppCheckbox } from "@/components/ui/atoms/checkbox/app-checkbox";
 import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
 import {
   applicationsListMock,
@@ -19,10 +22,19 @@ import { MdcProductsTab } from "@/modules/mdc/components/mdc-products-tab";
 import { MdcPaymentsTab } from "@/modules/mdc/components/mdc-payments-tab";
 import { MdcCollectionsTab } from "@/modules/mdc/components/mdc-collections-tab";
 import { MdcConfigurationTab } from "@/modules/mdc/components/mdc-configuration-tab";
+import {
+  calculateCreditQuote,
+  crossSellRatePreview,
+  formatMxnCredit,
+  formatPctCredit,
+  rateBeforeCrossSell,
+} from "@/modules/cortex/services/credit-pricing.engine";
+import type { CreditClientProfile, CreditProductCategory, CrossSellOption } from "@/modules/cortex/types/credit-pricing.types";
 import "@/components/ui/templates/workspace-page.css";
+import "@/modules/cortex/components/credit-quote-result-panel.css";
 import "./mdc-screen.css";
 
-type MdcTab = "overview" | "products" | "applications" | "rules" | "payments" | "collections" | "configuration";
+type MdcTab = "overview" | "products" | "applications" | "rules" | "traceability" | "payments" | "collections" | "configuration";
 
 type RuleFormState = {
   name: string;
@@ -60,6 +72,7 @@ const TABS: { id: MdcTab; label: string }[] = [
   { id: "products", label: "Productos" },
   { id: "applications", label: "Solicitudes" },
   { id: "rules", label: "Reglas" },
+  { id: "traceability", label: "Trazabilidad" },
   { id: "payments", label: "Pagos" },
   { id: "collections", label: "Cobranza" },
   { id: "configuration", label: "Configuracion" },
@@ -466,6 +479,185 @@ function renderRuleSeverity(rule: CreditRuleRow) {
   return <span className={severityClass}>{RULE_SEVERITY_LABELS[rule.severity]}</span>;
 }
 
+function productCategoryFromMdcProduct(product: string): CreditProductCategory {
+  return product === "Credito automotriz" ? "automotriz" : "personal";
+}
+
+function defaultCrossSellAccepted(
+  options: CrossSellOption[],
+  client?: CreditClientProfile,
+) {
+  return Object.fromEntries(
+    options.map((option, index) => {
+      const normalized = option.id.toLowerCase();
+      const enabled =
+        normalized.includes("tdc")
+          ? Boolean(client?.clientProducts.tdc)
+          : normalized.includes("inversion")
+            ? Boolean(client?.clientProducts.inversionPatrimonial)
+            : normalized.includes("nomina")
+              ? Boolean(client?.clientProducts.nomina)
+              : normalized.includes("seguro")
+                ? Boolean(client?.clientProducts.seguroAuto) || index === 0
+                : false;
+      return [option.id, enabled];
+    }),
+  );
+}
+
+function ApprovedCrossSellPanel({
+  app,
+  creditStore,
+}: {
+  app: Application;
+  creditStore: ReturnType<typeof useCreditDemoStore>;
+}) {
+  const category = productCategoryFromMdcProduct(app.product);
+  const product = creditStore.state.products.find((item) => item.category === category);
+  const matchedClient =
+    creditStore.state.clients.find(
+      (client) =>
+        client.productId === product?.id &&
+        client.kyc.email.toLowerCase() === app.applicantEmail.toLowerCase(),
+    ) ??
+    creditStore.state.clients.find(
+      (client) =>
+        client.productId === product?.id &&
+        client.name.toLowerCase() === app.applicantName.toLowerCase(),
+    );
+  const crossSellOptions = useMemo(
+    () => creditStore.state.crossSellByCategory[category] ?? [],
+    [category, creditStore.state.crossSellByCategory],
+  );
+  const [crossSellAccepted, setCrossSellAccepted] = useState<Record<string, boolean>>(() =>
+    defaultCrossSellAccepted(crossSellOptions, matchedClient),
+  );
+
+  if (!product || crossSellOptions.length === 0) return null;
+
+  const quotedClient: CreditClientProfile = matchedClient
+    ? {
+        ...matchedClient,
+        amount: app.requestedAmount,
+        termMonths: category === "automotriz" ? 48 : 24,
+      }
+    : {
+        id: `mdc-cross-sell-${app.id}`,
+        productId: product.id,
+        name: app.applicantName,
+        entityType: "PF",
+        amount: app.requestedAmount,
+        termMonths: category === "automotriz" ? 48 : 24,
+        creditScore: bureauScoreFromRiskIndex(app.riskScore),
+        aiApproved: true,
+        clientProducts: {
+          nomina: false,
+          tdc: false,
+          seguroAuto: false,
+          inversionPatrimonial: false,
+          cuentaAhorro: false,
+        },
+        kyc: {
+          rfc: "PENDIENTE",
+          nationality: "Mexicana",
+          address: "No disponible",
+          phone: "No disponible",
+          email: app.applicantEmail,
+          idVerified: true,
+          pep: false,
+          incomeMonthly: Math.max(20000, Math.round(app.requestedAmount / 12)),
+        },
+      };
+
+  const quote = calculateCreditQuote({
+    product,
+    client: quotedClient,
+    rules: [],
+    crossSellOptions,
+    crossSellAccepted,
+  });
+  const baseBeforeCross = rateBeforeCrossSell(
+    quote.baseRate,
+    quote.discountsApplied,
+    crossSellOptions.map((option) => option.label),
+  );
+  const totalCrossBps = crossSellOptions
+    .filter((option) => crossSellAccepted[option.id])
+    .reduce((sum, option) => sum + option.bps, 0);
+  const potentialCrossBps = quote.discountsPotential.reduce((sum, discount) => sum + discount.bps, 0);
+
+  return (
+    <section className="mdc-detail-card">
+      <div className="cortex-quote-result__section">
+        <h4>Cross-sell disponible</h4>
+        <p className="cortex-quote-result__hint">Productos complementarios para mejorar tasa y relación comercial.</p>
+        <ul className="cortex-quote-result__xs-list">
+          {quote.discountsPotential.map((discount) => (
+            <li key={discount.label}>−{discount.bps} pbs · {discount.label}</li>
+          ))}
+        </ul>
+        <p className="cortex-quote-result__xs-total">
+          Hasta <strong>−{potentialCrossBps} pbs</strong> · piso <strong>{formatPctCredit(product.discountBandMin)}</strong>
+        </p>
+      </div>
+
+      <div className="cortex-quote-result__section">
+        <div className="cortex-quote-result__xs-head">
+          <h4>Activar cross-sell</h4>
+          <span>En vivo: <strong>{formatPctCredit(quote.finalRate)}</strong></span>
+        </div>
+        <p className="cortex-quote-result__hint">
+          Desde <strong>{formatPctCredit(baseBeforeCross)}</strong> · cada producto resta pbs de la tasa
+        </p>
+        <ul className="cortex-quote-result__xs-steps">
+          {crossSellOptions.map((option, index) => {
+            const enabled = crossSellAccepted[option.id];
+            const stepRate = enabled
+              ? crossSellRatePreview(baseBeforeCross, product.discountBandMin, crossSellOptions, crossSellAccepted, index)
+              : crossSellRatePreview(baseBeforeCross, product.discountBandMin, crossSellOptions, crossSellAccepted, index, index);
+
+            return (
+              <li key={option.id} className={`cortex-quote-result__xs-step${enabled ? " cortex-quote-result__xs-step--on" : ""}`}>
+                <AppCheckbox
+                  id={`mdc-xs-${app.id}-${option.id}`}
+                  checked={enabled}
+                  onChange={(event) => {
+                    const checked = event.target.checked;
+                    setCrossSellAccepted((current) => ({ ...current, [option.id]: checked }));
+                  }}
+                  label={
+                    <span className="cortex-quote-result__xs-step-label">
+                      <strong>{index + 1}. {option.label}</strong>
+                      <span>−{option.bps} pbs · {option.description}</span>
+                    </span>
+                  }
+                />
+                <span className="cortex-quote-result__xs-step-rate">
+                  {enabled ? formatPctCredit(stepRate) : `→ ${formatPctCredit(stepRate)}`}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="cortex-quote-result__summary">
+          <div className="cortex-quote-result__summary-rate">
+            <span>{formatPctCredit(baseBeforeCross)}</span>
+            <span>→</span>
+            <strong>{formatPctCredit(quote.finalRate)}</strong>
+          </div>
+          <p className="cortex-quote-result__hint">
+            {formatPctCredit(baseBeforeCross)} − {totalCrossBps} pbs = {formatPctCredit(quote.finalRate)} · piso {formatPctCredit(product.discountBandMin)}
+          </p>
+          <div className="cortex-quote-result__kpis">
+            <div><span>Pago mensual</span><strong>{formatMxnCredit(quote.monthlyPayment)}</strong></div>
+            <div><span>CAT est.</span><strong>{formatPctCredit(quote.estimatedCat)}</strong></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function evaluateRuleResult(rule: CreditRuleRow, metricValue: number, appStatus: ApplicationStatus): RuleSeverity {
   if (rule.decisionBands) {
     const { approveMin, approveMax, reviewMin, reviewMax, rejectMin, rejectMax } = rule.decisionBands;
@@ -756,7 +948,17 @@ function SegmentedBar({ data }: { data: { label: string; value: number; color: s
   );
 }
 
-function AppDetailModal({ app, rules, onClose }: { app: Application; rules: CreditRuleRow[]; onClose: () => void }) {
+function AppDetailModal({
+  app,
+  rules,
+  creditStore,
+  onClose,
+}: {
+  app: Application;
+  rules: CreditRuleRow[];
+  creditStore: ReturnType<typeof useCreditDemoStore>;
+  onClose: () => void;
+}) {
   const [feedback, setFeedback] = useState("");
   const [overrideChoice, setOverrideChoice] = useState<ApplicationStatus>("manualReview");
   const [overrideReason, setOverrideReason] = useState("");
@@ -1132,6 +1334,10 @@ function AppDetailModal({ app, rules, onClose }: { app: Application; rules: Cred
                 ))}
               </div>
             </section>
+
+            {app.status === "approved" && (
+              <ApprovedCrossSellPanel app={app} creditStore={creditStore} />
+            )}
           </div>
 
           <aside className="mdc-detail-side">
@@ -1471,6 +1677,7 @@ function RuleModal({
 }
 
 export function MdcScreen() {
+  const creditStore = useCreditDemoStore();
   const [activeTab, setActiveTab] = useState<MdcTab>("overview");
   const [apps, setApps] = useState<Application[]>(() =>
     readStoredJson<Application[]>(APP_STORAGE_KEY, applicationsListMock).map((app) => ({
@@ -1507,6 +1714,10 @@ export function MdcScreen() {
   const [ruleProductFilter, setRuleProductFilter] = useState<RuleProduct>(CREDIT_PRODUCTS[0]);
   const [rangeFilter, setRangeFilter] = useState<RangePreset>("7d");
   const normalizedRules = useMemo(() => mergeRulesWithDefaults(rules), [rules]);
+
+  useEffect(() => {
+    seedScotiaCreditStorage();
+  }, []);
 
   useEffect(() => {
     writeStoredJson(APP_STORAGE_KEY, apps);
@@ -2168,6 +2379,12 @@ export function MdcScreen() {
             </section>
           )}
 
+          {activeTab === "traceability" && (
+            <section className="mdc-section">
+              <CreditAuditPanel store={creditStore} />
+            </section>
+          )}
+
           {activeTab === "payments" && (
             <MdcPaymentsTab
               range={rangeFilter}
@@ -2222,6 +2439,7 @@ export function MdcScreen() {
         <AppDetailModal
           app={detailApp}
           rules={normalizedRules.filter((rule) => rule.products.includes(detailApp.product as RuleProduct))}
+          creditStore={creditStore}
           onClose={() => setDetailApp(null)}
         />
       )}

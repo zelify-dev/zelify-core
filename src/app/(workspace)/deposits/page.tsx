@@ -1,5 +1,5 @@
-import { DepositsScreen } from "@/modules/deposits/screens/deposits-screen";
+import { DepositsPricingScreen } from "@/modules/deposits/screens/deposits-pricing-screen";
 
 export default function DepositsPage() {
-  return <DepositsScreen />;
+  return <DepositsPricingScreen />;
 }

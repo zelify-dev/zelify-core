@@ -28,6 +28,7 @@ interface ScotiaDemoSectionProps {
   limStore: ReturnType<typeof useLimDemoStore>;
   creditStore: ReturnType<typeof useCreditDemoStore>;
   onTabChange?: (tab: ScotiaDemoTab) => void;
+  enablePricingNavigation?: boolean;
 }
 
 export function ScotiaDemoSection({
@@ -38,6 +39,7 @@ export function ScotiaDemoSection({
   limStore,
   creditStore,
   onTabChange,
+  enablePricingNavigation = true,
 }: ScotiaDemoSectionProps) {
 
   if (!limStore.hydrated || !creditStore.hydrated) {
@@ -57,7 +59,7 @@ export function ScotiaDemoSection({
         <LimDepositsSyncBar
           store={limStore}
           activeModule="tesoreria"
-          onGoPricing={() => onTabChange?.("pricing")}
+          onGoPricing={enablePricingNavigation ? () => onTabChange?.("pricing") : undefined}
         />
         <LimTreasuryDepositsPanel store={limStore} creditClients={creditStore.state.clients} />
       </>
@@ -164,7 +166,7 @@ export function ScotiaDemoTourHost({
 }
 
 export function useScotiaDemoMode() {
-  const [activeTab, setActiveTab] = useState<ScotiaDemoTab>("credito-admin");
+  const [activeTab, setActiveTab] = useState<ScotiaDemoTab>("credito-cotizacion");
   const [creditCategory, setCreditCategory] = useState<CreditProductCategory>("personal");
   const [tourActive, setTourActive] = useState(false);
   const [selectedClient, setSelectedClient] = useState("PM-DEMO-002");

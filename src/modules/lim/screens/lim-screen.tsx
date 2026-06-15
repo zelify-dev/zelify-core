@@ -517,10 +517,10 @@ function IncomeUseChart({
 /* ─── Main Screen ─── */
 export function LimScreen() {
   const scotia = useScotiaDemoMode();
-  const [activeTab, setActiveTab] = useState<MainTab>("credito-admin");
+  const [activeTab, setActiveTab] = useState<MainTab>("credito-cotizacion");
   const [legacyTab, setLegacyTab] = useState<Extract<MainTab, "cashflow" | "expected" | "financing" | "dashboard">>("cashflow");
   const isScotiaTab = isScotiaDemoTab(activeTab);
-  const isCreditTab = activeTab === "credito-admin" || activeTab === "credito-cotizacion";
+  const isCreditTab = activeTab === "credito-cotizacion";
   const effectiveLegacyTab = isScotiaTab ? legacyTab : activeTab;
   const [scenarioFilters, setScenarioFilters] = useState<Set<ScenarioOverlayId>>(new Set());
   const [viewMode, setViewMode] = useState<ViewMode>("mensual");
@@ -741,12 +741,7 @@ export function LimScreen() {
         : "lim-kpi-val--blue";
 
   const TABS: { id: MainTab; label: string; badge?: string }[] = [
-    { id: "credito-admin", label: "Crédito · Admin", badge: "A" },
     { id: "credito-cotizacion", label: "Crédito · Cotización" },
-    { id: "credito-trazabilidad", label: "Crédito · Trazabilidad" },
-    { id: "pricing", label: "Depósitos · Pricing", badge: "B" },
-    { id: "tesoreria", label: "Depósitos · Tesorería" },
-    { id: "trazabilidad", label: "Depósitos · Trazabilidad" },
     { id: "dashboard", label: "LCC Dashboard" },
     { id: "cashflow", label: "Cashflow" },
     { id: "expected", label: "Flujo Esperado", badge: "4" },
@@ -754,6 +749,12 @@ export function LimScreen() {
   ];
 
   const handleTabClick = (tab: MainTab) => {
+    if (tab === "pricing" || tab === "tesoreria" || tab === "trazabilidad" || tab === "credito-trazabilidad") {
+      scotia.setActiveTab("credito-cotizacion");
+      setLegacyTab("dashboard");
+      setActiveTab("dashboard");
+      return;
+    }
     if (isScotiaDemoTab(tab)) {
       scotia.setActiveTab(tab);
     } else {
@@ -830,6 +831,7 @@ export function LimScreen() {
               limStore={scotia.limStore}
               creditStore={scotia.creditStore}
               onTabChange={(tab) => handleTabClick(tab)}
+              enablePricingNavigation={false}
             />
           )}
 
