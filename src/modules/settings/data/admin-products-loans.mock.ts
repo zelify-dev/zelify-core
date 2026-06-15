@@ -18,7 +18,7 @@ export const mockAdminProductsLoans: AdminProductRow[] = [
     productName: "First Loan",
     productCode: "LOAN001",
     category: "Microfinance",
-    productType: "Interest-Free Loan",
+    productType: "Fixed Term Loan",
     lastModified: "12-06-2025",
     isActive: true,
     isDeactivated: false,

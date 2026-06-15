@@ -348,7 +348,6 @@ export function CreateLoanProductModal({ open, onClose, onSave }: CreateLoanProd
                     <option value="DYNAMIC_TERM_LOAN">Dynamic Term Loan</option>
                     <option value="REVOLVING_CREDIT">Revolving Credit</option>
                     <option value="TRANCHED_LOAN">Tranched Loan ↳ Dynamic Term</option>
-                    <option value="INTEREST_FREE">Interest-Free Loan</option>
                     <option value="DYNAMIC_MORTGAGE">Dynamic Mortgage ↳ Dynamic Term</option>
                   </AppSelect>
                 }

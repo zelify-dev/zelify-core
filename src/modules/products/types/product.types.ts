@@ -8,7 +8,6 @@ export type LoanProductTypeCode =
   | "DYNAMIC_TERM_LOAN"
   | "REVOLVING_CREDIT"
   | "TRANCHED_LOAN"
-  | "INTEREST_FREE"
   | "DYNAMIC_MORTGAGE";
 
 // ─────────────────────────────────────────────

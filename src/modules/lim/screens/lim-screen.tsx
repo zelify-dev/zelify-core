@@ -517,10 +517,10 @@ function IncomeUseChart({
 /* ─── Main Screen ─── */
 export function LimScreen() {
   const scotia = useScotiaDemoMode();
-  const [activeTab, setActiveTab] = useState<MainTab>("credito-cotizacion");
-  const [legacyTab, setLegacyTab] = useState<Extract<MainTab, "cashflow" | "expected" | "financing" | "dashboard">>("cashflow");
+  const [activeTab, setActiveTab] = useState<MainTab>("dashboard");
+  const [legacyTab, setLegacyTab] = useState<Extract<MainTab, "cashflow" | "expected" | "financing" | "dashboard">>("dashboard");
   const isScotiaTab = isScotiaDemoTab(activeTab);
-  const isCreditTab = activeTab === "credito-cotizacion";
+  const isCreditTab = false;
   const effectiveLegacyTab = isScotiaTab ? legacyTab : activeTab;
   const [scenarioFilters, setScenarioFilters] = useState<Set<ScenarioOverlayId>>(new Set());
   const [viewMode, setViewMode] = useState<ViewMode>("mensual");
@@ -741,7 +741,6 @@ export function LimScreen() {
         : "lim-kpi-val--blue";
 
   const TABS: { id: MainTab; label: string; badge?: string }[] = [
-    { id: "credito-cotizacion", label: "Crédito · Cotización" },
     { id: "dashboard", label: "LCC Dashboard" },
     { id: "cashflow", label: "Cashflow" },
     { id: "expected", label: "Flujo Esperado", badge: "4" },
@@ -749,7 +748,7 @@ export function LimScreen() {
   ];
 
   const handleTabClick = (tab: MainTab) => {
-    if (tab === "pricing" || tab === "tesoreria" || tab === "trazabilidad" || tab === "credito-trazabilidad") {
+    if (tab === "pricing" || tab === "tesoreria" || tab === "trazabilidad" || tab === "credito-trazabilidad" || tab === "credito-cotizacion") {
       scotia.setActiveTab("credito-cotizacion");
       setLegacyTab("dashboard");
       setActiveTab("dashboard");
@@ -1281,15 +1280,6 @@ export function LimScreen() {
             <div className="lim-dashboard">
               <div className="lim-dash-head">
                 <h2>Liquidity Control Center Dashboard</h2>
-                <p className="lim-section-subhead">
-                  KPIs en MXN · {isScotiaTab ? "saldo cartera LIM" : "saldo cartera MDC"} {formatMxnCompact(portfolioBalanceMxn)}
-                </p>
-                {!isScotiaTab && (
-                  <p className="lim-section-subhead">
-                    Acople MDC activo · {mdcSnapshot.activeClients} clientes activos · {mdcSnapshot.fundedApplications} solicitudes fondeadas
-                    {mdcSnapshot.productNames.length > 0 ? ` · ${mdcSnapshot.productNames.join(" / ")}` : ""}
-                  </p>
-                )}
               </div>
 
               <div className="lim-dash-kpis">
