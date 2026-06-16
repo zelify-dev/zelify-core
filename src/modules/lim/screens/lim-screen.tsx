@@ -1285,13 +1285,11 @@ export function LimScreen() {
               <div className="lim-dash-kpis">
                 <article className="lim-dash-kpi">
                   <div className="lim-dash-kpi-title">Liquidez inmediata (Caja disponible)</div>
-                  <div className="lim-dash-kpi-range">Efectivo operativo disponible hoy</div>
                   <div className="lim-dash-kpi-val">{formatMxnFull(scenarioLiquidityImmediate)}</div>
                 </article>
 
                 <article className="lim-dash-kpi">
                   <div className="lim-dash-kpi-title">Flujo neto mensual de efectivo</div>
-                  <div className="lim-dash-kpi-range">Entradas mensuales - salidas mensuales</div>
                   <div className="lim-dash-kpi-val">
                     {activeMonthNetCashflow >= 0 ? "+" : ""}{formatMxnFull(activeMonthNetCashflow)}
                   </div>
@@ -1299,13 +1297,11 @@ export function LimScreen() {
 
                 <article className="lim-dash-kpi">
                   <div className="lim-dash-kpi-title">LCR (Liquidity Coverage Ratio)</div>
-                  <div className="lim-dash-kpi-range">LCR = HQLA / Salidas netas 30d</div>
                   <div className="lim-dash-kpi-val">{(scenarioLcr * 100).toFixed(1)}%</div>
                 </article>
 
                 <article className="lim-dash-kpi">
                   <div className="lim-dash-kpi-title">Cash Ratio (Razón de efectivo)</div>
-                  <div className="lim-dash-kpi-range">(Efectivo + equivalentes) / Pasivo circulante</div>
                   <div className="lim-dash-kpi-val">{scenarioCashRatio.toFixed(2)}x</div>
                 </article>
               </div>
