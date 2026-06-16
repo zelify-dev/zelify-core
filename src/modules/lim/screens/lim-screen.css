@@ -236,6 +236,91 @@
   gap: 6px;
 }
 
+.lim-deposits-filter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 18px;
+  padding: 18px 20px 0;
+  border-top: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+}
+
+.lim-deposits-filter__label-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lim-deposits-filter__eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.lim-deposits-filter__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.lim-deposits-filter__tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lim-deposits-filter__tab {
+  min-width: 164px;
+  padding: 12px 16px;
+  border: 1px solid #dbe7f7;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  color: #475569;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.lim-deposits-filter__tab:hover {
+  transform: translateY(-1px);
+  border-color: #bfd3f7;
+  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.1);
+}
+
+.lim-deposits-filter__tab strong {
+  font-size: 18px;
+  line-height: 1.1;
+  font-weight: 800;
+  color: inherit;
+}
+
+.lim-deposits-filter__tab-kicker {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.lim-deposits-filter__tab--active {
+  border-color: #2563eb;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  box-shadow: 0 18px 36px rgba(37, 99, 235, 0.16);
+  color: #0f172a;
+}
+
+.lim-deposits-filter__tab--active .lim-deposits-filter__tab-kicker {
+  color: #2563eb;
+}
+
 .lim-btn-ghost {
   border: 1px solid #d1d5db;
   border-radius: 8px;
@@ -1189,6 +1274,55 @@
   gap: 16px;
 }
 
+.lim-treasury-overview-grid {
+  margin-top: 4px;
+}
+
+.lim-treasury-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.lim-treasury-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lim-treasury-filter span {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lim-treasury-filter-summary {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  font-size: 13px;
+}
+
+.lim-treasury-filter-summary strong {
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.lim-treasury-empty {
+  padding: 18px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 14px;
+  text-align: center;
+}
+
 .lim-pricing-card {
   background: #fff;
   border: 1px solid #e2e8f0;
@@ -1547,6 +1681,11 @@
   border: 1px solid #e2e8f0;
   border-radius: 14px;
   padding: 16px 18px;
+}
+
+.scotia-summary-row--5 {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin-bottom: 16px;
 }
 
 .scotia-summary-row span {
@@ -2803,6 +2942,21 @@
   background: #f0fdf4;
 }
 
+@media (max-width: 1100px) {
+  .scotia-summary-row--5,
+  .lim-treasury-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .scotia-summary-row--5,
+  .lim-treasury-filters,
+  .lim-treasury-overview-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .scotia-compliance-item--fail {
   border-color: #fecaca;
   background: #fef2f2;
@@ -2831,6 +2985,19 @@
 }
 
 @media (max-width: 900px) {
+  .lim-deposits-filter {
+    padding: 16px 16px 0;
+  }
+
+  .lim-deposits-filter__tabs {
+    width: 100%;
+  }
+
+  .lim-deposits-filter__tab {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
   .lim-pricing-grid-2,
   .lim-kpi-row-4 {
     grid-template-columns: 1fr;

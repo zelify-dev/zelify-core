@@ -32,19 +32,29 @@ export function DepositsPricingScreen() {
               title="Depósitos"
               subtitle="Motor unificado de pricing, tesorería y trazabilidad."
             />
-            <div className="lim-subbar" style={{ marginTop: 12 }}>
-              <div className="lim-subbar-left">
-                <label htmlFor="deposits-view-filter" style={{ fontSize: 12, fontWeight: 700, color: "#475569" }}>Filtro</label>
-                <select
-                  id="deposits-view-filter"
-                  className="lim-sel"
-                  value={activeModule}
-                  onChange={(e) => handleModuleChange(e.target.value as ScotiaDemoTab)}
-                >
-                  <option value="pricing">Depósitos · Pricing</option>
-                  <option value="tesoreria">Depósitos · Tesorería</option>
-                  <option value="trazabilidad">Depósitos · Trazabilidad</option>
-                </select>
+            <div className="lim-deposits-filter">
+              <div className="lim-deposits-filter__label-block">
+                <span className="lim-deposits-filter__eyebrow">Vista</span>
+                <span className="lim-deposits-filter__title">Selecciona el frente de análisis</span>
+              </div>
+              <div className="lim-deposits-filter__tabs" role="tablist" aria-label="Vista de depósitos">
+                {[
+                  { id: "pricing", label: "Pricing" },
+                  { id: "tesoreria", label: "Tesorería" },
+                  { id: "trazabilidad", label: "Trazabilidad" },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeModule === tab.id}
+                    className={`lim-deposits-filter__tab${activeModule === tab.id ? " lim-deposits-filter__tab--active" : ""}`}
+                    onClick={() => handleModuleChange(tab.id as ScotiaDemoTab)}
+                  >
+                    <span className="lim-deposits-filter__tab-kicker">Depósitos</span>
+                    <strong>{tab.label}</strong>
+                  </button>
+                ))}
               </div>
             </div>
           </div>
