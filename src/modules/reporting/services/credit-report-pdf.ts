@@ -193,8 +193,8 @@ class CreditReportPdfBuilder {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(FS.footer);
     rgb(doc, C.muted);
-    doc.text(clipPdfText(doc, this.report.meta.confidentiality, 90), MARGIN, FOOTER_Y);
-    doc.text(clipPdfText(doc, this.report.meta.institution, 56), PAGE_W / 2, FOOTER_Y, { align: "center" });
+    doc.text(clipPdfText(doc, this.report.meta.confidentiality, 78), MARGIN, FOOTER_Y);
+    doc.text(clipPdfText(doc, this.report.meta.institution, 48), 122, FOOTER_Y);
     doc.text(`Página ${this.page}`, PAGE_W - MARGIN, FOOTER_Y, { align: "right" });
   }
 
@@ -299,11 +299,15 @@ class CreditReportPdfBuilder {
     const doc = this.doc;
     const fs = opts?.fontSize ?? FS.table;
     const minRowH = opts?.rowHeight ?? 9;
-    const headerH = 9;
     const padX = 2;
     const padY = 2;
     const startX = MARGIN;
     const tableW = columns.reduce((s, c) => s + c.width, 0);
+    const headerLineSets = columns.map((col) =>
+      doc.splitTextToSize(normalizePdfText(col.header), col.width - padX * 2)
+    );
+    const headerMaxLines = Math.max(...headerLineSets.map((lines) => lines.length), 1);
+    const headerH = Math.max(9, headerMaxLines * 4.2 + padY * 2);
 
     const drawHeader = () => {
       let x = startX;
@@ -315,15 +319,15 @@ class CreditReportPdfBuilder {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(FS.tableHeader);
       rgb(doc, C.brand);
-      columns.forEach((col) => {
+      columns.forEach((col, index) => {
         const tx =
           col.align === "right"
             ? x + col.width - padX
             : col.align === "center"
               ? x + col.width / 2
               : x + padX;
-        const headerLines = doc.splitTextToSize(normalizePdfText(col.header), col.width - padX * 2);
-        doc.text(headerLines, tx, this.y + 5.8, { align: col.align ?? "left" });
+        const headerLines = headerLineSets[index];
+        doc.text(headerLines, tx, this.y + 5.4, { align: col.align ?? "left" });
         stroke(doc, C.rule);
         doc.line(x + col.width, this.y, x + col.width, this.y + headerH);
         x += col.width;
