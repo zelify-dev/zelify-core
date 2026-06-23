@@ -543,14 +543,11 @@ class CreditReportPdfBuilder {
   }
 
   private drawMetaAndToc() {
-    this.newPage("Índice y datos del expediente");
+    this.newPage("Índice");
     this.tocPage = this.page;
+
+    this.newPage("Datos del expediente");
     const s = this.report.subject;
-
-    this.sectionTitle("Índice de contenidos", "Navegación interna del expediente");
-    this.paragraph("Use el índice para ir directamente a cada sección del reporte.");
-    this.y += 4;
-
     this.sectionTitle("Datos del expediente", "Trazabilidad y canal de originación");
     this.twoColGrid([
       ["Canal", this.report.meta.channel],
