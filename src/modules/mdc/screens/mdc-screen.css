@@ -420,6 +420,34 @@
   background: #f8fafc;
 }
 
+.mdc-table--traceability {
+  min-width: 1220px;
+}
+
+.mdc-table--traceability td {
+  vertical-align: top;
+}
+
+.mdc-traceability__date {
+  min-width: 150px;
+  color: #475569;
+  white-space: normal;
+}
+
+.mdc-traceability__detail {
+  min-width: 420px;
+  max-width: 560px;
+  color: #334155;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.mdc-traceability__correlation {
+  min-width: 132px;
+  color: #64748b;
+  word-break: break-word;
+}
+
 .mdc-table--rules th,
 .mdc-table--rules td {
   text-align: center;

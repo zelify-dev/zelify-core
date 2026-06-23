@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Eye, Settings } from "lucide-react";
-import { CreditAuditPanel } from "@/modules/cortex/components/credit-demo-panels";
 import { seedScotiaCreditStorage, useCreditDemoStore } from "@/modules/cortex/hooks/use-credit-demo-store";
 import { AppCheckbox } from "@/components/ui/atoms/checkbox/app-checkbox";
 import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
@@ -2381,7 +2380,44 @@ export function MdcScreen() {
 
           {activeTab === "traceability" && (
             <section className="mdc-section">
-              <CreditAuditPanel store={creditStore} />
+              <article className="mdc-card">
+                <div className="mdc-card__head">
+                  <h3>Trazabilidad</h3>
+                  <p>Reglas, IA, cross-sell y fijaciones.</p>
+                </div>
+                <div className="mdc-table-wrap">
+                  <table className="mdc-table mdc-table--traceability">
+                    <thead>
+                      <tr>
+                        <th>Fecha</th>
+                        <th>Acción</th>
+                        <th>Detalle</th>
+                        <th>Canal</th>
+                        <th>Usuario</th>
+                        <th>Correlación</th>
+                        <th>Tasa antes</th>
+                        <th>Tasa después</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {creditStore.state.auditLog.map((entry) => (
+                        <tr key={entry.id}>
+                          <td className="mdc-traceability__date">{shortDate(entry.timestamp)}</td>
+                          <td>
+                            <span className="mdc-badge mdc-badge--info">{entry.action}</span>
+                          </td>
+                          <td className="mdc-traceability__detail">{entry.details || "—"}</td>
+                          <td>{entry.channel}</td>
+                          <td>{entry.user}</td>
+                          <td className="mdc-traceability__correlation">{entry.correlationId}</td>
+                          <td>{entry.rateBefore !== undefined ? formatPctCredit(entry.rateBefore) : "—"}</td>
+                          <td>{entry.rateAfter !== undefined ? formatPctCredit(entry.rateAfter) : "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </article>
             </section>
           )}
 
