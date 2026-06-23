@@ -10,21 +10,22 @@ function buildRules(): CreditReportRuleRow[] {
   const rules = DEFAULT_RULES.automotriz;
   const verdictMap: Record<string, { verdict: CreditReportRuleRow["verdict"]; detail: string; policyRef?: string }> = {
     "r-auto-buro": { verdict: "CUMPLE", detail: "Puntaje Buró 738 (mínimo 650). Mejor historial que ~82% de reportados en México." },
-    "r-auto-enganche": { verdict: "CUMPLE", detail: "Enganche 20%: $156,000 MXN de su dinero; comprobó transferencia a la agencia." },
+    "r-auto-enganche": { verdict: "CUMPLE", detail: "Enganche 20%: $63,980 MXN de recursos propios; transferencia validada contra cotización de agencia." },
     "r-auto-mora": { verdict: "CUMPLE", detail: "Sin atrasos reportados; todos sus créditos aparecen al corriente." },
     "r-auto-kyc": { verdict: "CUMPLE", detail: "INE y selfie coinciden; no figura como funcionario público (PEP)." },
-    "r-auto-capacidad": { verdict: "CUMPLE", detail: "La mensualidad usaría 44% de su sueldo neto; el banco permite hasta 45%." },
-    "r-auto-monto": { verdict: "CUMPLE", detail: "Pide $780,000 MXN; el producto permite entre $100,000 y $2,500,000 MXN." },
+    "r-auto-capacidad": { verdict: "CUMPLE", detail: "La mensualidad usaría 14.5% del sueldo neto; por debajo del tope de política (35%)." },
+    "r-auto-monto": { verdict: "CUMPLE", detail: "Solicita $255,920 MXN; dentro del rango permitido por producto y política comercial." },
     "r-auto-plazo": { verdict: "CUMPLE", detail: "4 años (48 pagos mensuales); dentro del rango de 1 a 5 años." },
-    "r-auto-modelo": { verdict: "CUMPLE", detail: "Tesla Model 3 2025; auto nuevo, dentro de la antigüedad permitida." },
-    "r-auto-seguro": { verdict: "CUMPLE", detail: "Cotizó seguro Qualitas de cobertura amplia por 12 meses." },
-    "r-auto-factura": { verdict: "CUMPLE", detail: "Factura de agencia Tesla Santa Fe en orden." },
+    "r-auto-modelo": { verdict: "CUMPLE", detail: "KIA Soluto 2025; vehículo nuevo y elegible conforme a política de antigüedad." },
+    "r-auto-seguro": { verdict: "CUMPLE", detail: "Cotización de seguro de cobertura amplia vigente por 12 meses." },
+    "r-auto-factura": { verdict: "CUMPLE", detail: "Proforma y documentación comercial de agencia KIA en orden." },
     "r-auto-nomina": { verdict: "CUMPLE", detail: "Puede domiciliar nómina en Atlas; aplica descuento en la tasa." },
     "r-auto-tdc": { verdict: "CUMPLE", detail: "Tarjeta BBVA activa; usa 44.5% del límite (aceptable)." },
-    "r-auto-eco": { verdict: "CUMPLE", detail: "Auto eléctrico; aplica bono verde en la tasa de interés." },
   };
 
-  return rules.map((r) => ({
+  return rules
+    .filter((r) => r.id !== "r-auto-eco")
+    .map((r) => ({
     id: r.id,
     group: r.group ?? "validacion",
     label: r.label,
@@ -37,8 +38,8 @@ function buildRules(): CreditReportRuleRow[] {
 }
 
 export function buildJuanFernandoCreditReport(prompt: string): CreditReportPayload {
-  const amount = 780_000;
-  const rate = 13.75;
+  const amount = 255_920;
+  const rate = 14.25;
   const term = 48;
   const payment = monthlyPayment(amount, rate, term);
   const income = 48_500;
@@ -55,7 +56,7 @@ export function buildJuanFernandoCreditReport(prompt: string): CreditReportPaylo
       analyst: "María Elena Ríos · Oficial de Crédito Nivel II",
       channel: "Originación digital · App móvil + validación presencial",
       confidentiality: "CONFIDENCIAL · Uso exclusivo para análisis crediticio · LFPDPPP",
-      validUntil: "2026-06-22",
+      validUntil: "2026-07-23",
     },
     subject: {
       id: "CL-RPT-2026-004821",
@@ -79,12 +80,12 @@ export function buildJuanFernandoCreditReport(prompt: string): CreditReportPaylo
       incomeGrossMonthly: 58_200,
       incomeNetMonthly: income,
       incomeVerifiedAt: "2026-05-20",
-      productId: "AUTO-EV-01",
-      productName: "Auto Eléctrico / Híbrido",
+      productId: "AUTO-NVO-01",
+      productName: "Crédito Automotriz Nuevo",
       productCategory: "Crédito Automotriz",
       requestedAmount: amount,
       downPaymentPct: 20,
-      downPaymentAmount: 156_000,
+      downPaymentAmount: 63_980,
       termMonths: term,
       baseRate: 15.0,
       finalRate: rate,
@@ -108,24 +109,24 @@ export function buildJuanFernandoCreditReport(prompt: string): CreditReportPaylo
       amlRiskLevel: "BAJO",
       aiScore: 84,
       aiRecommendation:
-        "Es un buen candidato para este crédito de auto. Conviene ofrecerle seguro del vehículo y una tarjeta preferencial después de entregar el préstamo.",
+        "El perfil es consistente con una operación automotriz de bajo monto relativo al ingreso. Procede con validación comercial final de la unidad, póliza y formalización del descuento por nómina.",
       decision: "APROBADO",
       decisionSummary:
-        "Cumple con todo lo que el banco exige: identidad comprobada, sin alertas en listas de riesgo, buen puntaje en Buró (mejor que la mayoría), puede pagar la mensualidad (44 de cada 100 pesos de su sueldo) y lleva todos sus créditos al día.",
+        "Cumple con identidad, screening AML, historial crediticio y política de pago. La operación presenta una relación pago/ingreso conservadora (14.5%), enganche acreditado y documentación comercial consistente.",
       conditions: [
-        "Contratar seguro de auto con cobertura amplia antes de recibir el dinero del crédito.",
-        "Transferir el enganche de $156,000 MXN a la cuenta de la agencia (comprobante SPEI).",
-        "Depositar su nómina en Zelify en los primeros 90 días para mantener el descuento en la tasa.",
+        "Entregar póliza de seguro de cobertura amplia endosada a favor de Zelify antes del desembolso.",
+        "Transferir el enganche de $63,980 MXN a la agencia y adjuntar comprobante SPEI definitivo.",
+        "Domiciliar nómina en Zelify dentro de los primeros 90 días para conservar la bonificación de tasa.",
       ],
     },
     vehicle: {
-      brand: "Tesla",
-      model: "Model 3",
+      brand: "KIA",
+      model: "Soluto",
       year: 2025,
-      version: "Long Range · Tracción trasera",
-      value: 975_000,
-      vin: "5YJ3E1EA0SF123456",
-      insuranceQuote: 28_400,
+      version: "EX TA · Sedán 4 puertas",
+      value: 319_900,
+      vin: "3KPA24AD7SE123456",
+      insuranceQuote: 18_600,
     },
     kycCaptures: [
       {
@@ -181,7 +182,7 @@ export function buildJuanFernandoCreditReport(prompt: string): CreditReportPaylo
     buroTradelines: [
       { creditor: "BBVA México", product: "TDC Visa Platinum", balance: 42_300, limit: 95_000, mop: "01", status: "Al corriente", opened: "2019-03", paymentHistory: "48/48 al corriente", utilizationPct: 44.5 },
       { creditor: "Nu México", product: "TDC Mastercard", balance: 8_200, limit: 25_000, mop: "01", status: "Al corriente", opened: "2021-08", paymentHistory: "44/44 al corriente", utilizationPct: 32.8 },
-      { creditor: "Kavak Crédito", product: "Crédito automotriz", balance: 134_900, limit: 280_000, mop: "01", status: "Al corriente", opened: "2023-01", paymentHistory: "38/38 al corriente", utilizationPct: 48.2 },
+      { creditor: "Mercado Pago", product: "Préstamo personal", balance: 134_900, limit: 280_000, mop: "01", status: "Al corriente", opened: "2023-01", paymentHistory: "38/38 al corriente", utilizationPct: 48.2 },
     ],
     buroScoreHistory: [
       { period: "May 2026", score: 738 },
@@ -195,8 +196,7 @@ export function buildJuanFernandoCreditReport(prompt: string): CreditReportPaylo
     rateCascade: [
       { label: "Tasa inicial (sin descuentos)", rate: 15.0 },
       { label: "Descuento por domiciliar la nómina", rate: 14.5, deltaBps: -50 },
-      { label: "Descuento por tarjeta de crédito activa", rate: 14.0, deltaBps: -50 },
-      { label: "Bono por auto eléctrico", rate: 13.75, deltaBps: -25 },
+      { label: "Descuento por tarjeta de crédito activa", rate: 14.25, deltaBps: -25 },
     ],
     incomeBreakdown: [
       { concept: "Sueldo base", amount: 42_000, verified: true, source: "Recibo nómina Atlas · Abr 2026" },
@@ -206,7 +206,7 @@ export function buildJuanFernandoCreditReport(prompt: string): CreditReportPaylo
     ],
     capacity: {
       paymentToIncome: pti,
-      maxAllowedPti: 45,
+      maxAllowedPti: 35,
       disposableIncome: income - payment - 12_400,
       debtToIncome: 38.2,
       maxLoanByIncome: income * 18,
@@ -216,26 +216,26 @@ export function buildJuanFernandoCreditReport(prompt: string): CreditReportPaylo
       freeCashFlow: income - payment - 12_400,
     },
     crossSellAccepted: [
-      { label: "Seguro de auto (Qualitas)", bps: 0 },
-      { label: "TDC preferencial post-origenación", bps: 0 },
+      { label: "Seguro automotriz cobertura amplia", bps: 0 },
+      { label: "Cuenta eje para domiciliación", bps: 0 },
     ],
     executiveSummary: [
-      `Pide un crédito de $780,000 MXN (pesos mexicanos) a 4 años para comprar un Tesla Model 3 2025.`,
+      `Solicita un crédito automotriz por $255,920 MXN a 48 meses para adquirir un KIA Soluto 2025.`,
       `Su puntaje en Buró es 738: mejor historial que aproximadamente el 82% de personas con reporte en México.`,
       `Identidad confirmada con INE y selfie; no aparece en listas de riesgo (lavado de dinero o sanciones).`,
-      `Gana $48,500 MXN netos al mes; la mensualidad del auto usaría 44 de cada $100 de su sueldo (el banco permite hasta 45).`,
+      `Gana $48,500 MXN netos al mes; la mensualidad estimada consumiría 14.5% del ingreso, por debajo del umbral de política.`,
       `Paga a tiempo todos sus créditos actuales; no tiene moras en los últimos 2 años.`,
-      `Cumple los 13 requisitos del banco; tasa final 13.75% anual (menor que la tasa inicial de 15%).`,
+      `Cumple 12 de 12 validaciones aplicables; tasa final 14.25% anual tras bonificaciones por nómina y relación activa.`,
     ],
     riskFactors: [
-      "Ya tiene un crédito de auto con Kavak y usa casi la mitad (48%) de ese límite.",
-      "En 6 meses le revisaron el buró 2 veces (normal si estaba cotizando créditos).",
+      "Mantiene una obligación personal activa con utilización cercana al 48% del límite reportado.",
+      "Se observan 2 consultas al Buró en los últimos 6 meses; nivel normal, pero se mantiene en monitoreo.",
     ],
     strengths: [
       "Siempre paga a tiempo: tarjetas y préstamos al corriente.",
       "Lleva más de 4 años en el mismo empleo; ingreso comprobado con nómina.",
-      "Aporta $156,000 MXN de enganche (20% del auto); el banco financia el resto.",
-      "Califica para descuentos por nómina, tarjeta y por comprar auto eléctrico.",
+      "Aporta $63,980 MXN de enganche (20% del valor de la unidad); reduce el monto financiado.",
+      "Califica para bonificaciones de tasa por nómina domiciliada y relación activa con tarjeta.",
     ],
   };
 }

@@ -10,6 +10,7 @@ import { resolveCreditReportFromPrompt } from "../data/credit-report-subjects";
 import { exportCreditReportPdf } from "../services/credit-report-pdf";
 import { KycCaptureCard } from "../components/kyc-capture-card";
 import type { CreditReportPayload, CreditReportRuleRow } from "../types/credit-report.types";
+import { formatBps } from "../services/credit-report-pdf-format";
 import "@/components/ui/templates/workspace-page.css";
 import "./reporting-screen.css";
 
@@ -46,6 +47,7 @@ export function ReportingScreen() {
   };
 
   const s = report?.subject;
+  const totalRateBps = report?.rateCascade.reduce((sum, step) => sum + (step.deltaBps ?? 0), 0) ?? 0;
 
   return (
     <div className="zelify-workspace-page rpt-root">
@@ -242,7 +244,7 @@ export function ReportingScreen() {
                             </div>
                             <p>{r.detail}</p>
                             {r.bpsDiscount ? (
-                              <span className="rpt-rule__bps">−{r.bpsDiscount} pbs</span>
+                              <span className="rpt-rule__bps">{formatBps(-r.bpsDiscount)}</span>
                             ) : null}
                           </li>
                         ))}
@@ -253,7 +255,7 @@ export function ReportingScreen() {
                 <div className="rpt-rate-cascade">
                   <span>Tasa base {s.baseRate}%</span>
                   <span>→</span>
-                  <span>Descuentos nómina + TDC + eco (−125 pbs)</span>
+                  <span>Bonificaciones comerciales ({formatBps(totalRateBps)})</span>
                   <span>→</span>
                   <strong>Tasa final {s.finalRate}%</strong>
                 </div>
