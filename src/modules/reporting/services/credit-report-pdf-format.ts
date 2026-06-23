@@ -9,6 +9,12 @@ export function mxnPerMonth(value: number): string {
   return `${mxn(value)} al mes`;
 }
 
+export function formatBps(value: number): string {
+  const abs = Math.abs(Math.round(value));
+  if (abs === 0) return "0 pb";
+  return `${value < 0 ? "−" : ""}${abs.toLocaleString("es-MX")} pb`;
+}
+
 export function formatCreditAgeMonths(months: number): string {
   const y = Math.floor(months / 12);
   const m = months % 12;
@@ -74,16 +80,16 @@ export function explainDownPayment(
 ): string {
   let text = `Enganche ${formatPctMx(pctDown, 0)}: ${mxn(amount)} que usted aporta de su dinero.`;
   if (vehicleValue) {
-    text += ` Precio del auto: ${mxn(vehicleValue)}; el crédito cubre ${mxn(vehicleValue - amount)}.`;
+    text += ` Precio del vehículo: ${mxn(vehicleValue)}; el crédito cubre ${mxn(vehicleValue - amount)}.`;
   }
   return text;
 }
 
 export function explainRate(base: number, final: number): string {
-  const saved = base - final;
+  const savedBps = Math.round((base - final) * 100);
   return (
     `Tasa de interés anual: ${formatPctMx(final)} (antes de descuentos era ${formatPctMx(base)}). ` +
-    `Ahorro de ${formatPctMx(saved)} puntos porcentuales por nómina, tarjeta y auto eléctrico.`
+    `Descuento acumulado de ${formatBps(savedBps)} por bonificaciones comerciales aplicables.`
   );
 }
 
