@@ -84,6 +84,29 @@ function fmtShort(iso: string) {
   return new Date(iso).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+function normalizePdfText(text: string): string {
+  return text
+    .replace(/≥/g, ">=")
+    .replace(/≤/g, "<=")
+    .replace(/−/g, "-")
+    .replace(/–/g, "-")
+    .replace(/—/g, "-")
+    .replace(/“|”/g, '"')
+    .replace(/…/g, "...")
+    .replace(/\u00a0/g, " ");
+}
+
+function clipPdfText(doc: Doc, text: string, maxWidth: number): string {
+  const safe = normalizePdfText(text);
+  if (doc.getTextWidth(safe) <= maxWidth) return safe;
+  const ellipsis = "...";
+  let out = safe;
+  while (out.length > 0 && doc.getTextWidth(out + ellipsis) > maxWidth) {
+    out = out.slice(0, -1);
+  }
+  return `${out}${ellipsis}`;
+}
+
 class CreditReportPdfBuilder {
   private doc: Doc;
   private page = 1;
@@ -145,11 +168,11 @@ class CreditReportPdfBuilder {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(FS.header);
     rgb(doc, [255, 255, 255]);
-    doc.text("ZELIFY · CREDITOR REPORT", MARGIN, 6);
+    doc.text(normalizePdfText("ZELIFY · CREDITOR REPORT"), MARGIN, 6);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(FS.headerSub);
     rgb(doc, C.muted);
-    doc.text("Informe crediticio integral · Moneda MXN", MARGIN, 17);
+    doc.text(normalizePdfText("Informe crediticio integral · Moneda MXN"), MARGIN, 17);
     rgb(doc, C.ink);
     doc.text(this.report.reportId, PAGE_W - MARGIN, 12, { align: "right" });
     rgb(doc, C.muted);
@@ -170,9 +193,9 @@ class CreditReportPdfBuilder {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(FS.footer);
     rgb(doc, C.muted);
-    doc.text(this.report.meta.confidentiality, MARGIN, FOOTER_Y);
+    doc.text(clipPdfText(doc, this.report.meta.confidentiality, 90), MARGIN, FOOTER_Y);
+    doc.text(clipPdfText(doc, this.report.meta.institution, 56), PAGE_W / 2, FOOTER_Y, { align: "center" });
     doc.text(`Página ${this.page}`, PAGE_W - MARGIN, FOOTER_Y, { align: "right" });
-    doc.text(this.report.meta.institution, PAGE_W / 2, FOOTER_Y, { align: "center" });
   }
 
   private sectionTitle(title: string, subtitle?: string) {
@@ -182,13 +205,13 @@ class CreditReportPdfBuilder {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(FS.section);
     rgb(doc, C.brand);
-    doc.text(`${this.sectionNum}. ${title}`, MARGIN, this.y);
+    doc.text(normalizePdfText(`${this.sectionNum}. ${title}`), MARGIN, this.y);
     this.y += 6;
     if (subtitle) {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(FS.sectionSub);
       rgb(doc, C.muted);
-      doc.text(subtitle, MARGIN, this.y);
+      doc.text(normalizePdfText(subtitle), MARGIN, this.y);
       this.y += 5;
     }
     stroke(doc, C.rule);
@@ -202,7 +225,7 @@ class CreditReportPdfBuilder {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(FS.body);
     rgb(doc, C.body);
-    const lines = doc.splitTextToSize(text, CONTENT_W - indent);
+    const lines = doc.splitTextToSize(normalizePdfText(text), CONTENT_W - indent);
     this.ensure(lines.length * FS.line + 2);
     doc.text(lines, MARGIN + indent, this.y);
     this.y += lines.length * FS.line + 2;
@@ -214,11 +237,11 @@ class CreditReportPdfBuilder {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(FS.body);
     rgb(doc, C.ink);
-    doc.text("En pocas palabras:", MARGIN, this.y);
+    doc.text(normalizePdfText("En pocas palabras:"), MARGIN, this.y);
     this.y += FS.line;
     doc.setFont("helvetica", "normal");
     rgb(doc, C.body);
-    const lines = doc.splitTextToSize(text, CONTENT_W);
+    const lines = doc.splitTextToSize(normalizePdfText(text), CONTENT_W);
     this.ensure(lines.length * FS.line + 2);
     doc.text(lines, MARGIN, this.y);
     this.y += lines.length * FS.line + 4;
@@ -230,7 +253,7 @@ class CreditReportPdfBuilder {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(FS.body);
       rgb(doc, C.body);
-      const lines = doc.splitTextToSize(`•  ${item}`, CONTENT_W - 4);
+      const lines = doc.splitTextToSize(normalizePdfText(`•  ${item}`), CONTENT_W - 4);
       this.ensure(lines.length * FS.line + 1);
       doc.text(lines, MARGIN + 2, this.y);
       this.y += lines.length * FS.line + 1;
@@ -251,18 +274,18 @@ class CreditReportPdfBuilder {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(FS.kpiLabel);
       rgb(doc, C.muted);
-      doc.text(doc.splitTextToSize(k.label, w - 2).slice(0, 2), x, this.y);
+      doc.text(doc.splitTextToSize(normalizePdfText(k.label), w - 2).slice(0, 2), x, this.y);
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(FS.kpiValue);
       rgb(doc, C.ink);
-      doc.text(doc.splitTextToSize(k.value, w - 2).slice(0, 2), x, this.y + 9);
+      doc.text(doc.splitTextToSize(normalizePdfText(k.value), w - 2).slice(0, 2), x, this.y + 9);
 
       if (k.sub) {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(FS.kpiSub);
         rgb(doc, C.muted);
-        doc.text(doc.splitTextToSize(k.sub, w - 2).slice(0, 2), x, this.y + 17);
+        doc.text(doc.splitTextToSize(normalizePdfText(k.sub), w - 2).slice(0, 2), x, this.y + 17);
       }
     });
     this.y += h + 8;
@@ -299,7 +322,8 @@ class CreditReportPdfBuilder {
             : col.align === "center"
               ? x + col.width / 2
               : x + padX;
-        doc.text(col.header, tx, this.y + 5.8, { align: col.align ?? "left", maxWidth: col.width - padX * 2 });
+        const headerLines = doc.splitTextToSize(normalizePdfText(col.header), col.width - padX * 2);
+        doc.text(headerLines, tx, this.y + 5.8, { align: col.align ?? "left" });
         stroke(doc, C.rule);
         doc.line(x + col.width, this.y, x + col.width, this.y + headerH);
         x += col.width;
@@ -310,7 +334,9 @@ class CreditReportPdfBuilder {
     drawHeader();
 
     rows.forEach((row, rowIndex) => {
-      const lineSets = row.map((cell, ci) => doc.splitTextToSize(cell ?? "—", columns[ci].width - padX * 2));
+      const lineSets = row.map((cell, ci) =>
+        doc.splitTextToSize(normalizePdfText(cell ?? "-"), columns[ci].width - padX * 2)
+      );
       const maxLines = Math.max(...lineSets.map((lines) => lines.length), 1);
       const rowH = Math.max(minRowH, maxLines * 4.2 + padY * 2);
 
@@ -340,7 +366,7 @@ class CreditReportPdfBuilder {
             : col.align === "center"
               ? x + col.width / 2
               : x + padX;
-        doc.text(cellLines, tx, this.y + 4.6, { align: col.align ?? "left", maxWidth: col.width - padX * 2 });
+        doc.text(cellLines, tx, this.y + 4.6, { align: col.align ?? "left" });
         if (ci < columns.length - 1) {
           stroke(doc, C.rule);
           doc.line(x + col.width, this.y, x + col.width, this.y + rowH);
@@ -360,10 +386,10 @@ class CreditReportPdfBuilder {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(FS.body);
       rgb(doc, C.muted);
-      doc.text(label, MARGIN, this.y);
+      doc.text(normalizePdfText(label), MARGIN, this.y);
       doc.setFont("helvetica", "normal");
       rgb(doc, C.body);
-      const lines = doc.splitTextToSize(value, valW);
+      const lines = doc.splitTextToSize(normalizePdfText(value), valW);
       doc.text(lines, MARGIN + labelW, this.y);
       this.y += Math.max(7, lines.length * FS.line);
     });
