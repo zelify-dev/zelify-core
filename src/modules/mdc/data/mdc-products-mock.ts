@@ -1,4 +1,5 @@
 export type ProductStatus = "ACTIVO" | "INACTIVO" | "BORRADOR" | "SUSPENDIDO";
+export type MdcApplicantMode = "natural" | "moral";
 
 export type MdcProduct = {
   id: string;
@@ -17,7 +18,7 @@ export type MdcProduct = {
   };
 };
 
-export const MDC_PRODUCTS: MdcProduct[] = [
+export const NATURAL_MDC_PRODUCTS: MdcProduct[] = [
   {
     id: "product_001",
     name: "Credito automotriz",
@@ -51,6 +52,64 @@ export const MDC_PRODUCTS: MdcProduct[] = [
     },
   },
 ];
+
+export const MORAL_MDC_PRODUCTS: MdcProduct[] = [
+  {
+    id: "pm_product_001",
+    name: "Credito simple empresarial",
+    description: "Financiamiento para expansion, equipo y necesidades de capital de empresas constituidas en Mexico.",
+    status: "ACTIVO",
+    metrics: {
+      activeClients: 14,
+      totalPortfolio: 42_800_000,
+    },
+    configuration: {
+      interestRate: { min: 14.5, max: 18.5 },
+      amount: { min: 1_000_000, max: 25_000_000 },
+      residualAmount: 0,
+      term: { min: 12, max: 60, frequency: "mensual" },
+    },
+  },
+  {
+    id: "pm_product_002",
+    name: "Linea de capital de trabajo",
+    description: "Linea revolvente para necesidades operativas, inventario y tesoreria de empresas medianas.",
+    status: "ACTIVO",
+    metrics: {
+      activeClients: 11,
+      totalPortfolio: 28_600_000,
+    },
+    configuration: {
+      interestRate: { min: 13.8, max: 17.2 },
+      amount: { min: 750_000, max: 18_000_000 },
+      residualAmount: 0,
+      term: { min: 6, max: 36, frequency: "mensual" },
+    },
+  },
+  {
+    id: "pm_product_003",
+    name: "Arrendamiento financiero",
+    description: "Estructura para adquisicion de equipo, flotilla o activo productivo con garantia sobre el bien.",
+    status: "ACTIVO",
+    metrics: {
+      activeClients: 9,
+      totalPortfolio: 36_100_000,
+    },
+    configuration: {
+      interestRate: { min: 12.9, max: 16.4 },
+      amount: { min: 1_500_000, max: 30_000_000 },
+      residualAmount: 10,
+      term: { min: 24, max: 72, frequency: "mensual" },
+    },
+  },
+];
+
+export const MDC_PRODUCTS_BY_MODE: Record<MdcApplicantMode, MdcProduct[]> = {
+  natural: NATURAL_MDC_PRODUCTS,
+  moral: MORAL_MDC_PRODUCTS,
+};
+
+export const MDC_PRODUCTS = NATURAL_MDC_PRODUCTS;
 
 export function formatMdcNumber(value: number) {
   return new Intl.NumberFormat("es-MX").format(value);

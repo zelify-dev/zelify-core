@@ -2,6 +2,7 @@
 
 import { NotebookPen } from "lucide-react";
 import { useMemo, useState } from "react";
+import type { MdcApplicantMode } from "@/modules/mdc/data/mdc-credit-mock";
 
 export type CollectionCase = {
   caseId: string;
@@ -23,7 +24,7 @@ export type CollectionCase = {
   createdAt: string;
 };
 
-export const CASES: CollectionCase[] = [
+export const NATURAL_CASES: CollectionCase[] = [
   {
     caseId: "case-001",
     applicationNo: "APP-001272",
@@ -64,9 +65,77 @@ export const CASES: CollectionCase[] = [
   },
 ];
 
+export const MORAL_CASES: CollectionCase[] = [
+  {
+    caseId: "pm-case-001",
+    applicationNo: "APP-PM-100281",
+    customerName: "Comercializadora Bajio Norte SA de CV",
+    email: "direccion.financiera@bajionorte.mx",
+    phone: "+52 442 900 1281",
+    identification: "RFC CBN140501KJ3",
+    birthDate: "15/04/2014",
+    address: "Parque Industrial Bajio 220",
+    city: "Queretaro",
+    state: "Queretaro",
+    zipCode: "76120",
+    amountDue: 125000,
+    dpd: 11,
+    status: "active",
+    assignedAgent: "AGT-PM-001",
+    lastActivity: "07/05/2026",
+    createdAt: "05/05/2026",
+  },
+  {
+    caseId: "pm-case-002",
+    applicationNo: "APP-PM-100276",
+    customerName: "Distribuidora Electrica Metropoli SA de CV",
+    email: "tesoreria@demetropoli.mx",
+    phone: "+52 55 8800 1276",
+    identification: "RFC DEM170903PZ8",
+    birthDate: "03/09/2017",
+    address: "Av. Ceylan 1440",
+    city: "Azcapotzalco",
+    state: "CDMX",
+    zipCode: "02300",
+    amountDue: 196000,
+    dpd: 19,
+    status: "escalated",
+    assignedAgent: "AGT-PM-002",
+    lastActivity: "07/05/2026",
+    createdAt: "06/05/2026",
+  },
+  {
+    caseId: "pm-case-003",
+    applicationNo: "APP-PM-100279",
+    customerName: "Agroinsumos del Pacifico SA de CV",
+    email: "tesoreria@agropacifico.mx",
+    phone: "+52 667 400 1279",
+    identification: "RFC APA150712TR6",
+    birthDate: "12/07/2015",
+    address: "Carretera Culiacan Navolato 5400",
+    city: "Culiacan",
+    state: "Sinaloa",
+    zipCode: "80370",
+    amountDue: 148000,
+    dpd: 7,
+    status: "active",
+    assignedAgent: "AGT-PM-003",
+    lastActivity: "08/05/2026",
+    createdAt: "05/05/2026",
+  },
+];
+
+export const CASES = NATURAL_CASES;
+
 const PAGE_SIZE = 10;
 
-export function MdcCollectionsTab() {
+export function MdcCollectionsTab({
+  mode = "natural",
+  cases = mode === "moral" ? MORAL_CASES : NATURAL_CASES,
+}: {
+  mode?: MdcApplicantMode;
+  cases?: CollectionCase[];
+}) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [selectedCase, setSelectedCase] = useState<CollectionCase | null>(null);
@@ -77,14 +146,14 @@ export function MdcCollectionsTab() {
 
   const filteredCases = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return CASES;
-    return CASES.filter((item) =>
+    if (!q) return cases;
+    return cases.filter((item) =>
       [item.caseId, item.applicationNo, item.customerName, item.assignedAgent, item.status]
         .join(" ")
         .toLowerCase()
         .includes(q),
     );
-  }, [query]);
+  }, [cases, query]);
 
   const totalPages = Math.max(1, Math.ceil(filteredCases.length / PAGE_SIZE));
   const pagedCases = filteredCases.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -102,7 +171,7 @@ export function MdcCollectionsTab() {
 
       <article className="mdc-card">
         <h3>Resumen de cobranza</h3>
-        <p>Indicadores clave para priorizar la gestion diaria.</p>
+        <p>{mode === "moral" ? "Indicadores clave para priorizar recuperacion corporativa y seguimiento empresarial." : "Indicadores clave para priorizar la gestion diaria."}</p>
         <div className="mdc-col-kpis">
           <KpiCard title="Casos activos" value={String(filteredCases.length)} />
           <KpiCard title="Monto vencido total" value={`$${formatMoney(totalMontoVencido)} MXN`} />
@@ -111,9 +180,9 @@ export function MdcCollectionsTab() {
         </div>
       </article>
 
-      <article className="mdc-card">
-        <h3>Casos de cobranza</h3>
-        <p>Casos de cobranza activos.</p>
+        <article className="mdc-card">
+          <h3>Casos de cobranza</h3>
+        <p>{mode === "moral" ? "Casos activos de seguimiento a empresas y razones sociales." : "Casos de cobranza activos."}</p>
 
         <div className="mdc-col-search-wrap">
           <input
@@ -227,7 +296,7 @@ export function MdcCollectionsTab() {
             </div>
 
             <div className="mdc-col-box">
-              <p>Informacion personal</p>
+              <p>{mode === "moral" ? "Informacion corporativa" : "Informacion personal"}</p>
               <div className="mdc-col-grid">
                 <DetailItem label="Nombre completo" value={selectedCase.customerName} />
                 <DetailItem label="Correo" value={selectedCase.email} />

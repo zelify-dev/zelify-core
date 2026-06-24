@@ -1,13 +1,15 @@
+import type { MdcCreditProduct, NaturalCreditProduct, MoralCreditProduct } from "@/modules/mdc/data/mdc-credit-mock";
+
 export type RuleDataType = "string" | "number" | "boolean" | "date" | "percentage";
 export type RuleOperator = "equals" | "notEquals" | "gt" | "gte" | "lt" | "lte" | "contains" | "between";
 export type RuleSeverity = "pass" | "warn" | "fail";
-export type RuleProduct = "Credito automotriz" | "Credito personal";
+export type RuleProduct = MdcCreditProduct;
 
 export type CreditRuleRow = {
   id: string;
-  name: string;
   products: RuleProduct[];
   field: string;
+  name: string;
   operator: RuleOperator;
   value: string;
   dataType: RuleDataType;
@@ -25,7 +27,7 @@ export type CreditRuleRow = {
   };
 };
 
-export const creditRulesMock: CreditRuleRow[] = [
+export const naturalCreditRulesMock: CreditRuleRow[] = [
   {
     id: "cr-1",
     name: "Edad minima",
@@ -137,3 +139,219 @@ export const creditRulesMock: CreditRuleRow[] = [
     severity: "fail",
   },
 ];
+
+const PM_ALL_PRODUCTS = [
+  "Credito simple empresarial",
+  "Linea de capital de trabajo",
+  "Arrendamiento financiero",
+] satisfies MoralCreditProduct[];
+
+export const moralCreditRulesMock: CreditRuleRow[] = [
+  {
+    id: "pm-cr-1",
+    name: "Antiguedad minima de la empresa",
+    products: PM_ALL_PRODUCTS,
+    field: "company.antiquityMonths",
+    operator: "gte",
+    value: "24",
+    dataType: "number",
+    status: "active",
+    description: "La empresa debe contar con al menos 24 meses continuos de operacion.",
+    createdAt: "2026-05-10T10:00:00Z",
+    severity: "fail",
+  },
+  {
+    id: "pm-cr-2",
+    name: "Apalancamiento maximo",
+    products: ["Credito simple empresarial", "Linea de capital de trabajo"],
+    field: "company.leverageRatio",
+    operator: "lte",
+    value: "<= 2.50 aprueba · 2.50-3.49 revision · >= 3.50 rechaza",
+    dataType: "number",
+    status: "active",
+    description: "Relacion deuda neta / EBITDA con bandas de aprobacion, revision y rechazo.",
+    createdAt: "2026-05-10T11:00:00Z",
+    severity: "warn",
+    decisionBands: {
+      approveMax: 2.5,
+      reviewMin: 2.5,
+      reviewMax: 3.5,
+      rejectMin: 3.5,
+    },
+  },
+  {
+    id: "pm-cr-3",
+    name: "Facturacion mensual minima",
+    products: PM_ALL_PRODUCTS,
+    field: "company.monthlyRevenue",
+    operator: "gte",
+    value: "400000",
+    dataType: "number",
+    status: "active",
+    description: "Facturacion mensual minima requerida para sostener el servicio de deuda.",
+    createdAt: "2026-05-10T12:00:00Z",
+    severity: "fail",
+  },
+  {
+    id: "pm-cr-4",
+    name: "Score de buro empresa",
+    products: PM_ALL_PRODUCTS,
+    field: "company.bureauScore",
+    operator: "gte",
+    value: "650",
+    dataType: "number",
+    status: "active",
+    description: "Score minimo de la empresa y del representante legal para originacion.",
+    createdAt: "2026-05-11T09:00:00Z",
+    severity: "fail",
+  },
+  {
+    id: "pm-cr-5",
+    name: "Dias maximos de atraso",
+    products: PM_ALL_PRODUCTS,
+    field: "company.maxDaysPastDue",
+    operator: "lte",
+    value: "45",
+    dataType: "number",
+    status: "active",
+    description: "No se permiten atrasos mayores a 45 dias en la experiencia reciente de pago.",
+    createdAt: "2026-05-11T10:00:00Z",
+    severity: "fail",
+  },
+  {
+    id: "pm-cr-6",
+    name: "Cobertura minima de servicio de deuda",
+    products: ["Credito simple empresarial", "Arrendamiento financiero"],
+    field: "company.dscr",
+    operator: "gte",
+    value: "1.20",
+    dataType: "number",
+    status: "active",
+    description: "Cobertura minima de flujo operativo para atender servicio de deuda.",
+    createdAt: "2026-05-11T11:00:00Z",
+    severity: "warn",
+  },
+  {
+    id: "pm-cr-7",
+    name: "Concentracion maxima por cliente",
+    products: ["Linea de capital de trabajo"],
+    field: "company.topClientConcentration",
+    operator: "lte",
+    value: "0.45",
+    dataType: "percentage",
+    status: "active",
+    description: "La dependencia del cliente principal no debe superar 45% de la facturacion.",
+    createdAt: "2026-05-11T12:00:00Z",
+    severity: "warn",
+  },
+  {
+    id: "pm-cr-8",
+    name: "Margen EBITDA minimo",
+    products: ["Credito simple empresarial", "Arrendamiento financiero"],
+    field: "company.ebitdaMargin",
+    operator: "gte",
+    value: "0.12",
+    dataType: "percentage",
+    status: "active",
+    description: "Se requiere margen EBITDA minimo de 12% para operaciones empresariales de plazo medio.",
+    createdAt: "2026-05-11T13:00:00Z",
+    severity: "warn",
+  },
+  {
+    id: "pm-cr-9",
+    name: "Expediente KYB minimo",
+    products: PM_ALL_PRODUCTS,
+    field: "company.kybCompleteness",
+    operator: "gte",
+    value: "0.90",
+    dataType: "percentage",
+    status: "active",
+    description: "El expediente corporativo debe venir al menos con 90% de completitud documental y societaria.",
+    createdAt: "2026-05-11T14:00:00Z",
+    severity: "fail",
+  },
+  {
+    id: "pm-cr-10",
+    name: "Alertas AML / PLD",
+    products: PM_ALL_PRODUCTS,
+    field: "company.amlAlerts",
+    operator: "lte",
+    value: "0",
+    dataType: "number",
+    status: "active",
+    description: "No se permiten alertas activas en listas restrictivas, prensa adversa o coincidencias regulatorias sin aclaracion.",
+    createdAt: "2026-05-11T15:00:00Z",
+    severity: "fail",
+  },
+  {
+    id: "pm-cr-11",
+    name: "Score minimo de accionistas / aval",
+    products: PM_ALL_PRODUCTS,
+    field: "company.shareholderScore",
+    operator: "gte",
+    value: "670",
+    dataType: "number",
+    status: "active",
+    description: "El score combinado de socios relevantes, aval o representante debe sostener el apetito de riesgo.",
+    createdAt: "2026-05-11T16:00:00Z",
+    severity: "warn",
+  },
+  {
+    id: "pm-cr-12",
+    name: "Monto solicitado vs ventas",
+    products: ["Credito simple empresarial", "Linea de capital de trabajo"],
+    field: "company.requestedAmountToRevenue",
+    operator: "lte",
+    value: "<= 2.40 aprueba · 2.40-3.99 revision · >= 4.00 rechaza",
+    dataType: "number",
+    status: "active",
+    description: "Relacion entre monto solicitado y facturacion mensual promedio con bandas de originacion.",
+    createdAt: "2026-05-11T17:00:00Z",
+    severity: "warn",
+    decisionBands: {
+      approveMax: 2.4,
+      reviewMin: 2.4,
+      reviewMax: 4,
+      rejectMin: 4,
+    },
+  },
+  {
+    id: "pm-cr-13",
+    name: "Riesgo sectorial NAICS",
+    products: PM_ALL_PRODUCTS,
+    field: "company.naicsRiskIndex",
+    operator: "lte",
+    value: "<= 45 aprueba · 46-65 revision · >= 66 rechaza",
+    dataType: "number",
+    status: "active",
+    description: "Indice sectorial para exposicion ciclica, regulatoria y concentracion de mercado.",
+    createdAt: "2026-05-11T18:00:00Z",
+    severity: "warn",
+    decisionBands: {
+      approveMax: 45,
+      reviewMin: 46,
+      reviewMax: 66,
+      rejectMin: 66,
+    },
+  },
+  {
+    id: "pm-cr-14",
+    name: "Plazo maximo de arrendamiento",
+    products: ["Arrendamiento financiero"],
+    field: "company.requestedTermMonths",
+    operator: "lte",
+    value: "60",
+    dataType: "number",
+    status: "active",
+    description: "Las operaciones de arrendamiento financiero no deben exceder 60 meses.",
+    createdAt: "2026-05-11T19:00:00Z",
+    severity: "fail",
+  },
+];
+
+export const creditRulesMock = naturalCreditRulesMock;
+
+export const CREDIT_RULES_BY_MODE = {
+  natural: naturalCreditRulesMock,
+  moral: moralCreditRulesMock,
+} satisfies Record<"natural" | "moral", CreditRuleRow[]>;

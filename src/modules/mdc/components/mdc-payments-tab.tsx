@@ -2,6 +2,7 @@
 
 import { ChevronRight, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import type { MdcApplicantMode } from "@/modules/mdc/data/mdc-credit-mock";
 
 export type Session = {
   id: string;
@@ -25,6 +26,8 @@ type Installment = {
 
 type RangePreset = "7d" | "30d" | "90d";
 type MdcPaymentsTabProps = {
+  mode?: MdcApplicantMode;
+  sessions?: Session[];
   range?: RangePreset;
   onRangeChange?: (range: RangePreset) => void;
 };
@@ -36,7 +39,7 @@ const RANGE_DAYS: Record<RangePreset, number> = {
   "90d": 90,
 };
 
-export const SESSIONS: Session[] = [
+export const NATURAL_SESSIONS: Session[] = [
   { id: "ses_0901", userId: "Monica Flores Ruiz", applicantId: "APP-001233", status: "CAPTURADO", paymentMethod: "spei", amount: 1850, currency: "MXN", createdAt: "2026-02-10" },
   { id: "ses_0902", userId: "Arturo Salinas Gomez", applicantId: "APP-001234", status: "CAPTURADO", paymentMethod: "tarjeta", amount: 2200, currency: "MXN", createdAt: "2026-02-18" },
   { id: "ses_0903", userId: "Nadia Paredes Luna", applicantId: "APP-001235", status: "FALLIDO", paymentMethod: "tarjeta", amount: 2600, currency: "MXN", createdAt: "2026-02-27", errorCode: "issuer_declined", retryable: true },
@@ -58,7 +61,21 @@ export const SESSIONS: Session[] = [
   { id: "ses_1009", userId: "Fernanda Alvarez Ruiz", applicantId: "APP-001251", status: "CAPTURADO", paymentMethod: "tarjeta", amount: 5800, currency: "MXN", createdAt: "2026-05-07" },
 ];
 
-export function MdcPaymentsTab({ range, onRangeChange }: MdcPaymentsTabProps) {
+export const MORAL_SESSIONS: Session[] = [
+  { id: "pm_ses_1001", userId: "TechStart Solutions SA de CV", applicantId: "APP-PM-100284", status: "CAPTURADO", paymentMethod: "spei", amount: 185000, currency: "MXN", createdAt: "2026-05-01" },
+  { id: "pm_ses_1002", userId: "Grupo Delta Industrial SA de CV", applicantId: "APP-PM-100283", status: "CAPTURADO", paymentMethod: "spei", amount: 240000, currency: "MXN", createdAt: "2026-05-02" },
+  { id: "pm_ses_1003", userId: "Inversiones del Norte SA de CV", applicantId: "APP-PM-100282", status: "CAPTURADO", paymentMethod: "spei", amount: 410000, currency: "MXN", createdAt: "2026-05-03" },
+  { id: "pm_ses_1004", userId: "Comercializadora Bajio Norte SA de CV", applicantId: "APP-PM-100281", status: "FALLIDO", paymentMethod: "spei", amount: 125000, currency: "MXN", createdAt: "2026-05-04", errorCode: "insufficient_funds", retryable: true },
+  { id: "pm_ses_1005", userId: "Logistica Maya Integral SA de CV", applicantId: "APP-PM-100280", status: "CAPTURADO", paymentMethod: "spei", amount: 362000, currency: "MXN", createdAt: "2026-05-05" },
+  { id: "pm_ses_1006", userId: "Agroinsumos del Pacifico SA de CV", applicantId: "APP-PM-100279", status: "PENDIENTE", paymentMethod: "spei", amount: 148000, currency: "MXN", createdAt: "2026-05-05" },
+  { id: "pm_ses_1007", userId: "Servicios Hospitalarios Reforma SA de CV", applicantId: "APP-PM-100278", status: "CAPTURADO", paymentMethod: "spei", amount: 287000, currency: "MXN", createdAt: "2026-05-06" },
+  { id: "pm_ses_1008", userId: "Manufacturas Orion SA de CV", applicantId: "APP-PM-100277", status: "CAPTURADO", paymentMethod: "spei", amount: 530000, currency: "MXN", createdAt: "2026-05-06" },
+  { id: "pm_ses_1009", userId: "Distribuidora Electrica Metropoli SA de CV", applicantId: "APP-PM-100276", status: "FALLIDO", paymentMethod: "spei", amount: 196000, currency: "MXN", createdAt: "2026-05-07", errorCode: "issuer_declined", retryable: true },
+];
+
+export const SESSIONS = NATURAL_SESSIONS;
+
+export function MdcPaymentsTab({ mode = "natural", sessions = mode === "moral" ? MORAL_SESSIONS : NATURAL_SESSIONS, range, onRangeChange }: MdcPaymentsTabProps) {
   const [selectedPayment, setSelectedPayment] = useState<Session | null>(null);
   const [internalRange, setInternalRange] = useState<RangePreset>("30d");
   const activeRange = range ?? internalRange;
@@ -72,23 +89,23 @@ export function MdcPaymentsTab({ range, onRangeChange }: MdcPaymentsTabProps) {
   };
 
   const { filteredSessions, startMs } = useMemo(() => {
-    if (SESSIONS.length === 0) {
+    if (sessions.length === 0) {
       return { filteredSessions: [] as Session[], startMs: 0 };
     }
 
-    const latestDayMs = SESSIONS.reduce(
+    const latestDayMs = sessions.reduce(
       (max, session) => Math.max(max, sessionDayStartMs(session.createdAt)),
       0,
     );
     const rangeEnd = latestDayMs + DAY_MS - 1;
     const rangeStart = rangeEnd - (rangeDays * DAY_MS - 1);
-    const sessions = SESSIONS.filter((session) => {
+    const filtered = sessions.filter((session) => {
       const dayMs = sessionDayStartMs(session.createdAt);
       return dayMs >= rangeStart && dayMs <= rangeEnd;
     });
 
-    return { filteredSessions: sessions, startMs: rangeStart };
-  }, [rangeDays]);
+    return { filteredSessions: filtered, startMs: rangeStart };
+  }, [rangeDays, sessions]);
 
   const kpis = useMemo(() => {
     const totalSessions = filteredSessions.length;
@@ -170,7 +187,7 @@ export function MdcPaymentsTab({ range, onRangeChange }: MdcPaymentsTabProps) {
         <article className="mdc-card mdc-pay-header">
           <div>
             <h3>Pagos</h3>
-            <p>Gestione y supervise todas las sesiones de pago.</p>
+            <p>{mode === "moral" ? "Gestione cobros empresariales y sesiones de pago corporativas." : "Gestione y supervise todas las sesiones de pago."}</p>
           </div>
           <div className="mdc-pay-range">
             <label htmlFor="mdc-pay-range">Rango</label>

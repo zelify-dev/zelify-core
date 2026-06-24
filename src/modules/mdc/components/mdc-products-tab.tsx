@@ -2,7 +2,13 @@
 
 import { BarChart3, Plus, Settings2, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { MDC_PRODUCTS, formatMdcNumber, type MdcProduct } from "@/modules/mdc/data/mdc-products-mock";
+import {
+  MDC_PRODUCTS,
+  MDC_PRODUCTS_BY_MODE,
+  formatMdcNumber,
+  type MdcApplicantMode,
+  type MdcProduct,
+} from "@/modules/mdc/data/mdc-products-mock";
 
 const PRODUCTS_STORAGE_KEY = "mdc:products";
 
@@ -56,29 +62,29 @@ function normalizeProductFinancials(product: MdcProduct): MdcProduct {
   return { ...product, name };
 }
 
-function readStoredProducts() {
-  if (typeof window === "undefined") return MDC_PRODUCTS;
+function readStoredProducts(storageKey: string, defaults: MdcProduct[]) {
+  if (typeof window === "undefined") return defaults;
   try {
-    const raw = window.localStorage.getItem(PRODUCTS_STORAGE_KEY);
-    if (!raw) return MDC_PRODUCTS;
+    const raw = window.localStorage.getItem(storageKey);
+    if (!raw) return defaults;
     const parsed = JSON.parse(raw) as MdcProduct[];
     const stored = parsed
       .filter((product) => !product.name.toLowerCase().includes("plazo fijo"))
       .map(normalizeProductFinancials);
     const knownNames = new Set(stored.map((product) => normalizeProductName(product.name)));
-    const missingDefaults = MDC_PRODUCTS
+    const missingDefaults = defaults
       .filter((defaultProduct) => !knownNames.has(normalizeProductName(defaultProduct.name)))
       .map(normalizeProductFinancials);
     return [...stored, ...missingDefaults];
   } catch {
-    return MDC_PRODUCTS;
+    return defaults;
   }
 }
 
-function writeStoredProducts(products: MdcProduct[]) {
+function writeStoredProducts(storageKey: string, products: MdcProduct[]) {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(products));
+    window.localStorage.setItem(storageKey, JSON.stringify(products));
   } catch {
     // noop
   }
@@ -88,14 +94,34 @@ function formatCurrency(value: number) {
   return `$${formatMdcNumber(value)} MXN`;
 }
 
-export function MdcProductsTab() {
-  const [products, setProducts] = useState<MdcProduct[]>(() => readStoredProducts());
+type MdcProductsTabProps = {
+  mode?: MdcApplicantMode;
+  storageKey?: string;
+  initialProducts?: MdcProduct[];
+  title?: string;
+  subtitle?: string;
+};
+
+export function MdcProductsTab({
+  mode = "natural",
+  storageKey,
+  initialProducts,
+  title = "Productos",
+  subtitle = "Gestion de productos y performance del portafolio.",
+}: MdcProductsTabProps) {
+  const effectiveStorageKey = storageKey ?? `${PRODUCTS_STORAGE_KEY}:${mode}`;
+  const defaultProducts = initialProducts ?? MDC_PRODUCTS_BY_MODE[mode] ?? MDC_PRODUCTS;
+  const [products, setProducts] = useState<MdcProduct[]>(() => readStoredProducts(effectiveStorageKey, defaultProducts));
   const [modal, setModal] = useState<ModalState>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   useEffect(() => {
-    writeStoredProducts(products);
-  }, [products]);
+    setProducts(readStoredProducts(effectiveStorageKey, defaultProducts));
+  }, [defaultProducts, effectiveStorageKey]);
+
+  useEffect(() => {
+    writeStoredProducts(effectiveStorageKey, products);
+  }, [effectiveStorageKey, products]);
 
   const activeClients = products.reduce((acc, product) => acc + product.metrics.activeClients, 0);
   const totalPortfolio = products.reduce((acc, product) => acc + product.metrics.totalPortfolio, 0);
@@ -104,8 +130,8 @@ export function MdcProductsTab() {
     <section className="mdc-section">
       <article className="mdc-card mdc-prod-header">
         <div>
-          <h3>Productos</h3>
-          <p>Gestion de productos y performance del portafolio.</p>
+          <h3>{title}</h3>
+          <p>{subtitle}</p>
         </div>
         <button type="button" className="mdc-btn mdc-btn--primary" onClick={() => setIsCreateOpen(true)}>
           <Plus className="h-4 w-4" /> Agregar producto

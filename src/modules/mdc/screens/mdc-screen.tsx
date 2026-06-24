@@ -6,20 +6,27 @@ import { seedScotiaCreditStorage, useCreditDemoStore } from "@/modules/cortex/ho
 import { AppCheckbox } from "@/components/ui/atoms/checkbox/app-checkbox";
 import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
 import {
-  applicationsListMock,
+  APPLICATIONS_BY_MODE,
+  CLIENT_POOL_BY_MODE,
+  CREDIT_PRODUCTS_BY_MODE,
   LCC_AUTO_CLIENTS,
-  CREDIT_PRODUCTS,
   LCC_PERSONAL_CLIENTS,
+  MORAL_CREDIT_PRODUCTS,
+  PM_MDC_CLIENTS,
   RISK_LABELS,
   STATUS_LABELS,
+  NATURAL_CREDIT_PRODUCTS,
   type Application,
   type ApplicationStatus,
+  type MdcApplicantMode,
+  type MdcClientPoolItem,
+  type MdcCreditProduct,
   type RiskLevel,
 } from "@/modules/mdc/data/mdc-credit-mock";
-import { creditRulesMock, type CreditRuleRow, type RuleDataType, type RuleOperator, type RuleProduct, type RuleSeverity } from "@/modules/mdc/data/mdc-rules-mock";
+import { CREDIT_RULES_BY_MODE, type CreditRuleRow, type RuleDataType, type RuleOperator, type RuleProduct, type RuleSeverity } from "@/modules/mdc/data/mdc-rules-mock";
 import { MdcProductsTab } from "@/modules/mdc/components/mdc-products-tab";
-import { MdcPaymentsTab } from "@/modules/mdc/components/mdc-payments-tab";
-import { MdcCollectionsTab } from "@/modules/mdc/components/mdc-collections-tab";
+import { MORAL_CASES, NATURAL_CASES, MdcCollectionsTab } from "@/modules/mdc/components/mdc-collections-tab";
+import { MORAL_SESSIONS, NATURAL_SESSIONS, MdcPaymentsTab } from "@/modules/mdc/components/mdc-payments-tab";
 import { MdcConfigurationTab } from "@/modules/mdc/components/mdc-configuration-tab";
 import {
   calculateCreditQuote,
@@ -29,6 +36,7 @@ import {
   rateBeforeCrossSell,
 } from "@/modules/cortex/services/credit-pricing.engine";
 import type { CreditClientProfile, CreditProductCategory, CrossSellOption } from "@/modules/cortex/types/credit-pricing.types";
+import { MDC_PRODUCTS_BY_MODE } from "@/modules/mdc/data/mdc-products-mock";
 import "@/components/ui/templates/workspace-page.css";
 import "@/modules/cortex/components/credit-quote-result-panel.css";
 import "./mdc-screen.css";
@@ -55,6 +63,17 @@ type RuleFormState = {
 };
 
 type RangePreset = "7d" | "30d" | "90d";
+type MdcTraceabilityEntry = {
+  id: string;
+  timestamp: string;
+  action: string;
+  details: string;
+  channel: string;
+  user: string;
+  correlationId: string;
+  rateBefore?: number;
+  rateAfter?: number;
+};
 
 const APP_STORAGE_KEY = "mdc:applications";
 const RULES_STORAGE_KEY = "mdc:rules";
@@ -65,6 +84,89 @@ const RANGE_DAYS: Record<RangePreset, number> = {
   "30d": 30,
   "90d": 90,
 };
+
+const PERSONA_OPTIONS: { id: MdcApplicantMode; label: string }[] = [
+  { id: "natural", label: "Persona natural" },
+  { id: "moral", label: "Persona moral" },
+];
+
+const MODE_STORAGE_KEYS: Record<MdcApplicantMode, { applications: string; rules: string; products: string }> = {
+  natural: {
+    applications: "mdc:natural:applications",
+    rules: "mdc:natural:rules",
+    products: "mdc:natural:products",
+  },
+  moral: {
+    applications: "mdc:moral:applications",
+    rules: "mdc:moral:rules",
+    products: "mdc:moral:products",
+  },
+};
+
+const MODE_COPY: Record<MdcApplicantMode, { title: string; subtitle: string; recentTitle: string }> = {
+  natural: {
+    title: "MDC · Motor de Decision de Credito",
+    subtitle: "Analisis de solicitudes, reglas y decisiones para originacion de persona natural.",
+    recentTitle: "Solicitudes recientes",
+  },
+  moral: {
+    title: "MDC · Motor de Decision de Credito Empresarial",
+    subtitle: "Evaluacion de empresas, razones financieras y politicas de originacion para persona moral.",
+    recentTitle: "Empresas evaluadas recientemente",
+  },
+};
+
+const MORAL_TRACEABILITY: MdcTraceabilityEntry[] = [
+  {
+    id: "pm-trace-001",
+    timestamp: "2026-06-23T15:08:41Z",
+    action: "PM_SYNC",
+    details: "Sincronización de empresas desde onboarding corporativo · 3 expedientes nuevos en MDC",
+    channel: "Consola",
+    user: "Sistema MDC",
+    correlationId: "corr-pm-1782245321393",
+  },
+  {
+    id: "pm-trace-002",
+    timestamp: "2026-06-23T14:31:17Z",
+    action: "PM_RULES",
+    details: "Motor empresa evaluado · DSCR, apalancamiento y buro corporativo para Grupo Delta Industrial SA de CV",
+    channel: "Sucursal empresarial",
+    user: "Ejecutivo Empresarial",
+    correlationId: "corr-pm-1782245277709",
+    rateBefore: 17.8,
+    rateAfter: 17.8,
+  },
+  {
+    id: "pm-trace-003",
+    timestamp: "2026-06-23T14:06:47Z",
+    action: "CROSS_SELL_PM",
+    details: "Paquete transaccional y dispersión de nómina activados · mejora de pricing corporativo",
+    channel: "Sucursal empresarial",
+    user: "Ejecutivo Empresarial",
+    correlationId: "corr-pm-1782245280707",
+    rateBefore: 18.1,
+    rateAfter: 17.6,
+  },
+  {
+    id: "pm-trace-004",
+    timestamp: "2026-06-23T14:06:27Z",
+    action: "AI_VERIFY_PM",
+    details: "IA documental · 2 expedientes empresariales aprobados / 1 enviado a revisión manual",
+    channel: "Sucursal empresarial",
+    user: "Ejecutivo Empresarial",
+    correlationId: "corr-pm-1782245278521",
+  },
+  {
+    id: "pm-trace-005",
+    timestamp: "2026-06-23T13:41:01Z",
+    action: "SEED_PM",
+    details: "Catálogo PM cargado · líneas empresariales, arrendamiento y capital de trabajo en México",
+    channel: "Consola",
+    user: "Admin Producto",
+    correlationId: "corr-pm-seed-002",
+  },
+];
 
 const TABS: { id: MdcTab; label: string }[] = [
   { id: "overview", label: "Tablero" },
@@ -121,6 +223,46 @@ const PRODUCT_RULE_FIELDS: Record<RuleProduct, string[]> = {
     "income.monthlyNet",
     "employment.months",
   ],
+  "Credito simple empresarial": [
+    "company.antiquityMonths",
+    "company.monthlyRevenue",
+    "company.bureauScore",
+    "company.shareholderScore",
+    "company.maxDaysPastDue",
+    "company.dscr",
+    "company.leverageRatio",
+    "company.ebitdaMargin",
+    "company.kybCompleteness",
+    "company.amlAlerts",
+    "company.requestedAmountToRevenue",
+    "company.naicsRiskIndex",
+  ],
+  "Linea de capital de trabajo": [
+    "company.antiquityMonths",
+    "company.monthlyRevenue",
+    "company.bureauScore",
+    "company.shareholderScore",
+    "company.maxDaysPastDue",
+    "company.leverageRatio",
+    "company.topClientConcentration",
+    "company.kybCompleteness",
+    "company.amlAlerts",
+    "company.requestedAmountToRevenue",
+    "company.naicsRiskIndex",
+  ],
+  "Arrendamiento financiero": [
+    "company.antiquityMonths",
+    "company.monthlyRevenue",
+    "company.bureauScore",
+    "company.shareholderScore",
+    "company.maxDaysPastDue",
+    "company.dscr",
+    "company.ebitdaMargin",
+    "company.kybCompleteness",
+    "company.amlAlerts",
+    "company.naicsRiskIndex",
+    "company.requestedTermMonths",
+  ],
 };
 
 const RULE_FIELD_LABELS: Record<string, string> = {
@@ -131,6 +273,20 @@ const RULE_FIELD_LABELS: Record<string, string> = {
   "credit.historyMonths": "Antiguedad de historial (meses)",
   "employment.months": "Antiguedad laboral (meses)",
   "income.monthlyNet": "Ingreso mensual neto",
+  "company.antiquityMonths": "Antiguedad operativa (meses)",
+  "company.monthlyRevenue": "Facturacion mensual promedio",
+  "company.bureauScore": "Score de buro empresa / representante",
+  "company.shareholderScore": "Score de accionistas / aval",
+  "company.maxDaysPastDue": "Maximo atraso reciente (dias)",
+  "company.dscr": "Cobertura del servicio de deuda (DSCR)",
+  "company.leverageRatio": "Deuda neta / EBITDA",
+  "company.topClientConcentration": "Concentracion del cliente principal",
+  "company.ebitdaMargin": "Margen EBITDA",
+  "company.kybCompleteness": "Completitud del expediente KYB",
+  "company.amlAlerts": "Alertas AML / PLD activas",
+  "company.requestedAmountToRevenue": "Monto solicitado / ventas mensuales",
+  "company.naicsRiskIndex": "Indice de riesgo sectorial NAICS",
+  "company.requestedTermMonths": "Plazo solicitado (meses)",
   "custom.field": "Campo personalizado",
 };
 
@@ -301,6 +457,232 @@ function quickHash(value: string) {
   return Math.abs(hash);
 }
 
+function formatPlainPct(value: number, digits = 1) {
+  return `${(value * 100).toFixed(digits)}%`;
+}
+
+function numberCompact(value: number) {
+  return new Intl.NumberFormat("es-MX", {
+    notation: "compact",
+    compactDisplay: "short",
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+function chipToneBySeverity(severity: RuleSeverity) {
+  if (severity === "pass") return "mdc-col-pill mdc-col-pill--ok";
+  if (severity === "warn") return "mdc-col-pill mdc-col-pill--warn";
+  return "mdc-col-pill mdc-col-pill--bad";
+}
+
+type MoralCompanyProfile = {
+  segment: string;
+  companyType: string;
+  requestedTermMonths: number;
+  monthlyRevenue: number;
+  annualRevenue: number;
+  antiquityMonths: number;
+  bureauScore: number;
+  shareholderScore: number;
+  maxDaysPastDue: number;
+  dscr: number;
+  leverageRatio: number;
+  topClientConcentration: number;
+  ebitdaMargin: number;
+  roe: number;
+  roa: number;
+  workingCapital: number;
+  freeCashFlow: number;
+  requestedAmountToRevenue: number;
+  naicsRiskIndex: number;
+  debtBurdenRatio: number;
+  quotaToIncomeRatio: number;
+  kybCompleteness: number;
+  amlAlerts: number;
+  uboCoverage: number;
+  legalIncidents: number;
+  taxStatus: string;
+  mercantileStatus: string;
+  shareholdersStructure: string;
+  docsStatus: Array<{ label: string; detail: string; status: "ok" | "warn" | "bad" }>;
+  amlChecks: Array<{ label: string; detail: string; status: "ok" | "warn" | "bad" }>;
+  scoringHighlights: string[];
+  financeHighlights: string[];
+  sectorHighlights: string[];
+  monitoringHighlights: string[];
+};
+
+function buildMoralCompanyProfile(app: Application): MoralCompanyProfile {
+  const seed = quickHash(`${app.id}:${app.applicantName}:${app.product}`);
+  const bureauScore = bureauScoreFromRiskIndex(app.riskScore);
+  const riskLevel = riskFromScore(app.riskScore);
+  const termByProduct: Record<string, number> = {
+    "Credito simple empresarial": 36,
+    "Linea de capital de trabajo": 18,
+    "Arrendamiento financiero": 48,
+  };
+  const requestedTermMonths = termByProduct[app.product] ?? 24;
+  const approvedLike = app.status === "approved" || app.status === "overridden";
+  const reviewLike = app.status === "manualReview" || app.status === "pending";
+
+  const monthlyRevenue =
+    app.status === "declined"
+      ? Math.round(app.requestedAmount / (3.9 + ((seed % 3) * 0.25)))
+      : reviewLike
+        ? Math.round(app.requestedAmount / (3.1 + ((seed % 3) * 0.2)))
+        : Math.round(app.requestedAmount / (2.1 + ((seed % 4) * 0.18)));
+  const antiquityMonths =
+    app.status === "declined"
+      ? 14 + (seed % 11)
+      : reviewLike
+        ? 22 + (seed % 18)
+        : 46 + (seed % 70);
+  const dscr = Number(
+    (
+      app.status === "declined"
+        ? 0.88 + (seed % 12) / 100
+        : reviewLike
+          ? 1.05 + (seed % 18) / 100
+          : 1.34 + (seed % 28) / 100
+    ).toFixed(2),
+  );
+  const leverageRatio = Number(
+    (
+      app.status === "declined"
+        ? 3.55 + (seed % 60) / 100
+        : reviewLike
+          ? 2.65 + (seed % 55) / 100
+          : 1.45 + (seed % 70) / 100
+    ).toFixed(2),
+  );
+  const topClientConcentration = Number(
+    (
+      app.status === "declined"
+        ? 0.54 + (seed % 14) / 100
+        : reviewLike
+          ? 0.41 + (seed % 12) / 100
+          : 0.24 + (seed % 14) / 100
+    ).toFixed(2),
+  );
+  const ebitdaMargin = Number(
+    (
+      app.status === "declined"
+        ? 0.07 + (seed % 4) / 100
+        : reviewLike
+          ? 0.11 + (seed % 6) / 100
+          : 0.15 + (seed % 8) / 100
+    ).toFixed(2),
+  );
+  const naicsRiskIndex =
+    app.status === "declined" ? 68 + (seed % 18) : reviewLike ? 48 + (seed % 16) : 28 + (seed % 18);
+  const kybCompleteness =
+    app.status === "declined" ? 0.78 + (seed % 8) / 100 : reviewLike ? 0.86 + (seed % 8) / 100 : 0.93 + (seed % 7) / 100;
+  const amlAlerts = app.status === "declined" ? 2 : reviewLike ? 1 : 0;
+  const shareholderScore = Math.max(560, Math.min(820, bureauScore + (approvedLike ? 14 : reviewLike ? -6 : -22)));
+  const maxDaysPastDue = app.status === "declined" ? 61 + (seed % 28) : reviewLike ? 28 + (seed % 18) : 6 + (seed % 16);
+  const requestedAmountToRevenue = Number((app.requestedAmount / Math.max(monthlyRevenue, 1)).toFixed(2));
+  const quotaToIncomeRatio = Number(
+    (
+      app.status === "declined"
+        ? 0.39 + (seed % 7) / 100
+        : reviewLike
+          ? 0.29 + (seed % 7) / 100
+          : 0.17 + (seed % 8) / 100
+    ).toFixed(2),
+  );
+  const debtBurdenRatio = Number(
+    (
+      app.status === "declined"
+        ? 0.66 + (seed % 11) / 100
+        : reviewLike
+          ? 0.48 + (seed % 10) / 100
+          : 0.31 + (seed % 10) / 100
+    ).toFixed(2),
+  );
+  const annualRevenue = monthlyRevenue * 12;
+  const freeCashFlow = Math.round(monthlyRevenue * (approvedLike ? 0.16 : reviewLike ? 0.08 : 0.03));
+  const workingCapital = Math.round(monthlyRevenue * (approvedLike ? 2.4 : reviewLike ? 1.5 : 0.9));
+  const roe = Number((approvedLike ? 0.17 + (seed % 4) / 100 : reviewLike ? 0.11 + (seed % 3) / 100 : 0.06 + (seed % 3) / 100).toFixed(2));
+  const roa = Number((approvedLike ? 0.08 + (seed % 3) / 100 : reviewLike ? 0.05 + (seed % 2) / 100 : 0.02 + (seed % 2) / 100).toFixed(2));
+  const uboCoverage = app.status === "declined" ? 0.72 : reviewLike ? 0.88 : 1;
+  const legalIncidents = app.status === "declined" ? 2 : reviewLike ? 1 : 0;
+
+  return {
+    segment:
+      app.requestedAmount >= 10_000_000 ? "Corporativo" : app.requestedAmount >= 4_000_000 ? "PYME estructurada" : "PYME",
+    companyType:
+      app.product === "Arrendamiento financiero"
+        ? "Empresa intensiva en activos"
+        : app.product === "Linea de capital de trabajo"
+          ? "Operacion comercial / capital de trabajo"
+          : "Empresa operativa",
+    requestedTermMonths,
+    monthlyRevenue,
+    annualRevenue,
+    antiquityMonths,
+    bureauScore,
+    shareholderScore,
+    maxDaysPastDue,
+    dscr,
+    leverageRatio,
+    topClientConcentration,
+    ebitdaMargin,
+    roe,
+    roa,
+    workingCapital,
+    freeCashFlow,
+    requestedAmountToRevenue,
+    naicsRiskIndex,
+    debtBurdenRatio,
+    quotaToIncomeRatio,
+    kybCompleteness: Number(Math.min(1, kybCompleteness).toFixed(2)),
+    amlAlerts,
+    uboCoverage,
+    legalIncidents,
+    taxStatus: amlAlerts > 0 ? "En validacion" : "Positiva",
+    mercantileStatus: antiquityMonths >= 24 ? "Vigente" : "Con observacion",
+    shareholdersStructure: uboCoverage >= 1 ? "Completa" : "Parcial",
+    docsStatus: [
+      { label: "RFC / Tax ID", detail: "Vigencia SAT y razon social conciliada", status: "ok" },
+      { label: "Acta constitutiva", detail: antiquityMonths >= 24 ? "Validada" : "Pendiente de aclaracion", status: antiquityMonths >= 24 ? "ok" : "warn" },
+      { label: "Poderes notariales", detail: uboCoverage >= 0.88 ? "Representacion vigente" : "Firmantes incompletos", status: uboCoverage >= 0.88 ? "ok" : "warn" },
+      { label: "Estados financieros", detail: freeCashFlow > 0 ? "Recibidos y conciliados" : "Con desviaciones", status: freeCashFlow > 0 ? "ok" : "warn" },
+    ],
+    amlChecks: [
+      { label: "Listas OFAC / ONU", detail: amlAlerts === 0 ? "Sin coincidencias" : "Coincidencia por revisar", status: amlAlerts === 0 ? "ok" : "bad" },
+      { label: "PEPs / partes relacionadas", detail: legalIncidents === 0 ? "Sin exposicion material" : "Relacion con tercero observado", status: legalIncidents === 0 ? "ok" : "warn" },
+      { label: "Prensa adversa", detail: amlAlerts > 1 ? "Hallazgos abiertos" : "Sin eventos criticos", status: amlAlerts > 1 ? "bad" : "ok" },
+      { label: "Demandas / gravamenes", detail: legalIncidents === 0 ? "Sin eventos relevantes" : `${legalIncidents} incidencia(s) en seguimiento`, status: legalIncidents === 0 ? "ok" : "warn" },
+    ],
+    scoringHighlights: [
+      `Buró empresarial ${bureauScore}`,
+      `Score socios / aval ${shareholderScore}`,
+      `${app.status === "declined" ? "Cartera vencida material" : "Creditos vigentes controlados"}`,
+      `Indice NAICS ${naicsRiskIndex}`,
+    ],
+    financeHighlights: [
+      `EBITDA ${formatPlainPct(ebitdaMargin)}`,
+      `ROE ${formatPlainPct(roe)}`,
+      `ROA ${formatPlainPct(roa)}`,
+      `Capital de trabajo ${money(workingCapital)}`,
+      `Flujo libre ${money(freeCashFlow)}`,
+    ],
+    sectorHighlights: [
+      `Cuota / ingresos ${formatPlainPct(quotaToIncomeRatio)}`,
+      `Ingresos verificados ${money(monthlyRevenue)}/mes`,
+      `Concentracion top cliente ${formatPlainPct(topClientConcentration)}`,
+      `Endeudamiento ${formatPlainPct(debtBurdenRatio)}`,
+    ],
+    monitoringHighlights: [
+      "Monitor de logs en tiempo real",
+      "Alertas de deterioro",
+      "Re-scoring periodico",
+      "Cobranza temprana",
+      `Distribucion poblacional ${riskLevel === "low" ? "estable" : "bajo vigilancia"}`,
+    ],
+  };
+}
+
 function nextAppNo(rows: Application[]) {
   const maxNumber = rows.reduce((max, row) => {
     const match = row.appNo.match(/APP-(\d+)/);
@@ -309,10 +691,10 @@ function nextAppNo(rows: Application[]) {
   return `APP-${String(maxNumber + 1).padStart(6, "0")}`;
 }
 
-function defaultRuleForm(): RuleFormState {
+function defaultRuleForm(products: readonly RuleProduct[]): RuleFormState {
   return {
     name: "",
-    product: CREDIT_PRODUCTS[0],
+    product: products[0] ?? NATURAL_CREDIT_PRODUCTS[0],
     field: "",
     evaluationMode: "single",
     operator: "gte",
@@ -376,7 +758,7 @@ function ruleToFormState(rule: CreditRuleRow, product: RuleProduct): RuleFormSta
   };
 }
 
-function mergeRulesWithDefaults(rows: CreditRuleRow[]) {
+function mergeRulesWithDefaults(rows: CreditRuleRow[], availableProducts: readonly RuleProduct[], baseRules: CreditRuleRow[]) {
   const dedupeById = (items: CreditRuleRow[]) => {
     const byId = new Map<string, CreditRuleRow>();
     for (const item of items) {
@@ -388,7 +770,7 @@ function mergeRulesWithDefaults(rows: CreditRuleRow[]) {
   const sanitizeRule = (rule: CreditRuleRow): CreditRuleRow[] => {
     if (REMOVED_RULE_FIELDS.has(rule.field)) return [];
     const baseId = rule.id.split("::")[0] ?? rule.id;
-    const baseRule = creditRulesMock.find((item) => item.id === baseId || item.id.split("::")[0] === baseId);
+    const baseRule = baseRules.find((item) => item.id === baseId || item.id.split("::")[0] === baseId);
     const needsBandsMigration = !rule.decisionBands && Boolean(baseRule?.decisionBands) && baseRule?.field === rule.field;
     const normalizedRule = needsBandsMigration
       ? {
@@ -401,8 +783,8 @@ function mergeRulesWithDefaults(rows: CreditRuleRow[]) {
       : rule;
     const products =
       normalizedRule.products && normalizedRule.products.length > 0
-        ? normalizedRule.products.filter((product) => CREDIT_PRODUCTS.includes(product))
-        : (CREDIT_PRODUCTS.filter((product) => PRODUCT_RULE_FIELDS[product].includes(normalizedRule.field)) as RuleProduct[]);
+        ? normalizedRule.products.filter((product) => availableProducts.includes(product))
+        : (availableProducts.filter((product) => PRODUCT_RULE_FIELDS[product]?.includes(normalizedRule.field)) as RuleProduct[]);
     if (products.length === 0) return [];
     return products.map((product) => ({
       ...normalizedRule,
@@ -413,11 +795,11 @@ function mergeRulesWithDefaults(rows: CreditRuleRow[]) {
 
   const sanitizedRows = dedupeById(rows.flatMap(sanitizeRule));
   if (sanitizedRows.length === 0) {
-    return dedupeById(creditRulesMock.flatMap(sanitizeRule));
+    return dedupeById(baseRules.flatMap(sanitizeRule));
   }
   const merged = [...sanitizedRows];
   const byProductField = new Set(sanitizedRows.flatMap((rule) => rule.products.map((product) => `${product}:${rule.field}`)));
-  for (const baseRule of creditRulesMock) {
+  for (const baseRule of baseRules) {
     const sanitizedRowsForBase = sanitizeRule(baseRule);
     for (const sanitized of sanitizedRowsForBase) {
       const product = sanitized.products[0]!;
@@ -480,6 +862,10 @@ function renderRuleSeverity(rule: CreditRuleRow) {
 
 function productCategoryFromMdcProduct(product: string): CreditProductCategory {
   return product === "Credito automotriz" ? "automotriz" : "personal";
+}
+
+function isMoralProduct(product: string) {
+  return MORAL_CREDIT_PRODUCTS.includes(product as (typeof MORAL_CREDIT_PRODUCTS)[number]);
 }
 
 function defaultCrossSellAccepted(
@@ -685,7 +1071,21 @@ function evaluateRuleResult(rule: CreditRuleRow, metricValue: number, appStatus:
     (rule.field === "bureau.score" && metricValue < Number(rule.value || 0)) ||
     (rule.field === "credit.maxDaysPastDue" && metricValue > Number(rule.value || 0)) ||
     (rule.field === "credit.historyMonths" && metricValue < Number(rule.value || 0)) ||
-    (rule.field === "employment.months" && metricValue < Number(rule.value || 0));
+    (rule.field === "employment.months" && metricValue < Number(rule.value || 0)) ||
+    (rule.field === "company.antiquityMonths" && metricValue < Number(rule.value || 0)) ||
+    (rule.field === "company.monthlyRevenue" && metricValue < Number(rule.value || 0)) ||
+    (rule.field === "company.bureauScore" && metricValue < Number(rule.value || 0)) ||
+    (rule.field === "company.maxDaysPastDue" && metricValue > Number(rule.value || 0)) ||
+    (rule.field === "company.dscr" && metricValue < Number(rule.value || 0)) ||
+    (rule.field === "company.leverageRatio" && metricValue > Number(rule.value || 0)) ||
+    (rule.field === "company.topClientConcentration" && metricValue > Number(rule.value || 0)) ||
+    (rule.field === "company.ebitdaMargin" && metricValue < Number(rule.value || 0)) ||
+    (rule.field === "company.kybCompleteness" && metricValue < Number(rule.value || 0)) ||
+    (rule.field === "company.amlAlerts" && metricValue > Number(rule.value || 0)) ||
+    (rule.field === "company.shareholderScore" && metricValue < Number(rule.value || 0)) ||
+    (rule.field === "company.requestedAmountToRevenue" && metricValue > Number(rule.value || 0)) ||
+    (rule.field === "company.naicsRiskIndex" && metricValue > Number(rule.value || 0)) ||
+    (rule.field === "company.requestedTermMonths" && metricValue > Number(rule.value || 0));
 
   if (hasPolicyBreach) {
     return appStatus === "manualReview" && rule.severity !== "fail" ? "warn" : "fail";
@@ -707,13 +1107,18 @@ function normalizeApplicantEmail(email: string) {
   return email.replace(/@example\.com$/i, "@gmail.com");
 }
 
-function bindApplicantFromPool(app: Pick<Application, "id" | "appNo" | "product" | "applicantName" | "applicantEmail">) {
-  const pool =
-    app.product === "Credito automotriz"
-      ? LCC_AUTO_CLIENTS
-      : app.product === "Credito personal"
-        ? LCC_PERSONAL_CLIENTS
-        : [];
+function bindApplicantFromPool(
+  app: Pick<Application, "id" | "appNo" | "product" | "applicantName" | "applicantEmail">,
+  mode: MdcApplicantMode,
+) {
+  const pool: MdcClientPoolItem[] =
+    mode === "moral"
+      ? PM_MDC_CLIENTS.filter((client) => client.product === app.product)
+      : app.product === "Credito automotriz"
+        ? LCC_AUTO_CLIENTS
+        : app.product === "Credito personal"
+          ? LCC_PERSONAL_CLIENTS
+          : [];
 
   if (pool.length === 0) {
     return { applicantName: app.applicantName, applicantEmail: app.applicantEmail };
@@ -751,7 +1156,38 @@ function normalizeRequestedAmount(product: string, requestedAmount: number) {
     if (requestedAmount < 100_000) return 100_000 + Math.round(requestedAmount * 14);
     return Math.min(Math.max(requestedAmount, 100_000), 2_500_000);
   }
+  if (product === "Linea de capital de trabajo") {
+    if (requestedAmount < 750_000) return 750_000 + Math.round(requestedAmount * 4);
+    return Math.min(Math.max(requestedAmount, 750_000), 18_000_000);
+  }
+  if (product === "Credito simple empresarial") {
+    if (requestedAmount < 1_000_000) return 1_000_000 + Math.round(requestedAmount * 3.5);
+    return Math.min(Math.max(requestedAmount, 1_000_000), 25_000_000);
+  }
+  if (product === "Arrendamiento financiero") {
+    if (requestedAmount < 1_500_000) return 1_500_000 + Math.round(requestedAmount * 3.2);
+    return Math.min(Math.max(requestedAmount, 1_500_000), 30_000_000);
+  }
   return requestedAmount;
+}
+
+function hydrateApplications(mode: MdcApplicantMode, rows: Application[]) {
+  return rows.map((app) => ({
+    ...app,
+    product: normalizeProductName(app.product),
+    risk: riskFromScore(app.riskScore),
+    ...bindApplicantFromPool(
+      {
+        id: app.id,
+        appNo: app.appNo,
+        product: normalizeProductName(app.product),
+        applicantName: app.applicantName,
+        applicantEmail: normalizeApplicantEmail(app.applicantEmail),
+      },
+      mode,
+    ),
+    requestedAmount: normalizeRequestedAmount(normalizeProductName(app.product), app.requestedAmount),
+  }));
 }
 
 function MdcStatCard({
@@ -947,20 +1383,435 @@ function SegmentedBar({ data }: { data: { label: string; value: number; color: s
   );
 }
 
+function MoralApplicantDetailModal({
+  app,
+  rules,
+  onClose,
+}: {
+  app: Application;
+  rules: CreditRuleRow[];
+  onClose: () => void;
+}) {
+  const [feedback, setFeedback] = useState("");
+  const [overrideChoice, setOverrideChoice] = useState<ApplicationStatus>("manualReview");
+  const [overrideReason, setOverrideReason] = useState("");
+  const profile = buildMoralCompanyProfile(app);
+  const appRiskLevel = riskFromScore(app.riskScore);
+  const scoreTone = app.status === "declined" ? "bad" : app.status === "manualReview" || app.status === "pending" ? "warn" : "ok";
+  const stages = [
+    { id: "input", label: "Captura y onboarding", state: "done" },
+    { id: "kyb", label: "KYB / existencia legal", state: profile.kybCompleteness >= 0.9 ? "done" : "current" },
+    { id: "aml", label: "AML / PLD", state: profile.amlAlerts > 0 ? "failed" : "done" },
+    { id: "risk", label: "Scoring y finanzas", state: app.status === "declined" ? "failed" : "done" },
+    {
+      id: "decision",
+      label: "Decision automatizada",
+      state: app.status === "declined" ? "failed" : app.status === "manualReview" || app.status === "pending" ? "current" : "done",
+    },
+  ] as const;
+
+  const metricByField: Partial<Record<CreditRuleRow["field"], number>> = {
+    "company.antiquityMonths": profile.antiquityMonths,
+    "company.monthlyRevenue": profile.monthlyRevenue,
+    "company.bureauScore": profile.bureauScore,
+    "company.shareholderScore": profile.shareholderScore,
+    "company.maxDaysPastDue": profile.maxDaysPastDue,
+    "company.dscr": profile.dscr,
+    "company.leverageRatio": profile.leverageRatio,
+    "company.topClientConcentration": profile.topClientConcentration,
+    "company.ebitdaMargin": profile.ebitdaMargin,
+    "company.kybCompleteness": profile.kybCompleteness,
+    "company.amlAlerts": profile.amlAlerts,
+    "company.requestedAmountToRevenue": profile.requestedAmountToRevenue,
+    "company.naicsRiskIndex": profile.naicsRiskIndex,
+    "company.requestedTermMonths": profile.requestedTermMonths,
+  };
+
+  const ruleResultLabel: Record<RuleSeverity, string> = {
+    pass: "Aprobado",
+    warn: "Revision",
+    fail: "Rechazado",
+  };
+
+  const activeRules = rules
+    .filter((rule) => rule.status === "active" && rule.products.includes(app.product as RuleProduct))
+    .map((rule) => {
+      const metricValue = metricByField[rule.field] ?? 0;
+      const result = evaluateRuleResult(rule, metricValue, app.status);
+      return { ...rule, metricValue, result };
+    });
+
+  const failedRuleRows = activeRules.filter((rule) => rule.result === "fail");
+  const warnedRuleRows = activeRules.filter((rule) => rule.result === "warn");
+
+  const pmRuleReason = (rule: (typeof activeRules)[number]) => {
+    switch (rule.field) {
+      case "company.antiquityMonths":
+        return `Antiguedad operativa de ${profile.antiquityMonths} meses, por debajo del minimo requerido.`;
+      case "company.monthlyRevenue":
+        return `Facturacion mensual promedio de ${money(profile.monthlyRevenue)}, insuficiente frente al monto solicitado.`;
+      case "company.bureauScore":
+        return `Score de buro empresarial de ${profile.bureauScore}, debajo del umbral de originacion.`;
+      case "company.shareholderScore":
+        return `Score consolidado de socios / aval en ${profile.shareholderScore}, requiere mitigantes adicionales.`;
+      case "company.maxDaysPastDue":
+        return `Atraso maximo reciente de ${profile.maxDaysPastDue} dias en experiencia de pago empresarial.`;
+      case "company.dscr":
+        return `DSCR de ${profile.dscr.toFixed(2)}, insuficiente para el servicio de deuda esperado.`;
+      case "company.leverageRatio":
+        return `Apalancamiento de ${profile.leverageRatio.toFixed(2)}x, por encima del apetito definido.`;
+      case "company.topClientConcentration":
+        return `Concentracion del cliente principal en ${formatPlainPct(profile.topClientConcentration)}, expone demasiado la fuente de ingresos.`;
+      case "company.ebitdaMargin":
+        return `Margen EBITDA de ${formatPlainPct(profile.ebitdaMargin)}, por debajo del nivel minimo esperado.`;
+      case "company.kybCompleteness":
+        return `Expediente KYB en ${formatPlainPct(profile.kybCompleteness)}, todavia incompleto.`;
+      case "company.amlAlerts":
+        return `Existen ${profile.amlAlerts} alerta(s) AML/PLD abiertas que bloquean aprobacion automatica.`;
+      case "company.requestedAmountToRevenue":
+        return `La relacion monto / ventas es ${profile.requestedAmountToRevenue.toFixed(2)}x y presiona la capacidad de pago.`;
+      case "company.naicsRiskIndex":
+        return `El sector presenta indice NAICS de ${profile.naicsRiskIndex}, fuera del rango automatico limpio.`;
+      case "company.requestedTermMonths":
+        return `Plazo solicitado de ${profile.requestedTermMonths} meses excede el maximo permitido para el producto.`;
+      default:
+        return `${rule.name}: validacion corporativa fuera de politica.`;
+    }
+  };
+
+  const decisionReason =
+    app.status === "approved"
+      ? `Operacion aprobada con oferta de monto, tasa y plazo. DSCR ${profile.dscr.toFixed(2)}, score empresarial ${profile.bureauScore} y expediente KYB ${formatPlainPct(profile.kybCompleteness)}.`
+      : app.status === "declined"
+        ? `Solicitud rechazada por politica automatica: ${failedRuleRows.map(pmRuleReason).slice(0, 3).join(" ")}`
+        : app.status === "overridden"
+          ? `Operacion aprobada con override documentado. Se conservaron alertas en ${warnedRuleRows.map((rule) => rule.name).slice(0, 2).join(", ") || "politica comercial"}.`
+          : `Caso enviado a zona gris para revision manual. Alertas principales: ${warnedRuleRows.map(pmRuleReason).slice(0, 2).join(" ") || "validaciones complementarias de riesgo y cumplimiento."}`;
+
+  const runAction = (label: string) => {
+    setFeedback(`${label} ejecutado · ${new Intl.DateTimeFormat("es-MX", { timeStyle: "short" }).format(new Date())}`);
+  };
+
+  const applyOverride = () => {
+    if (!overrideReason.trim()) {
+      setFeedback("Debes dejar la justificacion del override. Si no, eso en cumplimiento no pasa ni de chiste.");
+      return;
+    }
+    setFeedback(`Override aplicado: ${STATUS_LABELS[overrideChoice]}. Registrado en trazabilidad corporativa.`);
+  };
+
+  const decisionCardClass = (status: "approved" | "declined" | "manual") =>
+    `mdc-pm-decision-card${
+      (status === "approved" && app.status === "approved") ||
+      (status === "declined" && app.status === "declined") ||
+      (status === "manual" && (app.status === "manualReview" || app.status === "pending" || app.status === "overridden"))
+        ? " mdc-pm-decision-card--active"
+        : ""
+    }`;
+
+  return (
+    <div className="mdc-modal-backdrop" onClick={onClose}>
+      <div className="mdc-modal mdc-modal--detail" onClick={(e) => e.stopPropagation()}>
+        <header className="mdc-detail-head">
+          <div className="mdc-detail-head__title">
+            <button type="button" className="mdc-link-btn" onClick={onClose}>
+              ← Volver a solicitudes
+            </button>
+            <div className="mdc-detail-head__line">
+              <h3>Detalle de empresa</h3>
+              <span className={classForStatus(app.status)}>{STATUS_LABELS[app.status]}</span>
+              <span className={classForRisk(appRiskLevel)}>{RISK_LABELS[appRiskLevel]}</span>
+            </div>
+            <p>
+              {app.appNo} · {app.product} · {profile.segment}
+            </p>
+          </div>
+          <div className="mdc-detail-actions">
+            <button type="button" className="mdc-btn mdc-btn--ghost" onClick={() => runAction("Revalidacion KYB")}>Revalidar KYB</button>
+            <button type="button" className="mdc-btn mdc-btn--ghost" onClick={() => runAction("Consulta buro empresa")}>Consultar buro</button>
+            <button type="button" className="mdc-btn mdc-btn--ghost" onClick={() => runAction("Recalculo financiero")}>Recalcular ratios</button>
+            <button type="button" className="mdc-btn mdc-btn--primary" onClick={() => runAction("Ejecucion motor PM")}>Ejecutar motor</button>
+          </div>
+        </header>
+
+        {feedback ? <p className="mdc-detail-feedback">{feedback}</p> : null}
+
+        <div className="mdc-detail-progress">
+          {stages.map((stage) => (
+            <div key={stage.id} className="mdc-stage-card">
+              <span className={`mdc-stage-dot mdc-stage-dot--${stage.state}`} />
+              <strong>{stage.label}</strong>
+              <em>{stage.state === "done" ? "Completado" : stage.state === "current" ? "En proceso" : "Con observacion"}</em>
+            </div>
+          ))}
+        </div>
+
+        <div className="mdc-pm-hero">
+          <div>
+            <p className="mdc-pm-hero__eyebrow">Motor de decision de credito · persona moral</p>
+            <h2>{app.applicantName}</h2>
+            <span>{app.applicantEmail}</span>
+          </div>
+          <div className="mdc-pm-hero__stats">
+            <div>
+              <span>Score empresa</span>
+              <strong>{profile.bureauScore}</strong>
+            </div>
+            <div>
+              <span>DSCR</span>
+              <strong>{profile.dscr.toFixed(2)}x</strong>
+            </div>
+            <div>
+              <span>Monto solicitado</span>
+              <strong>{money(app.requestedAmount)}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div className="mdc-detail-layout mdc-detail-layout--pm">
+          <div className="mdc-detail-main">
+            <section className="mdc-detail-card">
+              <div className="mdc-detail-card__head">
+                <h4>1. Captura y onboarding digital</h4>
+                <span className="mdc-badge mdc-badge--neutral">{profile.companyType}</span>
+              </div>
+              <dl className="mdc-detail-dl">
+                <div><dt>RFC / Tax ID</dt><dd>{app.id}</dd></div>
+                <div><dt>Producto solicitado</dt><dd>{app.product}</dd></div>
+                <div><dt>Plazo solicitado</dt><dd>{profile.requestedTermMonths} meses</dd></div>
+                <div><dt>Destino del credito</dt><dd>{app.product === "Linea de capital de trabajo" ? "Capital de trabajo" : app.product === "Arrendamiento financiero" ? "Activo productivo" : "Expansion operativa"}</dd></div>
+              </dl>
+            </section>
+
+            <section className="mdc-detail-card">
+              <div className="mdc-detail-card__head">
+                <h4>2. Verificacion y KYB</h4>
+                <span className={profile.kybCompleteness >= 0.9 ? "mdc-badge mdc-badge--ok" : "mdc-badge mdc-badge--warn"}>
+                  {formatPlainPct(profile.kybCompleteness)}
+                </span>
+              </div>
+              <div className="mdc-pm-grid">
+                <article className="mdc-pm-metric-card">
+                  <span>Registro mercantil / existencia legal</span>
+                  <strong>{profile.mercantileStatus}</strong>
+                </article>
+                <article className="mdc-pm-metric-card">
+                  <span>Situacion fiscal SAT</span>
+                  <strong>{profile.taxStatus}</strong>
+                </article>
+                <article className="mdc-pm-metric-card">
+                  <span>Estructura societaria</span>
+                  <strong>{profile.shareholdersStructure}</strong>
+                </article>
+                <article className="mdc-pm-metric-card">
+                  <span>Beneficiarios reales (UBO)</span>
+                  <strong>{formatPlainPct(profile.uboCoverage)}</strong>
+                </article>
+              </div>
+              <div className="mdc-pm-status-list">
+                {profile.docsStatus.map((item) => (
+                  <article key={item.label} className="mdc-pm-status-item">
+                    <div>
+                      <strong>{item.label}</strong>
+                      <p>{item.detail}</p>
+                    </div>
+                    <span className={`mdc-col-pill mdc-col-pill--${item.status}`}>{item.status === "ok" ? "Ok" : item.status === "warn" ? "Revision" : "Bloqueo"}</span>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="mdc-detail-card">
+              <div className="mdc-detail-card__head">
+                <h4>3. Cumplimiento y listas restrictivas</h4>
+                <span className={profile.amlAlerts === 0 ? "mdc-badge mdc-badge--ok" : "mdc-badge mdc-badge--bad"}>
+                  {profile.amlAlerts === 0 ? "Sin alertas" : `${profile.amlAlerts} alerta(s)`}
+                </span>
+              </div>
+              <div className="mdc-pm-status-list">
+                {profile.amlChecks.map((item) => (
+                  <article key={item.label} className="mdc-pm-status-item">
+                    <div>
+                      <strong>{item.label}</strong>
+                      <p>{item.detail}</p>
+                    </div>
+                    <span className={`mdc-col-pill mdc-col-pill--${item.status}`}>{item.status === "ok" ? "Limpio" : item.status === "warn" ? "Seguimiento" : "Bloqueante"}</span>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="mdc-detail-card">
+              <h4>4. Consulta a buro y scoring de la empresa</h4>
+              <div className="mdc-pm-grid">
+                <article className="mdc-pm-metric-card">
+                  <span>Buro de credito empresarial</span>
+                  <strong>{profile.bureauScore}</strong>
+                </article>
+                <article className="mdc-pm-metric-card">
+                  <span>Score socios / aval</span>
+                  <strong>{profile.shareholderScore}</strong>
+                </article>
+                <article className="mdc-pm-metric-card">
+                  <span>Creditos vigentes y vencidos</span>
+                  <strong>{profile.maxDaysPastDue} dias max.</strong>
+                </article>
+                <article className="mdc-pm-metric-card">
+                  <span>Nivel de endeudamiento</span>
+                  <strong>{formatPlainPct(profile.debtBurdenRatio)}</strong>
+                </article>
+              </div>
+              <div className="mdc-pm-chip-wrap">
+                {profile.scoringHighlights.map((item) => (
+                  <span key={item} className={`mdc-col-pill mdc-col-pill--${scoreTone}`}>{item}</span>
+                ))}
+              </div>
+            </section>
+
+            <section className="mdc-detail-card">
+              <h4>5. Capacidad de pago y riesgo del sector</h4>
+              <div className="mdc-pm-grid">
+                <article className="mdc-pm-metric-card"><span>Relacion cuota / ingresos</span><strong>{formatPlainPct(profile.quotaToIncomeRatio)}</strong></article>
+                <article className="mdc-pm-metric-card"><span>Concentracion top cliente</span><strong>{formatPlainPct(profile.topClientConcentration)}</strong></article>
+                <article className="mdc-pm-metric-card"><span>Indice sectorial NAICS</span><strong>{profile.naicsRiskIndex}</strong></article>
+                <article className="mdc-pm-metric-card"><span>Monto / ventas mensuales</span><strong>{profile.requestedAmountToRevenue.toFixed(2)}x</strong></article>
+              </div>
+              <div className="mdc-pm-chip-wrap">
+                {profile.sectorHighlights.map((item) => (
+                  <span key={item} className="mdc-col-pill mdc-col-pill--ok">{item}</span>
+                ))}
+              </div>
+            </section>
+
+            <section className="mdc-detail-card">
+              <div className="mdc-detail-card__head">
+                <h4>6. Motor de reglas y politicas de credito</h4>
+                <span className={failedRuleRows.length > 0 ? "mdc-badge mdc-badge--bad" : warnedRuleRows.length > 0 ? "mdc-badge mdc-badge--warn" : "mdc-badge mdc-badge--ok"}>
+                  {failedRuleRows.length > 0 ? "Con rechazos" : warnedRuleRows.length > 0 ? "Con revision" : "Aprobable"}
+                </span>
+              </div>
+              <div className="mdc-pm-chip-wrap">
+                <span className="mdc-col-pill mdc-col-pill--warn">Montos maximos y plazos</span>
+                <span className="mdc-col-pill mdc-col-pill--warn">Criterios de exclusion automatica</span>
+                <span className="mdc-col-pill mdc-col-pill--warn">Reglas por segmento</span>
+                <span className="mdc-col-pill mdc-col-pill--warn">Tasas y condiciones por riesgo</span>
+                <span className="mdc-col-pill mdc-col-pill--warn">Champion-Challenger</span>
+              </div>
+              <div className="mdc-detail-rule-list">
+                {activeRules.map((rule) => (
+                  <article key={rule.id} className="mdc-detail-rule">
+                    <div>
+                      <strong>{rule.name}</strong>
+                      <p>{rule.description}</p>
+                      <small className="mdc-pm-rule-metric">
+                        {ruleFieldLabel(rule.field)}: {rule.dataType === "percentage" ? formatPlainPct(rule.metricValue) : typeof rule.metricValue === "number" && rule.metricValue >= 1000 ? money(rule.metricValue) : String(rule.metricValue)}
+                      </small>
+                    </div>
+                    <span className={chipToneBySeverity(rule.result)}>{ruleResultLabel[rule.result]}</span>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="mdc-detail-card">
+              <h4>7. Decision automatizada</h4>
+              <div className="mdc-pm-decision-grid">
+                <article className={decisionCardClass("approved")}>
+                  <strong>Aprobado</strong>
+                  <p>Con oferta de monto, tasa y plazo.</p>
+                </article>
+                <article className={decisionCardClass("declined")}>
+                  <strong>Rechazado</strong>
+                  <p>Con motivo de declinacion y reglas disparadas.</p>
+                </article>
+                <article className={decisionCardClass("manual")}>
+                  <strong>Zona gris</strong>
+                  <p>Revision manual del analista.</p>
+                </article>
+              </div>
+              <div className="mdc-detail-decision-reason">
+                <strong>Motivo de decision</strong>
+                <p>{decisionReason}</p>
+              </div>
+            </section>
+
+            <section className="mdc-detail-card">
+              <h4>8. Monitoreo y gestion de cartera</h4>
+              <div className="mdc-pm-chip-wrap">
+                {profile.monitoringHighlights.map((item) => (
+                  <span key={item} className="mdc-col-pill mdc-col-pill--info">{item}</span>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          <aside className="mdc-detail-side">
+            <section className="mdc-detail-card">
+              <h4>Resumen ejecutivo</h4>
+              <div className="mdc-detail-score-grid">
+                <div><span>Segmento</span><strong>{profile.segment}</strong></div>
+                <div><span>Antiguedad</span><strong>{Math.floor(profile.antiquityMonths / 12)} a</strong></div>
+                <div><span>AML alertas</span><strong>{profile.amlAlerts}</strong></div>
+                <div><span>KYB</span><strong>{formatPlainPct(profile.kybCompleteness)}</strong></div>
+                <div><span>NAICS</span><strong>{profile.naicsRiskIndex}</strong></div>
+                <div><span>ROE / ROA</span><strong>{formatPlainPct(profile.roe, 0)} / {formatPlainPct(profile.roa, 0)}</strong></div>
+              </div>
+              <div className="mdc-score-track" aria-hidden>
+                <span style={{ width: `${Math.min(100, Math.round((profile.bureauScore / 850) * 100))}%` }} />
+              </div>
+            </section>
+
+            <section className="mdc-detail-card">
+              <h4>Override manual</h4>
+              <label className="mdc-detail-field">
+                <span>Nueva decision</span>
+                <select value={overrideChoice} onChange={(e) => setOverrideChoice(e.target.value as ApplicationStatus)}>
+                  <option value="approved">Aprobada</option>
+                  <option value="declined">Rechazada</option>
+                  <option value="manualReview">Revision manual</option>
+                  <option value="overridden">Override</option>
+                </select>
+              </label>
+              <label className="mdc-detail-field">
+                <span>Justificacion</span>
+                <textarea
+                  rows={4}
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  placeholder="Mitigantes, comite, soporte documental o aprobacion comercial."
+                />
+              </label>
+              <button type="button" className="mdc-btn mdc-btn--primary" onClick={applyOverride}>
+                Aplicar override
+              </button>
+            </section>
+          </aside>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AppDetailModal({
   app,
   rules,
+  mode,
   creditStore,
   onClose,
 }: {
   app: Application;
   rules: CreditRuleRow[];
+  mode: MdcApplicantMode;
   creditStore: ReturnType<typeof useCreditDemoStore>;
   onClose: () => void;
 }) {
   const [feedback, setFeedback] = useState("");
   const [overrideChoice, setOverrideChoice] = useState<ApplicationStatus>("manualReview");
   const [overrideReason, setOverrideReason] = useState("");
+  const isMoralApplicant = mode === "moral";
+  if (isMoralApplicant) {
+    return <MoralApplicantDetailModal app={app} rules={rules} onClose={onClose} />;
+  }
   const isAutomotriz = app.product === "Credito automotriz";
   const interestRate = isAutomotriz ? 13.8 : 21.2;
   const termMonths = isAutomotriz ? 48 : 24;
@@ -1255,7 +2106,7 @@ function AppDetailModal({
         <div className="mdc-detail-layout">
           <div className="mdc-detail-main">
             <section className="mdc-detail-card">
-              <h4>Solicitante</h4>
+                <h4>{isMoralApplicant ? "Empresa solicitante" : "Solicitante"}</h4>
               <dl className="mdc-detail-dl">
                 <div><dt>Nombre</dt><dd>{app.applicantName}</dd></div>
                 <div><dt>Email</dt><dd>{app.applicantEmail}</dd></div>
@@ -1415,24 +2266,33 @@ function AddApplicationModal({
   open,
   onClose,
   onCreate,
+  mode,
+  products,
 }: {
   open: boolean;
   onClose: () => void;
+  mode: MdcApplicantMode;
+  products: readonly RuleProduct[];
   onCreate: (values: { firstName: string; lastName: string; email: string; product: string; amount: number }) => void;
 }) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
-  const [product, setProduct] = useState<string>(CREDIT_PRODUCTS[0]);
+  const [product, setProduct] = useState<string>(products[0] ?? NATURAL_CREDIT_PRODUCTS[0]);
   const [amount, setAmount] = useState("12000");
+  const isMoral = mode === "moral";
 
   const reset = () => {
     setFirstName("");
     setLastName("");
     setEmail("");
-    setProduct(CREDIT_PRODUCTS[0]);
+    setProduct(products[0] ?? NATURAL_CREDIT_PRODUCTS[0]);
     setAmount("12000");
   };
+
+  useEffect(() => {
+    setProduct(products[0] ?? NATURAL_CREDIT_PRODUCTS[0]);
+  }, [products]);
 
   if (!open) return null;
 
@@ -1448,21 +2308,28 @@ function AddApplicationModal({
         </header>
         <div className="mdc-form-grid">
           <label>
-            <span>Nombre</span>
+            <span>{isMoral ? "Razon social" : "Nombre"}</span>
             <input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
           </label>
+          {!isMoral ? (
+            <label>
+              <span>Apellido</span>
+              <input value={lastName} onChange={(e) => setLastName(e.target.value)} />
+            </label>
+          ) : (
+            <label>
+              <span>RFC empresa</span>
+              <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="AAA010101AAA" />
+            </label>
+          )}
           <label>
-            <span>Apellido</span>
-            <input value={lastName} onChange={(e) => setLastName(e.target.value)} />
-          </label>
-          <label>
-            <span>Email</span>
+            <span>{isMoral ? "Correo corporativo" : "Email"}</span>
             <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" />
           </label>
           <label>
             <span>Producto</span>
             <select value={product} onChange={(e) => setProduct(e.target.value)}>
-              {CREDIT_PRODUCTS.map((p) => (
+              {products.map((p) => (
                 <option key={p} value={p}>{p}</option>
               ))}
             </select>
@@ -1503,6 +2370,7 @@ function RuleModal({
   initial,
   availableFields,
   isEditing,
+  products,
   onSave,
 }: {
   open: boolean;
@@ -1510,11 +2378,12 @@ function RuleModal({
   initial: RuleFormState;
   availableFields: { value: string; label: string }[];
   isEditing: boolean;
+  products: readonly RuleProduct[];
   onSave: (form: RuleFormState, duplicateToProduct?: RuleProduct) => void;
 }) {
   const [form, setForm] = useState<RuleFormState>(() => initial);
   const [duplicateToProduct, setDuplicateToProduct] = useState<"" | RuleProduct>("");
-  const duplicateOptions = CREDIT_PRODUCTS.filter(
+  const duplicateOptions = products.filter(
     (product) => product !== form.product && PRODUCT_RULE_FIELDS[product].includes(form.field),
   ) as RuleProduct[];
   const isBandMode = form.evaluationMode === "bands";
@@ -1677,24 +2546,21 @@ function RuleModal({
 
 export function MdcScreen() {
   const creditStore = useCreditDemoStore();
+  const [applicantMode, setApplicantMode] = useState<MdcApplicantMode>("natural");
   const [activeTab, setActiveTab] = useState<MdcTab>("overview");
+  const activeProducts = useMemo(() => CREDIT_PRODUCTS_BY_MODE[applicantMode] as readonly RuleProduct[], [applicantMode]);
+  const activeStorageKeys = MODE_STORAGE_KEYS[applicantMode];
+  const defaultApplications = useMemo(() => APPLICATIONS_BY_MODE[applicantMode], [applicantMode]);
+  const defaultRules = useMemo(() => CREDIT_RULES_BY_MODE[applicantMode], [applicantMode]);
   const [apps, setApps] = useState<Application[]>(() =>
-    readStoredJson<Application[]>(APP_STORAGE_KEY, applicationsListMock).map((app) => ({
-      ...app,
-      product: normalizeProductName(app.product),
-      risk: riskFromScore(app.riskScore),
-      ...bindApplicantFromPool({
-        id: app.id,
-        appNo: app.appNo,
-        product: normalizeProductName(app.product),
-        applicantName: app.applicantName,
-        applicantEmail: normalizeApplicantEmail(app.applicantEmail),
-      }),
-      requestedAmount: normalizeRequestedAmount(normalizeProductName(app.product), app.requestedAmount),
-    })),
+    hydrateApplications("natural", readStoredJson<Application[]>(MODE_STORAGE_KEYS.natural.applications, APPLICATIONS_BY_MODE.natural)),
   );
   const [rules, setRules] = useState<CreditRuleRow[]>(() =>
-    mergeRulesWithDefaults(readStoredJson<CreditRuleRow[]>(RULES_STORAGE_KEY, creditRulesMock)),
+    mergeRulesWithDefaults(
+      readStoredJson<CreditRuleRow[]>(MODE_STORAGE_KEYS.natural.rules, CREDIT_RULES_BY_MODE.natural),
+      CREDIT_PRODUCTS_BY_MODE.natural as readonly RuleProduct[],
+      CREDIT_RULES_BY_MODE.natural,
+    ),
   );
 
   const [showAddApplication, setShowAddApplication] = useState(false);
@@ -1709,22 +2575,48 @@ export function MdcScreen() {
   const [ruleQuery, setRuleQuery] = useState("");
   const [showRuleModal, setShowRuleModal] = useState(false);
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
-  const [ruleModalState, setRuleModalState] = useState<RuleFormState>(defaultRuleForm());
-  const [ruleProductFilter, setRuleProductFilter] = useState<RuleProduct>(CREDIT_PRODUCTS[0]);
+  const [ruleModalState, setRuleModalState] = useState<RuleFormState>(defaultRuleForm(CREDIT_PRODUCTS_BY_MODE.natural as readonly RuleProduct[]));
+  const [ruleProductFilter, setRuleProductFilter] = useState<RuleProduct>((CREDIT_PRODUCTS_BY_MODE.natural[0] ?? NATURAL_CREDIT_PRODUCTS[0]) as RuleProduct);
   const [rangeFilter, setRangeFilter] = useState<RangePreset>("7d");
-  const normalizedRules = useMemo(() => mergeRulesWithDefaults(rules), [rules]);
+  const normalizedRules = useMemo(
+    () => mergeRulesWithDefaults(rules, activeProducts, defaultRules),
+    [activeProducts, defaultRules, rules],
+  );
 
   useEffect(() => {
     seedScotiaCreditStorage();
   }, []);
 
   useEffect(() => {
-    writeStoredJson(APP_STORAGE_KEY, apps);
-  }, [apps]);
+    const nextApps = hydrateApplications(
+      applicantMode,
+      readStoredJson<Application[]>(activeStorageKeys.applications, defaultApplications),
+    );
+    setApps(nextApps);
+    const nextRules = mergeRulesWithDefaults(
+      readStoredJson<CreditRuleRow[]>(activeStorageKeys.rules, defaultRules),
+      activeProducts,
+      defaultRules,
+    );
+    setRules(nextRules);
+    setProductFilter("all");
+    setStatusFilter("all");
+    setRiskFilter("all");
+    setSearch("");
+    setRuleQuery("");
+    setPage(0);
+    setRuleProductFilter((activeProducts[0] ?? NATURAL_CREDIT_PRODUCTS[0]) as RuleProduct);
+    setRuleModalState(defaultRuleForm(activeProducts));
+    setDetailApp(null);
+  }, [activeProducts, activeStorageKeys.applications, activeStorageKeys.rules, applicantMode, defaultApplications, defaultRules]);
 
   useEffect(() => {
-    writeStoredJson(RULES_STORAGE_KEY, normalizedRules);
-  }, [normalizedRules]);
+    writeStoredJson(activeStorageKeys.applications, apps);
+  }, [activeStorageKeys.applications, apps]);
+
+  useEffect(() => {
+    writeStoredJson(activeStorageKeys.rules, normalizedRules);
+  }, [activeStorageKeys.rules, normalizedRules]);
 
   useEffect(() => {
     const closeOpenRowMenus = () => {
@@ -1876,11 +2768,15 @@ export function MdcScreen() {
   }, [normalizedRules, ruleProductFilter, ruleQuery]);
 
   const ruleFieldOptions = useMemo(() => getRuleFieldsForProduct(ruleProductFilter), [ruleProductFilter]);
+  const activeTraceability = useMemo<MdcTraceabilityEntry[]>(
+    () => (applicantMode === "moral" ? MORAL_TRACEABILITY : (creditStore.state.auditLog as MdcTraceabilityEntry[])),
+    [applicantMode, creditStore.state.auditLog],
+  );
 
   const openCreateRule = () => {
     setEditingRuleId(null);
     setRuleModalState({
-      ...defaultRuleForm(),
+      ...defaultRuleForm(activeProducts),
       product: ruleProductFilter,
       field: PRODUCT_RULE_FIELDS[ruleProductFilter][0] ?? "",
     });
@@ -1904,8 +2800,20 @@ export function MdcScreen() {
             <div className="mdc-header__row">
               <div>
               <p className="mdc-header__eyebrow">Core Module</p>
-              <h1>MDC · Motor de Decision de Credito</h1>
-                <p className="mdc-header__sub">Analisis de solicitudes, reglas y decisiones en un flujo centralizado.</p>
+              <h1>{MODE_COPY[applicantMode].title}</h1>
+                <p className="mdc-header__sub">{MODE_COPY[applicantMode].subtitle}</p>
+                <div className="mdc-persona-switch" role="tablist" aria-label="Tipo de solicitante">
+                  {PERSONA_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={`mdc-persona-switch__btn${applicantMode === option.id ? " mdc-persona-switch__btn--active" : ""}`}
+                      onClick={() => setApplicantMode(option.id)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="mdc-header__date">
                 <label htmlFor="mdc-range">Rango</label>
@@ -2000,7 +2908,7 @@ export function MdcScreen() {
 
               <article className="mdc-card mdc-card--tight">
                 <div className="mdc-card__head mdc-card__head--row mdc-recent-head">
-                  <h3>Solicitudes recientes</h3>
+                  <h3>{MODE_COPY[applicantMode].recentTitle}</h3>
                   <button type="button" className="mdc-link-btn" onClick={() => setActiveTab("applications")}>
                     Ver todas
                   </button>
@@ -2045,7 +2953,19 @@ export function MdcScreen() {
             </section>
           )}
 
-          {activeTab === "products" && <MdcProductsTab />}
+          {activeTab === "products" && (
+            <MdcProductsTab
+              mode={applicantMode}
+              storageKey={activeStorageKeys.products}
+              initialProducts={MDC_PRODUCTS_BY_MODE[applicantMode]}
+              title={applicantMode === "moral" ? "Productos empresariales" : "Productos"}
+              subtitle={
+                applicantMode === "moral"
+                  ? "Configuracion de lineas y productos para originacion de persona moral."
+                  : "Gestion de productos y performance del portafolio."
+              }
+            />
+          )}
 
           {activeTab === "applications" && (
             <section className="mdc-section">
@@ -2100,7 +3020,7 @@ export function MdcScreen() {
                       }}
                     >
                       <option value="all">Todos</option>
-                      {CREDIT_PRODUCTS.map((product) => (
+                      {activeProducts.map((product) => (
                         <option key={product} value={product}>{product}</option>
                       ))}
                     </select>
@@ -2281,7 +3201,7 @@ export function MdcScreen() {
                       value={ruleProductFilter}
                       onChange={(e) => setRuleProductFilter(e.target.value as RuleProduct)}
                     >
-                      {CREDIT_PRODUCTS.map((product) => (
+                      {activeProducts.map((product) => (
                         <option key={product} value={product}>{product}</option>
                       ))}
                     </select>
@@ -2400,7 +3320,7 @@ export function MdcScreen() {
                       </tr>
                     </thead>
                     <tbody>
-                      {creditStore.state.auditLog.map((entry) => (
+                      {activeTraceability.map((entry) => (
                         <tr key={entry.id}>
                           <td className="mdc-traceability__date">{shortDate(entry.timestamp)}</td>
                           <td>
@@ -2423,6 +3343,8 @@ export function MdcScreen() {
 
           {activeTab === "payments" && (
             <MdcPaymentsTab
+              mode={applicantMode}
+              sessions={applicantMode === "moral" ? MORAL_SESSIONS : NATURAL_SESSIONS}
               range={rangeFilter}
               onRangeChange={(nextRange) => {
                 setRangeFilter(nextRange as RangePreset);
@@ -2430,7 +3352,9 @@ export function MdcScreen() {
               }}
             />
           )}
-          {activeTab === "collections" && <MdcCollectionsTab />}
+          {activeTab === "collections" && (
+            <MdcCollectionsTab mode={applicantMode} cases={applicantMode === "moral" ? MORAL_CASES : NATURAL_CASES} />
+          )}
           {activeTab === "configuration" && <MdcConfigurationTab />}
         </div>
       </div>
@@ -2438,21 +3362,28 @@ export function MdcScreen() {
       <AddApplicationModal
         open={showAddApplication}
         onClose={() => setShowAddApplication(false)}
+        mode={applicantMode}
+        products={activeProducts}
         onCreate={({ firstName, lastName, email, product, amount }) => {
           const riskScore =
-            product === "Credito personal"
-              ? Math.min(68, 24 + Math.round(amount / 400))
-              : Math.min(86, 32 + Math.round(amount / 4_000));
-          const name = `${firstName} ${lastName}`.trim() || email;
+            applicantMode === "moral"
+              ? Math.min(84, 38 + Math.round(amount / 600_000))
+              : product === "Credito personal"
+                ? Math.min(68, 24 + Math.round(amount / 400))
+                : Math.min(86, 32 + Math.round(amount / 4_000));
+          const name = applicantMode === "moral" ? firstName.trim() || email : `${firstName} ${lastName}`.trim() || email;
           const appNo = nextAppNo(apps);
           const appId = `local-${Date.now()}`;
-          const applicantBinding = bindApplicantFromPool({
-            id: appId,
-            appNo,
-            product,
-            applicantName: name,
-            applicantEmail: normalizeApplicantEmail(email),
-          });
+          const applicantBinding = bindApplicantFromPool(
+            {
+              id: appId,
+              appNo,
+              product,
+              applicantName: name,
+              applicantEmail: normalizeApplicantEmail(email),
+            },
+            applicantMode,
+          );
           const next: Application = {
             id: appId,
             appNo,
@@ -2475,6 +3406,7 @@ export function MdcScreen() {
         <AppDetailModal
           app={detailApp}
           rules={normalizedRules.filter((rule) => rule.products.includes(detailApp.product as RuleProduct))}
+          mode={applicantMode}
           creditStore={creditStore}
           onClose={() => setDetailApp(null)}
         />
@@ -2487,6 +3419,7 @@ export function MdcScreen() {
         initial={ruleModalState}
         availableFields={ruleFieldOptions}
         isEditing={Boolean(editingRuleId)}
+        products={activeProducts}
         onSave={(form, duplicateToProduct) => {
           const decisionBands = buildDecisionBands(form);
           const updatedRule = {
@@ -2548,11 +3481,11 @@ export function MdcScreen() {
 
           const nextRule: CreditRuleRow = {
             id: `cr-local-${Date.now()}`,
+            createdAt: new Date().toISOString(),
+            ...updatedRule,
             name: form.name || "Nueva regla",
             products: [form.product],
             field: form.field || "custom.field",
-            createdAt: new Date().toISOString(),
-            ...updatedRule,
             value: form.evaluationMode === "bands" ? "" : form.value || "0",
           };
           setRules((current) => [...current, nextRule]);
