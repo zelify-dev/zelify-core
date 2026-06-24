@@ -206,7 +206,13 @@ const RULE_OPERATORS: RuleOperator[] = [
 const RULE_TYPES: RuleDataType[] = ["string", "number", "boolean", "date", "percentage"];
 
 const RULE_SEVERITIES: RuleSeverity[] = ["pass", "warn", "fail"];
-const REMOVED_RULE_FIELDS = new Set(["cards.utilization", "credit.hardInquiries30d"]);
+const REMOVED_RULE_FIELDS = new Set([
+  "cards.utilization",
+  "credit.hardInquiries30d",
+  "company.shareholderScore",
+  "company.kybCompleteness",
+  "company.amlAlerts",
+]);
 const PRODUCT_RULE_FIELDS: Record<RuleProduct, string[]> = {
   "Credito automotriz": [
     "applicant.age",
@@ -229,13 +235,10 @@ const PRODUCT_RULE_FIELDS: Record<RuleProduct, string[]> = {
     "company.antiquityMonths",
     "company.monthlyRevenue",
     "company.bureauScore",
-    "company.shareholderScore",
     "company.maxDaysPastDue",
     "company.dscr",
     "company.leverageRatio",
     "company.ebitdaMargin",
-    "company.kybCompleteness",
-    "company.amlAlerts",
     "company.requestedAmountToRevenue",
     "company.naicsRiskIndex",
     "company.taxComplianceStatus",
@@ -244,12 +247,9 @@ const PRODUCT_RULE_FIELDS: Record<RuleProduct, string[]> = {
     "company.antiquityMonths",
     "company.monthlyRevenue",
     "company.bureauScore",
-    "company.shareholderScore",
     "company.maxDaysPastDue",
     "company.leverageRatio",
     "company.topClientConcentration",
-    "company.kybCompleteness",
-    "company.amlAlerts",
     "company.requestedAmountToRevenue",
     "company.naicsRiskIndex",
     "company.taxComplianceStatus",
@@ -258,12 +258,9 @@ const PRODUCT_RULE_FIELDS: Record<RuleProduct, string[]> = {
     "company.antiquityMonths",
     "company.monthlyRevenue",
     "company.bureauScore",
-    "company.shareholderScore",
     "company.maxDaysPastDue",
     "company.dscr",
     "company.ebitdaMargin",
-    "company.kybCompleteness",
-    "company.amlAlerts",
     "company.naicsRiskIndex",
     "company.requestedTermMonths",
     "company.taxComplianceStatus",
@@ -330,6 +327,42 @@ function readStoredJson<T>(key: string, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+function mergeApplicationsWithDefaults(stored: Application[], defaults: Application[]) {
+  const byAppNo = new Map<string, Application>();
+  for (const row of defaults) {
+    byAppNo.set(row.appNo, row);
+  }
+  for (const row of stored) {
+    byAppNo.set(row.appNo, row);
+  }
+  return [...byAppNo.values()].sort(
+    (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
+  );
+}
+
+function reconcileMockTimeline(
+  mode: MdcApplicantMode,
+  stored: Application[],
+  defaults: Application[],
+) {
+  if (mode !== "moral" || defaults.length === 0) return stored;
+
+  const defaultLatestTs = defaults.reduce(
+    (max, row) => Math.max(max, new Date(row.submittedAt).getTime()),
+    0,
+  );
+
+  let nextTs = defaultLatestTs + 5 * 60 * 1000;
+  return stored.map((row) => {
+    const rowTs = new Date(row.submittedAt).getTime();
+    const tooFarAhead = rowTs - defaultLatestTs > 14 * DAY_MS;
+    if (!tooFarAhead) return row;
+    const migrated = { ...row, submittedAt: new Date(nextTs).toISOString() };
+    nextTs += 5 * 60 * 1000;
+    return migrated;
+  });
 }
 
 function writeStoredJson<T>(key: string, data: T) {
@@ -422,6 +455,12 @@ function utcDayStartMs(value: string | number) {
   return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 
+function nextMockSubmittedAt(rows: Pick<Application, "submittedAt">[]) {
+  if (rows.length === 0) return new Date().toISOString();
+  const latestTs = rows.reduce((max, row) => Math.max(max, new Date(row.submittedAt).getTime()), 0);
+  return new Date(latestTs + 5 * 60 * 1000).toISOString();
+}
+
 function bureauScoreFromRiskIndex(riskIndex: number) {
   const bounded = Math.max(0, Math.min(100, riskIndex));
   return Math.round(850 - (bounded / 100) * 450);
@@ -432,6 +471,18 @@ function riskFromScore(score: number): RiskLevel {
   if (bureauScore <= 549) return "high";
   if (bureauScore <= 649) return "medium";
   return "low";
+}
+
+function normalizeRiskScoreForStatus(status: ApplicationStatus, score: number) {
+  if (status === "approved") return Math.min(39, Math.max(20, score));
+  if (status === "declined") return Math.min(95, Math.max(75, score));
+  if (status === "pending") return Math.min(59, Math.max(45, score));
+  if (status === "manualReview") return Math.min(69, Math.max(50, score));
+  return Math.min(59, Math.max(40, score));
+}
+
+function riskFromApplicationStatus(status: ApplicationStatus, score: number) {
+  return riskFromScore(normalizeRiskScoreForStatus(status, score));
 }
 
 function statusFromScore(score: number): ApplicationStatus {
@@ -746,6 +797,26 @@ function parseOptionalNumber(value: string) {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function parseNumericList(value: string) {
+  return value
+    .split(",")
+    .map((item) => Number(item.trim()))
+    .filter((item) => Number.isFinite(item));
+}
+
+function hasExactTaxComplianceBands(rule?: CreditRuleRow) {
+  const bands = rule?.decisionBands;
+  if (!bands) return false;
+  return (
+    bands.approveMin === 1 &&
+    bands.approveMax === 1 &&
+    bands.reviewMin === 0 &&
+    bands.reviewMax === 0 &&
+    bands.rejectMin === -1 &&
+    bands.rejectMax === -1
+  );
+}
+
 function buildDecisionBands(form: RuleFormState) {
   if (form.evaluationMode !== "bands") return undefined;
   const decisionBands = {
@@ -794,8 +865,34 @@ function mergeRulesWithDefaults(rows: CreditRuleRow[], availableProducts: readon
     if (REMOVED_RULE_FIELDS.has(rule.field)) return [];
     const baseId = rule.id.split("::")[0] ?? rule.id;
     const baseRule = baseRules.find((item) => item.id === baseId || item.id.split("::")[0] === baseId);
+    const forceBaseBandsForTaxCompliance =
+      rule.field === "company.taxComplianceStatus" &&
+      Boolean(baseRule?.decisionBands) &&
+      !hasExactTaxComplianceBands(rule);
+    const forceBaseRuleForNaics =
+      rule.field === "company.naicsRiskIndex" &&
+      Boolean(baseRule) &&
+      (rule.operator !== "contains" || Boolean(rule.decisionBands));
     const needsBandsMigration = !rule.decisionBands && Boolean(baseRule?.decisionBands) && baseRule?.field === rule.field;
-    const normalizedRule = needsBandsMigration
+    const normalizedRule = forceBaseRuleForNaics
+      ? {
+          ...rule,
+          operator: baseRule?.operator ?? rule.operator,
+          value: baseRule?.value ?? rule.value,
+          description: baseRule?.description ?? rule.description,
+          severity: baseRule?.severity ?? rule.severity,
+          decisionBands: baseRule?.decisionBands,
+        }
+      : forceBaseBandsForTaxCompliance
+      ? {
+          ...rule,
+          operator: baseRule?.operator ?? rule.operator,
+          value: baseRule?.value ?? rule.value,
+          description: baseRule?.description ?? rule.description,
+          severity: baseRule?.severity ?? rule.severity,
+          decisionBands: baseRule?.decisionBands,
+        }
+      : needsBandsMigration
       ? {
           ...rule,
           value: baseRule?.value ?? rule.value,
@@ -855,6 +952,9 @@ function renderRuleOperator(rule: CreditRuleRow) {
 
 function renderRuleValue(rule: CreditRuleRow) {
   if (!rule.decisionBands) return rule.value;
+  if (rule.operator === "contains") {
+    return rule.value;
+  }
   return <span className="mdc-badge mdc-badge--neutral">Por bandas</span>;
 }
 
@@ -1101,6 +1201,14 @@ function evaluateRuleResult(rule: CreditRuleRow, metricValue: number, appStatus:
     return appStatus === "manualReview" ? "warn" : rule.severity;
   }
 
+  if (rule.field === "company.naicsRiskIndex" && rule.operator === "contains") {
+    const blockedIndexes = parseNumericList(rule.value);
+    const isBlocked = blockedIndexes.includes(metricValue);
+    if (isBlocked) return "fail";
+    if (appStatus === "manualReview" && rule.severity === "warn") return "warn";
+    return "pass";
+  }
+
   const hasPolicyBreach =
     (rule.field === "income.monthlyNet" && metricValue < Number(rule.value || 0)) ||
     (rule.field === "ratios.dti" && metricValue > Number(rule.value || 0)) ||
@@ -1121,7 +1229,6 @@ function evaluateRuleResult(rule: CreditRuleRow, metricValue: number, appStatus:
     (rule.field === "company.amlAlerts" && metricValue > Number(rule.value || 0)) ||
     (rule.field === "company.shareholderScore" && metricValue < Number(rule.value || 0)) ||
     (rule.field === "company.requestedAmountToRevenue" && metricValue > Number(rule.value || 0)) ||
-    (rule.field === "company.naicsRiskIndex" && metricValue > Number(rule.value || 0)) ||
     (rule.field === "company.requestedTermMonths" && metricValue > Number(rule.value || 0)) ||
     (rule.field === "company.taxComplianceStatus" && metricValue < Number(rule.value || 0));
 
@@ -1175,6 +1282,10 @@ function bindApplicantFromPool(
     return { applicantName: byName.name, applicantEmail: byName.email };
   }
 
+  if (mode === "moral") {
+    return { applicantName: app.applicantName, applicantEmail: app.applicantEmail };
+  }
+
   let hash = 0;
   const seed = `${app.id}-${app.appNo}`;
   for (let i = 0; i < seed.length; i++) {
@@ -1213,7 +1324,8 @@ function hydrateApplications(mode: MdcApplicantMode, rows: Application[]) {
   return rows.map((app) => ({
     ...app,
     product: normalizeProductName(app.product),
-    risk: riskFromScore(app.riskScore),
+    riskScore: normalizeRiskScoreForStatus(app.status, app.riskScore),
+    risk: riskFromApplicationStatus(app.status, app.riskScore),
     ...bindApplicantFromPool(
       {
         id: app.id,
@@ -1510,7 +1622,7 @@ function MoralApplicantDetailModal({
       case "company.requestedAmountToRevenue":
         return `La relacion monto / ventas es ${profile.requestedAmountToRevenue.toFixed(2)}x y presiona la capacidad de pago.`;
       case "company.naicsRiskIndex":
-        return `El sector presenta indice NAICS de ${profile.naicsRiskIndex}, fuera del rango automatico limpio.`;
+        return `El indice sectorial NAICS ${profile.naicsRiskIndex} esta configurado en la lista de rechazo automatico de la politica.`;
       case "company.requestedTermMonths":
         return `Plazo solicitado de ${profile.requestedTermMonths} meses excede el maximo permitido para el producto.`;
       case "company.taxComplianceStatus":
@@ -1568,12 +1680,6 @@ function MoralApplicantDetailModal({
             <p>
               {app.appNo} · {app.product} · {profile.segment}
             </p>
-          </div>
-          <div className="mdc-detail-actions">
-            <button type="button" className="mdc-btn mdc-btn--ghost" onClick={() => runAction("Revalidacion KYB")}>Revalidar KYB</button>
-            <button type="button" className="mdc-btn mdc-btn--ghost" onClick={() => runAction("Consulta buro empresa")}>Consultar buro</button>
-            <button type="button" className="mdc-btn mdc-btn--ghost" onClick={() => runAction("Recalculo financiero")}>Recalcular ratios</button>
-            <button type="button" className="mdc-btn mdc-btn--primary" onClick={() => runAction("Ejecucion motor PM")}>Ejecutar motor</button>
           </div>
         </header>
 
@@ -2081,12 +2187,6 @@ function AppDetailModal({
               {app.appNo} · {app.id.slice(0, 12)} · {shortDate(app.submittedAt)}
             </p>
           </div>
-          <div className="mdc-detail-actions">
-            <button type="button" className="mdc-btn mdc-btn--ghost" onClick={() => runAction("Reevaluacion documental")}>Reevaluar docs</button>
-            <button type="button" className="mdc-btn mdc-btn--ghost" onClick={() => runAction("Reevaluacion de reglas")}>Reevaluar reglas</button>
-            <button type="button" className="mdc-btn mdc-btn--ghost" onClick={() => runAction("Validacion KYC")}>Evaluar KYC</button>
-            <button type="button" className="mdc-btn mdc-btn--primary" onClick={() => runAction("Ejecucion del motor")}>Ejecutar motor</button>
-          </div>
         </header>
 
         {feedback ? <p className="mdc-detail-feedback">{feedback}</p> : null}
@@ -2552,7 +2652,17 @@ export function MdcScreen() {
   const defaultApplications = useMemo(() => APPLICATIONS_BY_MODE[applicantMode], [applicantMode]);
   const defaultRules = useMemo(() => CREDIT_RULES_BY_MODE[applicantMode], [applicantMode]);
   const [apps, setApps] = useState<Application[]>(() =>
-    hydrateApplications("natural", readStoredJson<Application[]>(MODE_STORAGE_KEYS.natural.applications, APPLICATIONS_BY_MODE.natural)),
+    hydrateApplications(
+      "natural",
+      mergeApplicationsWithDefaults(
+        reconcileMockTimeline(
+          "natural",
+          readStoredJson<Application[]>(MODE_STORAGE_KEYS.natural.applications, []),
+          APPLICATIONS_BY_MODE.natural,
+        ),
+        APPLICATIONS_BY_MODE.natural,
+      ),
+    ),
   );
   const [rules, setRules] = useState<CreditRuleRow[]>(() =>
     mergeRulesWithDefaults(
@@ -2589,7 +2699,14 @@ export function MdcScreen() {
   useEffect(() => {
     const nextApps = hydrateApplications(
       applicantMode,
-      readStoredJson<Application[]>(activeStorageKeys.applications, defaultApplications),
+      mergeApplicationsWithDefaults(
+        reconcileMockTimeline(
+          applicantMode,
+          readStoredJson<Application[]>(activeStorageKeys.applications, []),
+          defaultApplications,
+        ),
+        defaultApplications,
+      ),
     );
     setApps(nextApps);
     const nextRules = mergeRulesWithDefaults(
@@ -2708,9 +2825,9 @@ export function MdcScreen() {
       { label: "En revision manual", value: manualOrPending, color: "#334155" },
     ];
 
-    const lowTarget = rangeScopedApps.filter((a) => riskFromScore(a.riskScore) === "low").length;
-    const mediumTarget = rangeScopedApps.filter((a) => riskFromScore(a.riskScore) === "medium").length;
-    const highTarget = rangeScopedApps.filter((a) => riskFromScore(a.riskScore) === "high").length;
+    const lowTarget = rangeScopedApps.filter((a) => riskFromApplicationStatus(a.status, a.riskScore) === "low").length;
+    const mediumTarget = rangeScopedApps.filter((a) => riskFromApplicationStatus(a.status, a.riskScore) === "medium").length;
+    const highTarget = rangeScopedApps.filter((a) => riskFromApplicationStatus(a.status, a.riskScore) === "high").length;
 
     const riskDistribution = [
       { label: "Perfil conservador", value: lowTarget, color: "#0f766e" },
@@ -2746,7 +2863,7 @@ export function MdcScreen() {
     return rangeScopedApps.filter((app) => {
       if (statusFilter !== "all" && app.status !== statusFilter) return false;
       if (productFilter !== "all" && app.product !== productFilter) return false;
-      if (riskFilter !== "all" && riskFromScore(app.riskScore) !== riskFilter) return false;
+      if (riskFilter !== "all" && riskFromApplicationStatus(app.status, app.riskScore) !== riskFilter) return false;
       if (!q) return true;
       const blob = `${app.appNo} ${app.applicantName} ${app.applicantEmail} ${app.product}`.toLowerCase();
       return blob.includes(q);
@@ -2955,8 +3072,8 @@ export function MdcScreen() {
                             <td>{money(app.requestedAmount)}</td>
                             <td><span className={classForStatus(app.status)}>{STATUS_LABELS[app.status]}</span></td>
                             <td>
-                              <span className={classForRisk(riskFromScore(app.riskScore))}>
-                                {RISK_LABELS[riskFromScore(app.riskScore)]}
+                              <span className={classForRisk(riskFromApplicationStatus(app.status, app.riskScore))}>
+                                {RISK_LABELS[riskFromApplicationStatus(app.status, app.riskScore)]}
                               </span>
                             </td>
                           </tr>
@@ -3092,8 +3209,8 @@ export function MdcScreen() {
                             <td>{money(app.requestedAmount)}</td>
                             <td><span className={classForStatus(app.status)}>{STATUS_LABELS[app.status]}</span></td>
                             <td>
-                              <span className={classForRisk(riskFromScore(app.riskScore))}>
-                                {RISK_LABELS[riskFromScore(app.riskScore)]} · {app.riskScore}
+                              <span className={classForRisk(riskFromApplicationStatus(app.status, app.riskScore))}>
+                                {RISK_LABELS[riskFromApplicationStatus(app.status, app.riskScore)]} · {normalizeRiskScoreForStatus(app.status, app.riskScore)}
                               </span>
                             </td>
                             <td>{shortDate(app.submittedAt)}</td>
@@ -3126,8 +3243,8 @@ export function MdcScreen() {
                                               ? {
                                                   ...row,
                                                   status: statusFromScore(row.riskScore),
-                                                  risk: riskFromScore(row.riskScore),
-                                                  submittedAt: new Date().toISOString(),
+                                                  riskScore: normalizeRiskScoreForStatus(statusFromScore(row.riskScore), row.riskScore),
+                                                  risk: riskFromApplicationStatus(statusFromScore(row.riskScore), row.riskScore),
                                                 }
                                               : row,
                                           ),
@@ -3142,7 +3259,12 @@ export function MdcScreen() {
                                         setApps((current) =>
                                           current.map((row) =>
                                             row.id === app.id
-                                              ? { ...row, status: "pending", submittedAt: new Date().toISOString() }
+                                              ? {
+                                                  ...row,
+                                                  status: "pending",
+                                                  riskScore: normalizeRiskScoreForStatus("pending", row.riskScore),
+                                                  risk: riskFromApplicationStatus("pending", row.riskScore),
+                                                }
                                               : row,
                                           ),
                                         );
@@ -3391,16 +3513,17 @@ export function MdcScreen() {
         mode={applicantMode}
         products={activeProducts}
         onCreate={({ firstName, lastName, email, product, amount }) => {
-          const riskScore =
-            applicantMode === "moral"
-              ? Math.min(84, 38 + Math.round(amount / 600_000))
-              : product === "Credito personal"
-                ? Math.min(68, 24 + Math.round(amount / 400))
-                : Math.min(86, 32 + Math.round(amount / 4_000));
+          const riskScore = 50;
           const name = applicantMode === "moral" ? firstName.trim() || email : `${firstName} ${lastName}`.trim() || email;
           const appNo = nextAppNo(apps, applicantMode);
           const appId = `local-${Date.now()}`;
-          const applicantBinding = bindApplicantFromPool(
+          const applicantBinding =
+            applicantMode === "moral"
+              ? {
+                  applicantName: name,
+                  applicantEmail: normalizeApplicantEmail(email),
+                }
+              : bindApplicantFromPool(
             {
               id: appId,
               appNo,
@@ -3410,6 +3533,7 @@ export function MdcScreen() {
             },
             applicantMode,
           );
+          const submittedAt = nextMockSubmittedAt(apps);
           const next: Application = {
             id: appId,
             appNo,
@@ -3419,11 +3543,15 @@ export function MdcScreen() {
             requestedAmount: normalizeRequestedAmount(product, amount),
             currency: "MXN",
             status: "pending",
-            risk: riskFromScore(riskScore),
-            riskScore,
-            submittedAt: new Date().toISOString(),
+            risk: riskFromApplicationStatus("pending", riskScore),
+            riskScore: normalizeRiskScoreForStatus("pending", riskScore),
+            submittedAt,
           };
-          setApps((current) => [next, ...current]);
+          setApps((current) => {
+            const nextApps = [next, ...current];
+            writeStoredJson(activeStorageKeys.applications, nextApps);
+            return nextApps;
+          });
           setPage(0);
           if (applicantMode === "moral") {
             openKybForApplication(next, lastName);

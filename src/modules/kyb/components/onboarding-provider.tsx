@@ -518,6 +518,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     const savedSatConnected = localStorage.getItem("zelify_sim_sat_connected");
     const savedSatFiscal = localStorage.getItem("zelify_sim_sat_fiscal");
     const activeKybCompanyContext = readActiveKybCompanyContext();
+    const isLocalMdcApplication = activeKybCompanyContext?.applicationId?.startsWith("local-");
     const seededProgress = {
       kyb: 65,
       pldAml: 20,
@@ -527,17 +528,21 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       satKyc: 50,
     };
     const parsedProgress = parseStoredObject(savedProgress, seededProgress);
-    const baseAnswers = parseStoredObject(savedAnswers, demoPrefillAnswers);
+    const baseAnswers = activeKybCompanyContext
+      ? parseStoredObject(savedAnswers, {})
+      : parseStoredObject(savedAnswers, demoPrefillAnswers);
     const nextAnswers = activeKybCompanyContext
       ? {
           ...baseAnswers,
           ...buildKybAnswersFromCompanyContext(activeKybCompanyContext),
         }
       : baseAnswers;
-    const baseSatFiscal = parseStoredObject(savedSatFiscal, null);
+    const baseSatFiscal = activeKybCompanyContext
+      ? parseStoredObject(savedSatFiscal, {})
+      : parseStoredObject(savedSatFiscal, null);
     const nextSatFiscal = activeKybCompanyContext
       ? {
-          ...(baseSatFiscal ?? demoSatFiscalData),
+          ...(isLocalMdcApplication ? {} : (baseSatFiscal ?? demoSatFiscalData)),
           ...buildKybSatFiscalDataFromCompanyContext(activeKybCompanyContext),
         }
       : baseSatFiscal;

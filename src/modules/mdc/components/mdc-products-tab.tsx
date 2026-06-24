@@ -62,22 +62,27 @@ function normalizeProductFinancials(product: MdcProduct): MdcProduct {
   return { ...product, name };
 }
 
+function dedupeProducts(products: MdcProduct[]) {
+  return [...new Map(products.map((product) => [product.id, product])).values()];
+}
+
 function readStoredProducts(storageKey: string, defaults: MdcProduct[]) {
   if (typeof window === "undefined") return defaults;
   try {
     const raw = window.localStorage.getItem(storageKey);
     if (!raw) return defaults;
     const parsed = JSON.parse(raw) as MdcProduct[];
-    const stored = parsed
+    const dedupedStored = dedupeProducts(parsed);
+    const stored = dedupedStored
       .filter((product) => !product.name.toLowerCase().includes("plazo fijo"))
       .map(normalizeProductFinancials);
     const knownNames = new Set(stored.map((product) => normalizeProductName(product.name)));
     const missingDefaults = defaults
       .filter((defaultProduct) => !knownNames.has(normalizeProductName(defaultProduct.name)))
       .map(normalizeProductFinancials);
-    return [...stored, ...missingDefaults];
+    return dedupeProducts([...stored, ...missingDefaults]);
   } catch {
-    return defaults;
+    return dedupeProducts(defaults);
   }
 }
 
@@ -110,7 +115,10 @@ export function MdcProductsTab({
   subtitle = "Gestion de productos y performance del portafolio.",
 }: MdcProductsTabProps) {
   const effectiveStorageKey = storageKey ?? `${PRODUCTS_STORAGE_KEY}:${mode}`;
-  const defaultProducts = initialProducts ?? MDC_PRODUCTS_BY_MODE[mode] ?? MDC_PRODUCTS;
+  const defaultProducts = useMemo(
+    () => dedupeProducts((initialProducts ?? MDC_PRODUCTS_BY_MODE[mode] ?? MDC_PRODUCTS).map(normalizeProductFinancials)),
+    [initialProducts, mode],
+  );
   const [products, setProducts] = useState<MdcProduct[]>(() => readStoredProducts(effectiveStorageKey, defaultProducts));
   const [modal, setModal] = useState<ModalState>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -152,9 +160,9 @@ export function MdcProductsTab({
       </article>
 
       <section className="mdc-prod-grid" aria-label="Productos">
-        {products.map((product) => (
+        {dedupeProducts(products).map((product, index) => (
           <ProductCard
-            key={product.id}
+            key={`${product.id}-${index}`}
             product={product}
             onOpenConfig={() => setModal({ mode: "config", product })}
             onOpenMetrics={() => setModal({ mode: "metrics", product })}

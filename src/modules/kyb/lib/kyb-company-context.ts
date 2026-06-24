@@ -45,6 +45,10 @@ type ApplicationLike = {
   status: string;
 };
 
+function isLocalApplication(applicationId: string) {
+  return applicationId.startsWith("local-");
+}
+
 const ACTIVE_KYB_COMPANY_KEY = "zelify:kyb:active-company";
 const KYB_COMPANY_REGISTRY_KEY = "zelify:kyb:company-registry";
 
@@ -306,6 +310,26 @@ function fallbackProfile(legalName: string, applicantEmail: string, product: str
   };
 }
 
+function emptyProfile(legalName: string): KybCompanyProfile {
+  return {
+    rfc: fallbackRfcFromLegalName(legalName),
+    website: "",
+    phone: "",
+    address: "",
+    state: "",
+    registrationDate: "",
+    industrySummary: "",
+    targetMarket: "",
+    revenueModel: "",
+    competitiveEdge: "",
+    estimatedAnnualRevenue: "",
+    averageTicket: "",
+    operatingRegions: "",
+    apiFootprint: "",
+    credentialFootprint: "",
+  };
+}
+
 function getProfileForCompany(legalName: string, applicantEmail: string, product: string, requestedAmount: number) {
   return COMPANY_PROFILES[legalName] ?? fallbackProfile(legalName, applicantEmail, product, requestedAmount);
 }
@@ -346,12 +370,17 @@ export function resolveKybCompanyContext(
   options?: { rfc?: string | null },
 ): KybCompanyContext {
   const stored = readKybCompanyContextByApplicationId(application.id);
-  const profile = getProfileForCompany(
-    application.applicantName,
-    application.applicantEmail,
-    application.product,
-    application.requestedAmount,
-  );
+  const profile =
+    stored
+      ? stored
+      : isLocalApplication(application.id)
+        ? emptyProfile(application.applicantName)
+        : getProfileForCompany(
+            application.applicantName,
+            application.applicantEmail,
+            application.product,
+            application.requestedAmount,
+          );
 
   const context: KybCompanyContext = {
     source: "mdc",
