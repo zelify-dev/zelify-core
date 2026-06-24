@@ -236,6 +236,7 @@ const PRODUCT_RULE_FIELDS: Record<RuleProduct, string[]> = {
     "company.amlAlerts",
     "company.requestedAmountToRevenue",
     "company.naicsRiskIndex",
+    "company.taxComplianceStatus",
   ],
   "Linea de capital de trabajo": [
     "company.antiquityMonths",
@@ -249,6 +250,7 @@ const PRODUCT_RULE_FIELDS: Record<RuleProduct, string[]> = {
     "company.amlAlerts",
     "company.requestedAmountToRevenue",
     "company.naicsRiskIndex",
+    "company.taxComplianceStatus",
   ],
   "Arrendamiento financiero": [
     "company.antiquityMonths",
@@ -262,6 +264,7 @@ const PRODUCT_RULE_FIELDS: Record<RuleProduct, string[]> = {
     "company.amlAlerts",
     "company.naicsRiskIndex",
     "company.requestedTermMonths",
+    "company.taxComplianceStatus",
   ],
 };
 
@@ -287,6 +290,7 @@ const RULE_FIELD_LABELS: Record<string, string> = {
   "company.requestedAmountToRevenue": "Monto solicitado / ventas mensuales",
   "company.naicsRiskIndex": "Indice de riesgo sectorial NAICS",
   "company.requestedTermMonths": "Plazo solicitado (meses)",
+  "company.taxComplianceStatus": "Opinion de Cumplimiento Fiscal 32-D",
   "custom.field": "Campo personalizado",
 };
 
@@ -499,6 +503,7 @@ type MoralCompanyProfile = {
   quotaToIncomeRatio: number;
   kybCompleteness: number;
   amlAlerts: number;
+  taxComplianceStatus: number;
   uboCoverage: number;
   legalIncidents: number;
   taxStatus: string;
@@ -578,6 +583,7 @@ function buildMoralCompanyProfile(app: Application): MoralCompanyProfile {
   const kybCompleteness =
     app.status === "declined" ? 0.78 + (seed % 8) / 100 : reviewLike ? 0.86 + (seed % 8) / 100 : 0.93 + (seed % 7) / 100;
   const amlAlerts = app.status === "declined" ? 2 : reviewLike ? 1 : 0;
+  const taxComplianceStatus = app.status === "declined" ? -1 : reviewLike ? 0 : 1;
   const shareholderScore = Math.max(560, Math.min(820, bureauScore + (approvedLike ? 14 : reviewLike ? -6 : -22)));
   const maxDaysPastDue = app.status === "declined" ? 61 + (seed % 28) : reviewLike ? 28 + (seed % 18) : 6 + (seed % 16);
   const requestedAmountToRevenue = Number((app.requestedAmount / Math.max(monthlyRevenue, 1)).toFixed(2));
@@ -637,13 +643,24 @@ function buildMoralCompanyProfile(app: Application): MoralCompanyProfile {
     quotaToIncomeRatio,
     kybCompleteness: Number(Math.min(1, kybCompleteness).toFixed(2)),
     amlAlerts,
+    taxComplianceStatus,
     uboCoverage,
     legalIncidents,
-    taxStatus: amlAlerts > 0 ? "En validacion" : "Positiva",
+    taxStatus: taxComplianceStatus === 1 ? "Positiva" : taxComplianceStatus === 0 ? "En proceso" : "Negativa",
     mercantileStatus: antiquityMonths >= 24 ? "Vigente" : "Con observacion",
     shareholdersStructure: uboCoverage >= 1 ? "Completa" : "Parcial",
     docsStatus: [
       { label: "RFC / Tax ID", detail: "Vigencia SAT y razon social conciliada", status: "ok" },
+      {
+        label: "Opinion de Cumplimiento Fiscal 32-D",
+        detail:
+          taxComplianceStatus === 1
+            ? "Positiva: la empresa esta al corriente con sus obligaciones fiscales."
+            : taxComplianceStatus === 0
+              ? "Sin opinion / En proceso: el SAT continua validando informacion o creditos fiscales especificos."
+              : "Negativa: existen adeudos fiscales o declaraciones obligatorias pendientes.",
+        status: taxComplianceStatus === 1 ? "ok" : taxComplianceStatus === 0 ? "warn" : "bad",
+      },
       { label: "Acta constitutiva", detail: antiquityMonths >= 24 ? "Validada" : "Pendiente de aclaracion", status: antiquityMonths >= 24 ? "ok" : "warn" },
       { label: "Poderes notariales", detail: uboCoverage >= 0.88 ? "Representacion vigente" : "Firmantes incompletos", status: uboCoverage >= 0.88 ? "ok" : "warn" },
       { label: "Estados financieros", detail: freeCashFlow > 0 ? "Recibidos y conciliados" : "Con desviaciones", status: freeCashFlow > 0 ? "ok" : "warn" },
@@ -837,18 +854,32 @@ function renderRuleValue(rule: CreditRuleRow) {
 
 function renderRuleSeverity(rule: CreditRuleRow) {
   if (rule.decisionBands) {
+    const { approveMin, approveMax, reviewMin, reviewMax, rejectMin, rejectMax } = rule.decisionBands;
+    const formatBandValue = (value: number) => value.toFixed(Number.isInteger(value) ? 0 : 2);
+    const isExactBand = (min?: number, max?: number) => min !== undefined && max !== undefined && min === max;
+
     return (
       <div className="mdc-rule-bands">
-        {rule.decisionBands.approveMax !== undefined && (
-          <span className="mdc-rule-band mdc-rule-band--ok">Aprob. &le; {rule.decisionBands.approveMax.toFixed(2)}</span>
-        )}
-        {rule.decisionBands.reviewMin !== undefined && rule.decisionBands.reviewMax !== undefined && (
-          <span className="mdc-rule-band mdc-rule-band--warn">
-            Rev. {rule.decisionBands.reviewMin.toFixed(2)} - {(rule.decisionBands.reviewMax - 0.01).toFixed(2)}
+        {approveMax !== undefined && (
+          <span className="mdc-rule-band mdc-rule-band--ok">
+            {isExactBand(approveMin, approveMax)
+              ? `Aprob. = ${formatBandValue(approveMax)}`
+              : `Aprob. ≤ ${formatBandValue(approveMax)}`}
           </span>
         )}
-        {rule.decisionBands.rejectMin !== undefined && (
-          <span className="mdc-rule-band mdc-rule-band--bad">Rech. &ge; {rule.decisionBands.rejectMin.toFixed(2)}</span>
+        {reviewMin !== undefined && reviewMax !== undefined && (
+          <span className="mdc-rule-band mdc-rule-band--warn">
+            {isExactBand(reviewMin, reviewMax)
+              ? `Rev. = ${formatBandValue(reviewMin)}`
+              : `Rev. ${formatBandValue(reviewMin)} - ${formatBandValue(reviewMax)}`}
+          </span>
+        )}
+        {rejectMin !== undefined && (
+          <span className="mdc-rule-band mdc-rule-band--bad">
+            {isExactBand(rejectMin, rejectMax)
+              ? `Rech. = ${formatBandValue(rejectMin)}`
+              : `Rech. ≥ ${formatBandValue(rejectMin)}`}
+          </span>
         )}
       </div>
     );
@@ -1085,7 +1116,8 @@ function evaluateRuleResult(rule: CreditRuleRow, metricValue: number, appStatus:
     (rule.field === "company.shareholderScore" && metricValue < Number(rule.value || 0)) ||
     (rule.field === "company.requestedAmountToRevenue" && metricValue > Number(rule.value || 0)) ||
     (rule.field === "company.naicsRiskIndex" && metricValue > Number(rule.value || 0)) ||
-    (rule.field === "company.requestedTermMonths" && metricValue > Number(rule.value || 0));
+    (rule.field === "company.requestedTermMonths" && metricValue > Number(rule.value || 0)) ||
+    (rule.field === "company.taxComplianceStatus" && metricValue < Number(rule.value || 0));
 
   if (hasPolicyBreach) {
     return appStatus === "manualReview" && rule.severity !== "fail" ? "warn" : "fail";
@@ -1425,6 +1457,7 @@ function MoralApplicantDetailModal({
     "company.requestedAmountToRevenue": profile.requestedAmountToRevenue,
     "company.naicsRiskIndex": profile.naicsRiskIndex,
     "company.requestedTermMonths": profile.requestedTermMonths,
+    "company.taxComplianceStatus": profile.taxComplianceStatus,
   };
 
   const ruleResultLabel: Record<RuleSeverity, string> = {
@@ -1474,6 +1507,10 @@ function MoralApplicantDetailModal({
         return `El sector presenta indice NAICS de ${profile.naicsRiskIndex}, fuera del rango automatico limpio.`;
       case "company.requestedTermMonths":
         return `Plazo solicitado de ${profile.requestedTermMonths} meses excede el maximo permitido para el producto.`;
+      case "company.taxComplianceStatus":
+        return profile.taxComplianceStatus === 0
+          ? "La Opinion de Cumplimiento Fiscal 32-D sigue en proceso de validacion por parte del SAT."
+          : "La Opinion de Cumplimiento Fiscal 32-D es negativa y bloquea la originacion automatica.";
       default:
         return `${rule.name}: validacion corporativa fuera de politica.`;
     }
