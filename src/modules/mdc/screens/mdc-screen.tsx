@@ -1704,11 +1704,6 @@ function MoralApplicantDetailModal({
                   <strong>{formatPlainPct(profile.debtBurdenRatio)}</strong>
                 </article>
               </div>
-              <div className="mdc-pm-chip-wrap">
-                {profile.scoringHighlights.map((item) => (
-                  <span key={item} className={`mdc-col-pill mdc-col-pill--${scoreTone}`}>{item}</span>
-                ))}
-              </div>
             </section>
 
             <section className="mdc-detail-card">
@@ -1732,13 +1727,6 @@ function MoralApplicantDetailModal({
                 <span className={failedRuleRows.length > 0 ? "mdc-badge mdc-badge--bad" : warnedRuleRows.length > 0 ? "mdc-badge mdc-badge--warn" : "mdc-badge mdc-badge--ok"}>
                   {failedRuleRows.length > 0 ? "Con rechazos" : warnedRuleRows.length > 0 ? "Con revision" : "Aprobable"}
                 </span>
-              </div>
-              <div className="mdc-pm-chip-wrap">
-                <span className="mdc-col-pill mdc-col-pill--warn">Montos maximos y plazos</span>
-                <span className="mdc-col-pill mdc-col-pill--warn">Criterios de exclusion automatica</span>
-                <span className="mdc-col-pill mdc-col-pill--warn">Reglas por segmento</span>
-                <span className="mdc-col-pill mdc-col-pill--warn">Tasas y condiciones por riesgo</span>
-                <span className="mdc-col-pill mdc-col-pill--warn">Champion-Challenger</span>
               </div>
               <div className="mdc-detail-rule-list">
                 {activeRules.map((rule) => (
@@ -1772,20 +1760,8 @@ function MoralApplicantDetailModal({
                   <p>Revision manual del analista.</p>
                 </article>
               </div>
-              <div className="mdc-detail-decision-reason">
-                <strong>Motivo de decision</strong>
-                <p>{decisionReason}</p>
-              </div>
             </section>
 
-            <section className="mdc-detail-card">
-              <h4>8. Monitoreo y gestion de cartera</h4>
-              <div className="mdc-pm-chip-wrap">
-                {profile.monitoringHighlights.map((item) => (
-                  <span key={item} className="mdc-col-pill mdc-col-pill--info">{item}</span>
-                ))}
-              </div>
-            </section>
           </div>
 
           <aside className="mdc-detail-side">
