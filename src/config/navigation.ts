@@ -26,6 +26,7 @@ export const zelifyTopNavItems: ZelifyTopNavItem[] = [
   { id: "accounting", labelKey: "nav.top.accounting", href: "/accounting" },
   { id: "administration", labelKey: "nav.top.administration", href: "/settings" },
   { id: "mdc", labelKey: "nav.top.mdc", href: "/mdc" },
+  { id: "kyb", labelKey: "nav.top.kyb", href: "/kyb" },
 ];
 
 const ADMIN_PREFIX = "/settings";

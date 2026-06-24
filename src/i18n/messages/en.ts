@@ -76,6 +76,7 @@ export const en = {
       accounting: "Accounting",
       administration: "Administration",
       mdc: "MDC",
+      kyb: "KYB",
     },
     admin: {
       generalSetup: "General Setup",
