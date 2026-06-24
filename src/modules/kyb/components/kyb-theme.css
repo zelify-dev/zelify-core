@@ -2,15 +2,23 @@
   --zelify-kyb-top-offset: 101px;
 }
 
+.zelify-kyb-shell .zelify-topbar-wrapper.is-condensed .zelify-topbar-primary {
+  min-height: 52px;
+  padding: 8px 20px;
+}
+
+.zelify-kyb-shell .zelify-topbar-wrapper.is-condensed .zelify-nav-tab {
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
 .zelify-kyb-sidebar {
-  top: var(--zelify-kyb-top-offset);
-  height: calc(100vh - var(--zelify-kyb-top-offset));
+  overflow: visible;
 }
 
 .zelify-kyb-header {
-  position: sticky;
-  top: var(--zelify-kyb-top-offset);
-  z-index: 20;
+  position: relative;
+  z-index: 1;
 }
 
 .zelify-kyb-main {
@@ -18,9 +26,9 @@
 }
 
 .zelify-kyb-main > * {
-  max-width: 1380px;
-  margin-left: auto;
-  margin-right: auto;
+  width: min(100%, 1380px);
+  margin-left: 0;
+  margin-right: 0;
 }
 
 .zelify-kyb-shell input:not([type="checkbox"]):not([type="file"]):not([type="radio"]),
@@ -68,10 +76,52 @@
 }
 
 .zelify-kyb-shell .zelify-kyb-surface {
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid rgba(226, 232, 240, 0.95);
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.04);
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.zelify-kyb-shell .zelify-kyb-panel {
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.zelify-kyb-shell .zelify-kyb-sidebar-nav {
+  padding-top: 8px;
+}
+
+.zelify-kyb-shell .zelify-kyb-sidebar-sticky {
+  position: sticky;
+  top: calc(var(--zelify-kyb-top-offset) + 12px);
+}
+
+.zelify-kyb-shell .zelify-kyb-subsection-trigger {
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  background: #fff;
+  box-shadow: none;
+}
+
+.zelify-kyb-shell .zelify-kyb-subsection-trigger:hover {
+  background: #f8fafc;
+}
+
+@media (max-width: 1280px) {
+  .zelify-kyb-main > * {
+    width: 100%;
+  }
+}
+
+@media (min-width: 1024px) {
+  .zelify-kyb-sidebar {
+    position: relative;
+    top: auto;
+    min-height: 100%;
+    height: auto;
+    align-self: stretch;
+  }
 }
 
 @media (max-width: 1023px) {
@@ -80,8 +130,15 @@
   }
 
   .zelify-kyb-sidebar {
+    position: fixed;
+    left: 0;
     top: 0;
     height: 100vh;
+    overflow-y: auto;
+  }
+
+  .zelify-kyb-shell .zelify-kyb-sidebar-sticky {
+    position: static;
   }
 
   .zelify-kyb-header {

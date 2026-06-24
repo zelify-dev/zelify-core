@@ -157,7 +157,7 @@ export function ChecklistSectionPanel({ section }: ChecklistSectionProps) {
               const isCompleted = progressPercent === 100;
 
               return (
-            <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
+            <div className="zelify-kyb-panel overflow-hidden">
               <button
                 type="button"
                 onClick={() =>
@@ -166,7 +166,7 @@ export function ChecklistSectionPanel({ section }: ChecklistSectionProps) {
                     [subsection.code]: !current[subsection.code],
                   }))
                 }
-                className="flex w-full items-center justify-between gap-4 px-4 py-4 text-left transition hover:bg-slate-50/70"
+                className="zelify-kyb-subsection-trigger flex w-full items-center justify-between gap-4 px-4 py-4 text-left transition"
               >
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-slate-800">

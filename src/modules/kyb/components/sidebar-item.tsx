@@ -48,7 +48,7 @@ export function SidebarItem({
           "flex items-center rounded-xl border px-3 py-2.5 transition-all duration-200",
           collapsed ? "justify-center" : "justify-between gap-3",
           isActive
-            ? "border-slate-200/80 bg-slate-50 text-slate-900 shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
+            ? "border-slate-200 bg-slate-50 text-slate-900"
             : "border-transparent text-slate-500 hover:border-slate-100 hover:bg-slate-50/50 hover:text-slate-800",
         ].join(" ")}
       >

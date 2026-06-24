@@ -30,7 +30,6 @@ export function Header() {
   const pathname = usePathname();
   const {
     openMobileSidebar,
-    user,
     isAuditMode,
     auditOrganizationId,
     organizationsList,
@@ -49,7 +48,7 @@ export function Header() {
 
   return (
     <header className="zelify-kyb-header border-b border-slate-200 bg-white/95 backdrop-blur">
-      <div className="flex h-[72px] items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="flex h-[72px] items-center px-4 sm:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
@@ -67,25 +66,6 @@ export function Header() {
             <h1 className="truncate text-[28px] font-semibold leading-none text-slate-900">
               {current.title}
             </h1>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="hidden rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 sm:block">
-            {user?.role === "admin_zelify" ? "Administrador" : "Flujo activo"}
-          </div>
-          <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-slate-50 px-2 py-2 sm:px-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
-              {user?.email ? user.email[0].toUpperCase() : "Z"}
-            </div>
-            <div className="hidden sm:block max-w-[150px]">
-              <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
-                {user?.role === "admin_zelify" ? "Zelify Admin" : "Empresa"}
-              </p>
-              <p className="text-xs font-bold text-slate-900 truncate">
-                {user?.email || "Usuario"}
-              </p>
-            </div>
           </div>
         </div>
       </div>

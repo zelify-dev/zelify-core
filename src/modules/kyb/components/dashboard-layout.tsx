@@ -12,15 +12,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="zelify-kyb-shell min-h-screen bg-transparent">
       <ZelifyTopNavbar activeNavId="kyb" />
-      <div className="flex min-h-[calc(100vh-116px)]">
+      <div
+        className={[
+          "min-h-[calc(100vh-116px)] lg:grid",
+          isSidebarCollapsed
+            ? "lg:grid-cols-[80px_minmax(0,1fr)]"
+            : "lg:grid-cols-[280px_minmax(0,1fr)]",
+        ].join(" ")}
+      >
         <Sidebar />
-
-        <div
-          className={[
-            "min-w-0 flex-1 transition-all duration-300",
-            isSidebarCollapsed ? "lg:pl-[80px]" : "lg:pl-[280px]",
-          ].join(" ")}
-        >
+        <div className="min-w-0 transition-all duration-300">
           <Header />
           <main className="zelify-kyb-main px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
             {children}

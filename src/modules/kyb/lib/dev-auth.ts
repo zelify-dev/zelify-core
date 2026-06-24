@@ -4,11 +4,11 @@ export const DEV_BYPASS_PASSWORD = "#pain070900Fire";
 export const DEV_BYPASS_TOKEN = "dev-local-bypass-token";
 
 export const DEV_BYPASS_USER = {
-  id: "user-nexopay-admin",
+  id: "user-orion-admin",
   email: DEV_BYPASS_EMAIL,
   role: "business_admin",
-  organization_id: "org-nexopay-demo",
-  organizationId: "org-nexopay-demo",
+  organization_id: "org-manufacturas-orion-demo",
+  organizationId: "org-manufacturas-orion-demo",
 };
 
 export function isDevBypassCredentials(email: string, password: string): boolean {

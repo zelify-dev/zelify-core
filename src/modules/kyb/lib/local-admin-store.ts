@@ -17,9 +17,9 @@ const LOCAL_USERS_KEY = "zelify_local_admin_users";
 
 export const demoOrganizations: LocalOrganization[] = [
   {
-    id: "org-nexopay-demo",
-    legalName: "NexoPay S.A. de C.V.",
-    rfc: "NEX220311AB2",
+    id: "org-manufacturas-orion-demo",
+    legalName: "Manufacturas Orion SA de CV",
+    rfc: "MOR220518KJ4",
     status: "under_review",
   },
   {
@@ -38,10 +38,10 @@ export const demoAdminUsers: LocalAdminUser[] = [
     organization_id: null,
   },
   {
-    id: "user-nexopay-admin",
-    email: "cumplimiento@nexopay.com.mx",
+    id: "user-orion-admin",
+    email: "planeacion@orionmanufactura.mx",
     role: "business_admin",
-    organization_id: "org-nexopay-demo",
+    organization_id: "org-manufacturas-orion-demo",
   },
 ];
 
