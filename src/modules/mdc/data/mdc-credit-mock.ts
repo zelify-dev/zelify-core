@@ -21,7 +21,7 @@ export type Application = {
 export const NATURAL_CREDIT_PRODUCTS = ["Credito automotriz", "Credito personal"] as const;
 export const MORAL_CREDIT_PRODUCTS = [
   "Credito simple empresarial",
-  "Linea de capital de trabajo",
+  "Credito revolvente",
   "Arrendamiento financiero",
 ] as const;
 export const CREDIT_PRODUCTS = NATURAL_CREDIT_PRODUCTS;
@@ -63,7 +63,7 @@ export const PM_MDC_CLIENTS: MdcClientPoolItem[] = [
     email: "tesoreria@techstart.mx",
     amount: 4_800_000,
     creditScore: 710,
-    product: "Linea de capital de trabajo",
+    product: "Credito revolvente",
   },
   {
     id: "PM-CU-500202",
@@ -87,7 +87,7 @@ export const PM_MDC_CLIENTS: MdcClientPoolItem[] = [
     email: "direccion.financiera@bajionorte.mx",
     amount: 3_200_000,
     creditScore: 648,
-    product: "Linea de capital de trabajo",
+    product: "Credito revolvente",
   },
   {
     id: "PM-CU-500205",
@@ -103,7 +103,7 @@ export const PM_MDC_CLIENTS: MdcClientPoolItem[] = [
     email: "tesoreria@agropacifico.mx",
     amount: 5_650_000,
     creditScore: 666,
-    product: "Linea de capital de trabajo",
+    product: "Credito revolvente",
   },
   {
     id: "PM-CU-500207",
@@ -127,7 +127,7 @@ export const PM_MDC_CLIENTS: MdcClientPoolItem[] = [
     email: "tesoreria@demetropoli.mx",
     amount: 6_700_000,
     creditScore: 681,
-    product: "Linea de capital de trabajo",
+    product: "Credito revolvente",
   },
 ];
 
@@ -147,7 +147,7 @@ function riskFromRiskIndex(score: number): RiskLevel {
 function amountBoundsByProduct(product: MdcCreditProduct) {
   if (product === "Credito personal") return { min: 25_000, max: 800_000, variance: 220_000 };
   if (product === "Credito automotriz") return { min: 100_000, max: 2_500_000, variance: 360_000 };
-  if (product === "Linea de capital de trabajo") return { min: 750_000, max: 18_000_000, variance: 2_400_000 };
+  if (product === "Credito revolvente") return { min: 750_000, max: 18_000_000, variance: 2_400_000 };
   if (product === "Arrendamiento financiero") return { min: 1_500_000, max: 30_000_000, variance: 4_200_000 };
   return { min: 1_000_000, max: 25_000_000, variance: 3_800_000 };
 }
@@ -256,7 +256,7 @@ const recentMoralApplicationsSeed: Application[] = [
     appNo: "APP-PM-100284",
     applicantName: "TechStart Solutions SA de CV",
     applicantEmail: "tesoreria@techstart.mx",
-    product: "Linea de capital de trabajo",
+    product: "Credito revolvente",
     requestedAmount: 4_200_000,
     currency: "MXN",
     status: "approved",
@@ -295,7 +295,7 @@ const recentMoralApplicationsSeed: Application[] = [
     appNo: "APP-PM-100281",
     applicantName: "Comercializadora Bajio Norte SA de CV",
     applicantEmail: "direccion.financiera@bajionorte.mx",
-    product: "Linea de capital de trabajo",
+    product: "Credito revolvente",
     requestedAmount: 2_150_000,
     currency: "MXN",
     status: "declined",
@@ -321,7 +321,7 @@ const recentMoralApplicationsSeed: Application[] = [
     appNo: "APP-PM-100279",
     applicantName: "Agroinsumos del Pacifico SA de CV",
     applicantEmail: "tesoreria@agropacifico.mx",
-    product: "Linea de capital de trabajo",
+    product: "Credito revolvente",
     requestedAmount: 3_400_000,
     currency: "MXN",
     status: "pending",
@@ -384,7 +384,7 @@ const naturalPoolByProduct: Record<string, MdcClientPoolItem[]> = {
 
 const moralPoolByProduct: Record<string, MdcClientPoolItem[]> = {
   "Credito simple empresarial": PM_MDC_CLIENTS.filter((client) => client.product === "Credito simple empresarial"),
-  "Linea de capital de trabajo": PM_MDC_CLIENTS.filter((client) => client.product === "Linea de capital de trabajo"),
+  "Credito revolvente": PM_MDC_CLIENTS.filter((client) => client.product === "Credito revolvente"),
   "Arrendamiento financiero": PM_MDC_CLIENTS.filter((client) => client.product === "Arrendamiento financiero"),
 };
 

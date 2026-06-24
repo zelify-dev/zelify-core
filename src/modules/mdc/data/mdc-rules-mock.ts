@@ -142,7 +142,7 @@ export const naturalCreditRulesMock: CreditRuleRow[] = [
 
 const PM_ALL_PRODUCTS = [
   "Credito simple empresarial",
-  "Linea de capital de trabajo",
+  "Credito revolvente",
   "Arrendamiento financiero",
 ] satisfies MoralCreditProduct[];
 
@@ -163,7 +163,7 @@ export const moralCreditRulesMock: CreditRuleRow[] = [
   {
     id: "pm-cr-2",
     name: "Apalancamiento maximo",
-    products: ["Credito simple empresarial", "Linea de capital de trabajo"],
+    products: ["Credito simple empresarial", "Credito revolvente"],
     field: "company.leverageRatio",
     operator: "lte",
     value: "<= 2.50 aprueba · 2.50-3.49 revision · >= 3.50 rechaza",
@@ -234,7 +234,7 @@ export const moralCreditRulesMock: CreditRuleRow[] = [
   {
     id: "pm-cr-7",
     name: "Concentracion maxima por cliente",
-    products: ["Linea de capital de trabajo"],
+    products: ["Credito revolvente"],
     field: "company.topClientConcentration",
     operator: "lte",
     value: "0.45",
@@ -299,7 +299,7 @@ export const moralCreditRulesMock: CreditRuleRow[] = [
   {
     id: "pm-cr-12",
     name: "Monto solicitado vs ventas",
-    products: ["Credito simple empresarial", "Linea de capital de trabajo"],
+    products: ["Credito simple empresarial", "Credito revolvente"],
     field: "company.requestedAmountToRevenue",
     operator: "lte",
     value: "<= 2.40 aprueba · 2.40-3.99 revision · >= 4.00 rechaza",

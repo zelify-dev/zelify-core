@@ -72,7 +72,7 @@ export const MORAL_MDC_PRODUCTS: MdcProduct[] = [
   },
   {
     id: "pm_product_002",
-    name: "Linea de capital de trabajo",
+    name: "Credito revolvente",
     description: "Linea revolvente para necesidades operativas, inventario y tesoreria de empresas medianas.",
     status: "ACTIVO",
     metrics: {

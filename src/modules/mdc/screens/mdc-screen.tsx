@@ -240,7 +240,7 @@ const PRODUCT_RULE_FIELDS: Record<RuleProduct, string[]> = {
     "company.naicsRiskIndex",
     "company.taxComplianceStatus",
   ],
-  "Linea de capital de trabajo": [
+  "Credito revolvente": [
     "company.antiquityMonths",
     "company.monthlyRevenue",
     "company.bureauScore",
@@ -525,7 +525,7 @@ function buildMoralCompanyProfile(app: Application): MoralCompanyProfile {
   const riskLevel = riskFromScore(app.riskScore);
   const termByProduct: Record<string, number> = {
     "Credito simple empresarial": 36,
-    "Linea de capital de trabajo": 18,
+    "Credito revolvente": 18,
     "Arrendamiento financiero": 48,
   };
   const requestedTermMonths = termByProduct[app.product] ?? 24;
@@ -621,7 +621,7 @@ function buildMoralCompanyProfile(app: Application): MoralCompanyProfile {
     companyType:
       app.product === "Arrendamiento financiero"
         ? "Empresa intensiva en activos"
-        : app.product === "Linea de capital de trabajo"
+        : app.product === "Credito revolvente"
           ? "Operacion comercial / capital de trabajo"
           : "Empresa operativa",
     requestedTermMonths,
@@ -1194,7 +1194,7 @@ function normalizeRequestedAmount(product: string, requestedAmount: number) {
     if (requestedAmount < 100_000) return 100_000 + Math.round(requestedAmount * 14);
     return Math.min(Math.max(requestedAmount, 100_000), 2_500_000);
   }
-  if (product === "Linea de capital de trabajo") {
+  if (product === "Credito revolvente") {
     if (requestedAmount < 750_000) return 750_000 + Math.round(requestedAmount * 4);
     return Math.min(Math.max(requestedAmount, 750_000), 18_000_000);
   }
@@ -1622,7 +1622,7 @@ function MoralApplicantDetailModal({
                 <div><dt>RFC / Tax ID</dt><dd>{app.id}</dd></div>
                 <div><dt>Producto solicitado</dt><dd>{app.product}</dd></div>
                 <div><dt>Plazo solicitado</dt><dd>{profile.requestedTermMonths} meses</dd></div>
-                <div><dt>Destino del credito</dt><dd>{app.product === "Linea de capital de trabajo" ? "Capital de trabajo" : app.product === "Arrendamiento financiero" ? "Activo productivo" : "Expansion operativa"}</dd></div>
+                <div><dt>Destino del credito</dt><dd>{app.product === "Credito revolvente" ? "Capital de trabajo" : app.product === "Arrendamiento financiero" ? "Activo productivo" : "Expansion operativa"}</dd></div>
               </dl>
             </section>
 
@@ -1734,31 +1734,10 @@ function MoralApplicantDetailModal({
                     <div>
                       <strong>{rule.name}</strong>
                       <p>{rule.description}</p>
-                      <small className="mdc-pm-rule-metric">
-                        {ruleFieldLabel(rule.field)}: {rule.dataType === "percentage" ? formatPlainPct(rule.metricValue) : typeof rule.metricValue === "number" && rule.metricValue >= 1000 ? money(rule.metricValue) : String(rule.metricValue)}
-                      </small>
                     </div>
                     <span className={chipToneBySeverity(rule.result)}>{ruleResultLabel[rule.result]}</span>
                   </article>
                 ))}
-              </div>
-            </section>
-
-            <section className="mdc-detail-card">
-              <h4>7. Decision automatizada</h4>
-              <div className="mdc-pm-decision-grid">
-                <article className={decisionCardClass("approved")}>
-                  <strong>Aprobado</strong>
-                  <p>Con oferta de monto, tasa y plazo.</p>
-                </article>
-                <article className={decisionCardClass("declined")}>
-                  <strong>Rechazado</strong>
-                  <p>Con motivo de declinacion y reglas disparadas.</p>
-                </article>
-                <article className={decisionCardClass("manual")}>
-                  <strong>Zona gris</strong>
-                  <p>Revision manual del analista.</p>
-                </article>
               </div>
             </section>
 
