@@ -16,6 +16,11 @@ import {
 } from "@/modules/kyb/lib/aml-screening";
 import { SHOULD_USE_DEMO_PREFILL, SHOULD_USE_LOCAL_ONBOARDING } from "@/modules/kyb/lib/app-flags";
 import { DEV_BYPASS_USER, establishDevBypassSession } from "@/modules/kyb/lib/dev-auth";
+import {
+  buildKybAnswersFromCompanyContext,
+  buildKybSatFiscalDataFromCompanyContext,
+  readActiveKybCompanyContext,
+} from "@/modules/kyb/lib/kyb-company-context";
 import { OnboardingModuleKey } from "@/modules/kyb/lib/onboarding-config";
 import {
   createLocalAdminUser,
@@ -512,6 +517,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       localStorage.getItem("zelify_local_aml_members");
     const savedSatConnected = localStorage.getItem("zelify_sim_sat_connected");
     const savedSatFiscal = localStorage.getItem("zelify_sim_sat_fiscal");
+    const activeKybCompanyContext = readActiveKybCompanyContext();
     const seededProgress = {
       kyb: 65,
       pldAml: 20,
@@ -521,8 +527,22 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       satKyc: 50,
     };
     const parsedProgress = parseStoredObject(savedProgress, seededProgress);
+    const baseAnswers = parseStoredObject(savedAnswers, demoPrefillAnswers);
+    const nextAnswers = activeKybCompanyContext
+      ? {
+          ...baseAnswers,
+          ...buildKybAnswersFromCompanyContext(activeKybCompanyContext),
+        }
+      : baseAnswers;
+    const baseSatFiscal = parseStoredObject(savedSatFiscal, null);
+    const nextSatFiscal = activeKybCompanyContext
+      ? {
+          ...(baseSatFiscal ?? demoSatFiscalData),
+          ...buildKybSatFiscalDataFromCompanyContext(activeKybCompanyContext),
+        }
+      : baseSatFiscal;
 
-    setAnswers(parseStoredObject(savedAnswers, demoPrefillAnswers));
+    setAnswers(nextAnswers);
     setProgress(isZeroProgressState(parsedProgress) ? seededProgress : parsedProgress);
     setModuleSubmitted(parseStoredObject(savedSubmitted, {
       kyb: false,
@@ -553,7 +573,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     syncOwnersFromAmlMembers(loadedOwners);
     setKycMembersList(parseStoredObject(savedMembers, demoKycMembers));
     setSatConnected(savedSatConnected ? savedSatConnected === "true" : false);
-    setSatFiscalData(parseStoredObject(savedSatFiscal, null));
+    setSatFiscalData(nextSatFiscal);
   }, [isAuthenticated, user, syncOwnersFromAmlMembers]);
 
   useEffect(() => {

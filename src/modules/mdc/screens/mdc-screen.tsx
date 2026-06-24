@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Eye, Settings } from "lucide-react";
 import { seedScotiaCreditStorage, useCreditDemoStore } from "@/modules/cortex/hooks/use-credit-demo-store";
 import { AppCheckbox } from "@/components/ui/atoms/checkbox/app-checkbox";
@@ -37,6 +38,7 @@ import {
 } from "@/modules/cortex/services/credit-pricing.engine";
 import type { CreditClientProfile, CreditProductCategory, CrossSellOption } from "@/modules/cortex/types/credit-pricing.types";
 import { MDC_PRODUCTS_BY_MODE } from "@/modules/mdc/data/mdc-products-mock";
+import { activateKybCompanyContext } from "@/modules/kyb/lib/kyb-company-context";
 import "@/components/ui/templates/workspace-page.css";
 import "@/modules/cortex/components/credit-quote-result-panel.css";
 import "./mdc-screen.css";
@@ -700,12 +702,16 @@ function buildMoralCompanyProfile(app: Application): MoralCompanyProfile {
   };
 }
 
-function nextAppNo(rows: Application[]) {
+function nextAppNo(rows: Application[], mode: MdcApplicantMode) {
+  const expression = mode === "moral" ? /APP-PM-(\d+)/ : /APP-(\d+)/;
+  const seed = mode === "moral" ? 100279 : 1284;
   const maxNumber = rows.reduce((max, row) => {
-    const match = row.appNo.match(/APP-(\d+)/);
+    const match = row.appNo.match(expression);
     return match ? Math.max(max, Number(match[1])) : max;
-  }, 1284);
-  return `APP-${String(maxNumber + 1).padStart(6, "0")}`;
+  }, seed);
+  return mode === "moral"
+    ? `APP-PM-${String(maxNumber + 1).padStart(6, "0")}`
+    : `APP-${String(maxNumber + 1).padStart(6, "0")}`;
 }
 
 function defaultRuleForm(products: readonly RuleProduct[]): RuleFormState {
@@ -2582,6 +2588,7 @@ function RuleModal({
 }
 
 export function MdcScreen() {
+  const router = useRouter();
   const creditStore = useCreditDemoStore();
   const [applicantMode, setApplicantMode] = useState<MdcApplicantMode>("natural");
   const [activeTab, setActiveTab] = useState<MdcTab>("overview");
@@ -2803,6 +2810,23 @@ export function MdcScreen() {
     if (!q) return scopedRules;
     return scopedRules.filter((r) => `${r.name} ${r.field} ${r.description}`.toLowerCase().includes(q));
   }, [normalizedRules, ruleProductFilter, ruleQuery]);
+
+  const openKybForApplication = (application: Application, rfc?: string | null) => {
+    activateKybCompanyContext(
+      {
+        id: application.id,
+        appNo: application.appNo,
+        applicantName: application.applicantName,
+        applicantEmail: application.applicantEmail,
+        product: application.product,
+        requestedAmount: application.requestedAmount,
+        riskScore: application.riskScore,
+        status: application.status,
+      },
+      { rfc },
+    );
+    router.push("/kyb");
+  };
 
   const ruleFieldOptions = useMemo(() => getRuleFieldsForProduct(ruleProductFilter), [ruleProductFilter]);
   const activeTraceability = useMemo<MdcTraceabilityEntry[]>(
@@ -3171,6 +3195,16 @@ export function MdcScreen() {
                                     >
                                       Reenviar onboarding
                                     </button>
+                                    {applicantMode === "moral" && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          openKybForApplication(app);
+                                        }}
+                                      >
+                                        KYB editar
+                                      </button>
+                                    )}
                                     <button
                                       type="button"
                                       className="mdc-row-menu__danger"
@@ -3409,7 +3443,7 @@ export function MdcScreen() {
                 ? Math.min(68, 24 + Math.round(amount / 400))
                 : Math.min(86, 32 + Math.round(amount / 4_000));
           const name = applicantMode === "moral" ? firstName.trim() || email : `${firstName} ${lastName}`.trim() || email;
-          const appNo = nextAppNo(apps);
+          const appNo = nextAppNo(apps, applicantMode);
           const appId = `local-${Date.now()}`;
           const applicantBinding = bindApplicantFromPool(
             {
@@ -3436,6 +3470,9 @@ export function MdcScreen() {
           };
           setApps((current) => [next, ...current]);
           setPage(0);
+          if (applicantMode === "moral") {
+            openKybForApplication(next, lastName);
+          }
         }}
       />
 
