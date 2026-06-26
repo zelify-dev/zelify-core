@@ -29,6 +29,7 @@ import { MdcProductsTab } from "@/modules/mdc/components/mdc-products-tab";
 import { MORAL_CASES, NATURAL_CASES, MdcCollectionsTab } from "@/modules/mdc/components/mdc-collections-tab";
 import { MORAL_SESSIONS, NATURAL_SESSIONS, MdcPaymentsTab } from "@/modules/mdc/components/mdc-payments-tab";
 import { MdcConfigurationTab } from "@/modules/mdc/components/mdc-configuration-tab";
+import { MdcReportsTab } from "@/modules/mdc/components/mdc-reports-tab";
 import {
   calculateCreditQuote,
   crossSellRatePreview,
@@ -43,7 +44,7 @@ import "@/components/ui/templates/workspace-page.css";
 import "@/modules/cortex/components/credit-quote-result-panel.css";
 import "./mdc-screen.css";
 
-type MdcTab = "overview" | "products" | "applications" | "rules" | "traceability" | "payments" | "collections" | "configuration";
+type MdcTab = "overview" | "products" | "applications" | "rules" | "traceability" | "payments" | "collections" | "reports" | "configuration";
 
 type RuleFormState = {
   name: string;
@@ -170,7 +171,7 @@ const MORAL_TRACEABILITY: MdcTraceabilityEntry[] = [
   },
 ];
 
-const TABS: { id: MdcTab; label: string }[] = [
+const TABS: { id: MdcTab; label: string; moralOnly?: boolean }[] = [
   { id: "overview", label: "Tablero" },
   { id: "products", label: "Productos" },
   { id: "applications", label: "Solicitudes" },
@@ -178,6 +179,7 @@ const TABS: { id: MdcTab; label: string }[] = [
   { id: "traceability", label: "Trazabilidad" },
   { id: "payments", label: "Pagos" },
   { id: "collections", label: "Cobranza" },
+  { id: "reports", label: "Informes", moralOnly: true },
   { id: "configuration", label: "Configuracion" },
 ];
 
@@ -2905,6 +2907,16 @@ export function MdcScreen() {
     () => (applicantMode === "moral" ? MORAL_TRACEABILITY : (creditStore.state.auditLog as MdcTraceabilityEntry[])),
     [applicantMode, creditStore.state.auditLog],
   );
+  const visibleTabs = useMemo(
+    () => TABS.filter((tab) => !tab.moralOnly || applicantMode === "moral"),
+    [applicantMode],
+  );
+
+  useEffect(() => {
+    if (applicantMode !== "moral" && activeTab === "reports") {
+      setActiveTab("overview");
+    }
+  }, [activeTab, applicantMode]);
 
   const openCreateRule = () => {
     setEditingRuleId(null);
@@ -2967,7 +2979,7 @@ export function MdcScreen() {
           </header>
 
           <div className="mdc-tabs" role="tablist" aria-label="MDC tabs">
-            {TABS.map((tab) => (
+            {visibleTabs.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
@@ -3503,6 +3515,7 @@ export function MdcScreen() {
           {activeTab === "collections" && (
             <MdcCollectionsTab mode={applicantMode} cases={applicantMode === "moral" ? MORAL_CASES : NATURAL_CASES} />
           )}
+          {activeTab === "reports" && applicantMode === "moral" && <MdcReportsTab />}
           {activeTab === "configuration" && <MdcConfigurationTab />}
         </div>
       </div>
