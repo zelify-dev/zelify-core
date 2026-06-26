@@ -259,7 +259,7 @@ export const moralCreditRulesMock: CreditRuleRow[] = [
   },
   {
     id: "pm-cr-12",
-    name: "Monto solicitado vs ventas",
+    name: "Monto solicitado vs ingresos",
     products: ["Credito simple empresarial", "Credito revolvente"],
     field: "company.requestedAmountToRevenue",
     operator: "lte",

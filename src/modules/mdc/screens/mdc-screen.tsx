@@ -81,6 +81,7 @@ type MdcTraceabilityEntry = {
 const APP_STORAGE_KEY = "mdc:applications";
 const RULES_STORAGE_KEY = "mdc:rules";
 const PAGE_SIZE = 10;
+const TRACEABILITY_PAGE_SIZE = 8;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const RANGE_DAYS: Record<RangePreset, number> = {
   "7d": 7,
@@ -122,6 +123,151 @@ const MODE_COPY: Record<MdcApplicantMode, { title: string; subtitle: string; rec
 const MORAL_TRACEABILITY: MdcTraceabilityEntry[] = [
   {
     id: "pm-trace-001",
+    timestamp: "2026-06-26T16:48:22Z",
+    action: "PM_KYB_UPDATE",
+    details: "KYB corporativo actualizado para Manufacturas Orion SA de CV · RFC validado y acta constitutiva conciliada",
+    channel: "Mesa corporativa",
+    user: "Analista KYB",
+    correlationId: "corr-pm-1782449822011",
+  },
+  {
+    id: "pm-trace-002",
+    timestamp: "2026-06-26T16:31:07Z",
+    action: "PM_DOCS",
+    details: "Carga documental completada · estados financieros 2025, opinión 32-D y estados de cuenta bancarios 12 meses",
+    channel: "Portal cliente",
+    user: "Tesoreria TechStart",
+    correlationId: "corr-pm-1782449718034",
+  },
+  {
+    id: "pm-trace-003",
+    timestamp: "2026-06-26T16:12:40Z",
+    action: "PM_BUREAU",
+    details: "Consulta de buró empresarial ejecutada · score 712 y experiencia de pago sin deterioro material",
+    channel: "Buró / API",
+    user: "Sistema MDC",
+    correlationId: "corr-pm-1782449601102",
+  },
+  {
+    id: "pm-trace-004",
+    timestamp: "2026-06-26T15:58:10Z",
+    action: "PM_RULES",
+    details: "Motor empresarial recalculado · DSCR, apalancamiento y monto / ventas dentro de política para TechStart Solutions SA de CV",
+    channel: "Consola riesgo",
+    user: "Analista Senior",
+    correlationId: "corr-pm-1782449500041",
+    rateBefore: 19.5,
+    rateAfter: 19.5,
+  },
+  {
+    id: "pm-trace-005",
+    timestamp: "2026-06-26T15:44:02Z",
+    action: "PM_MANUAL_REVIEW",
+    details: "Caso enviado a revisión manual por opinión 32-D en proceso y validación complementaria de beneficiarios reales",
+    channel: "Consola riesgo",
+    user: "Analista Senior",
+    correlationId: "corr-pm-1782449387721",
+  },
+  {
+    id: "pm-trace-006",
+    timestamp: "2026-06-26T15:28:51Z",
+    action: "PM_OVERRIDE",
+    details: "Override aplicado con comité de crédito · mitigantes documentados y covenant trimestral incorporado",
+    channel: "Comité",
+    user: "Director Riesgo",
+    correlationId: "corr-pm-1782449266304",
+    rateBefore: 18.9,
+    rateAfter: 18.4,
+  },
+  {
+    id: "pm-trace-007",
+    timestamp: "2026-06-26T15:09:14Z",
+    action: "PM_DISBURSEMENT",
+    details: "Condiciones comerciales confirmadas · línea revolvente liberada en tramo inicial de $4.5M",
+    channel: "Backoffice",
+    user: "Operaciones Crédito",
+    correlationId: "corr-pm-1782449142250",
+    rateBefore: 18.4,
+    rateAfter: 18.4,
+  },
+  {
+    id: "pm-trace-008",
+    timestamp: "2026-06-25T18:42:37Z",
+    action: "PM_AML_CLEAR",
+    details: "Validación AML / PLD cerrada sin coincidencias bloqueantes para socios, avales y representante legal",
+    channel: "Compliance",
+    user: "Oficial PLD",
+    correlationId: "corr-pm-1782384451904",
+  },
+  {
+    id: "pm-trace-009",
+    timestamp: "2026-06-25T17:26:19Z",
+    action: "PM_SAT_32D",
+    details: "Opinión de cumplimiento fiscal 32-D recibida en estado positivo · contribuyente al corriente",
+    channel: "SAT",
+    user: "Sistema MDC",
+    correlationId: "corr-pm-1782381029137",
+  },
+  {
+    id: "pm-trace-010",
+    timestamp: "2026-06-25T16:11:55Z",
+    action: "PM_FINANCIALS",
+    details: "Estados financieros parseados · EBITDA 13.2%, deuda neta / EBITDA 2.4x y capital de trabajo positivo",
+    channel: "IA documental",
+    user: "Sistema MDC",
+    correlationId: "corr-pm-1782377450014",
+  },
+  {
+    id: "pm-trace-011",
+    timestamp: "2026-06-24T19:08:41Z",
+    action: "PM_SYNC",
+    details: "Sincronización de empresas desde onboarding corporativo · 3 expedientes nuevos en MDC",
+    channel: "Consola",
+    user: "Sistema MDC",
+    correlationId: "corr-pm-1782245321393",
+  },
+  {
+    id: "pm-trace-012",
+    timestamp: "2026-06-24T18:31:17Z",
+    action: "PM_RULES",
+    details: "Motor empresa evaluado · DSCR, apalancamiento y buro corporativo para Grupo Delta Industrial SA de CV",
+    channel: "Sucursal empresarial",
+    user: "Ejecutivo Empresarial",
+    correlationId: "corr-pm-1782245277709",
+    rateBefore: 17.8,
+    rateAfter: 17.8,
+  },
+  {
+    id: "pm-trace-013",
+    timestamp: "2026-06-24T18:06:47Z",
+    action: "CROSS_SELL_PM",
+    details: "Paquete transaccional y dispersión de nómina activados · mejora de pricing corporativo",
+    channel: "Sucursal empresarial",
+    user: "Ejecutivo Empresarial",
+    correlationId: "corr-pm-1782245280707",
+    rateBefore: 18.1,
+    rateAfter: 17.6,
+  },
+  {
+    id: "pm-trace-014",
+    timestamp: "2026-06-24T18:06:27Z",
+    action: "AI_VERIFY_PM",
+    details: "IA documental · 2 expedientes empresariales aprobados / 1 enviado a revisión manual",
+    channel: "Sucursal empresarial",
+    user: "Ejecutivo Empresarial",
+    correlationId: "corr-pm-1782245278521",
+  },
+  {
+    id: "pm-trace-015",
+    timestamp: "2026-06-24T17:41:01Z",
+    action: "SEED_PM",
+    details: "Catálogo PM cargado · líneas empresariales, arrendamiento y capital de trabajo en México",
+    channel: "Consola",
+    user: "Admin Producto",
+    correlationId: "corr-pm-seed-002",
+  },
+  {
+    id: "pm-trace-016",
     timestamp: "2026-06-23T15:08:41Z",
     action: "PM_SYNC",
     details: "Sincronización de empresas desde onboarding corporativo · 3 expedientes nuevos en MDC",
@@ -130,7 +276,7 @@ const MORAL_TRACEABILITY: MdcTraceabilityEntry[] = [
     correlationId: "corr-pm-1782245321393",
   },
   {
-    id: "pm-trace-002",
+    id: "pm-trace-017",
     timestamp: "2026-06-23T14:31:17Z",
     action: "PM_RULES",
     details: "Motor empresa evaluado · DSCR, apalancamiento y buro corporativo para Grupo Delta Industrial SA de CV",
@@ -141,7 +287,7 @@ const MORAL_TRACEABILITY: MdcTraceabilityEntry[] = [
     rateAfter: 17.8,
   },
   {
-    id: "pm-trace-003",
+    id: "pm-trace-018",
     timestamp: "2026-06-23T14:06:47Z",
     action: "CROSS_SELL_PM",
     details: "Paquete transaccional y dispersión de nómina activados · mejora de pricing corporativo",
@@ -152,7 +298,7 @@ const MORAL_TRACEABILITY: MdcTraceabilityEntry[] = [
     rateAfter: 17.6,
   },
   {
-    id: "pm-trace-004",
+    id: "pm-trace-019",
     timestamp: "2026-06-23T14:06:27Z",
     action: "AI_VERIFY_PM",
     details: "IA documental · 2 expedientes empresariales aprobados / 1 enviado a revisión manual",
@@ -161,7 +307,7 @@ const MORAL_TRACEABILITY: MdcTraceabilityEntry[] = [
     correlationId: "corr-pm-1782245278521",
   },
   {
-    id: "pm-trace-005",
+    id: "pm-trace-020",
     timestamp: "2026-06-23T13:41:01Z",
     action: "SEED_PM",
     details: "Catálogo PM cargado · líneas empresariales, arrendamiento y capital de trabajo en México",
@@ -573,6 +719,71 @@ type MoralCompanyProfile = {
 };
 
 function buildMoralCompanyProfile(app: Application): MoralCompanyProfile {
+  if (app.id.startsWith("local-")) {
+    const requestedTermMonths =
+      app.product === "Credito simple empresarial"
+        ? 36
+        : app.product === "Credito revolvente"
+          ? 18
+          : app.product === "Arrendamiento financiero"
+            ? 48
+            : 24;
+
+    return {
+      segment: "Pendiente",
+      companyType:
+        app.product === "Arrendamiento financiero"
+          ? "Activo productivo"
+          : app.product === "Credito revolvente"
+            ? "Operacion comercial / capital de trabajo"
+            : "Operacion empresarial",
+      requestedTermMonths,
+      monthlyRevenue: 0,
+      annualRevenue: 0,
+      antiquityMonths: 0,
+      bureauScore: 0,
+      shareholderScore: 0,
+      maxDaysPastDue: 0,
+      dscr: 0,
+      leverageRatio: 0,
+      topClientConcentration: 0,
+      ebitdaMargin: 0,
+      roe: 0,
+      roa: 0,
+      workingCapital: 0,
+      freeCashFlow: 0,
+      requestedAmountToRevenue: 0,
+      naicsRiskIndex: 0,
+      debtBurdenRatio: 0,
+      quotaToIncomeRatio: 0,
+      kybCompleteness: 0,
+      amlAlerts: 0,
+      taxComplianceStatus: 0,
+      uboCoverage: 0,
+      legalIncidents: 0,
+      taxStatus: "Pendiente",
+      mercantileStatus: "Pendiente",
+      shareholdersStructure: "Pendiente",
+      docsStatus: [
+        { label: "RFC / Tax ID", detail: "Pendiente de validacion.", status: "warn" },
+        { label: "Opinion de Cumplimiento Fiscal 32-D", detail: "Pendiente de consulta.", status: "warn" },
+        { label: "Acta constitutiva", detail: "Pendiente de carga.", status: "warn" },
+        { label: "Poderes notariales", detail: "Pendiente de carga.", status: "warn" },
+        { label: "Estados financieros", detail: "Pendiente de carga.", status: "warn" },
+      ],
+      amlChecks: [
+        { label: "Listas OFAC / ONU", detail: "Pendiente de validacion.", status: "warn" },
+        { label: "PEPs / partes relacionadas", detail: "Pendiente de validacion.", status: "warn" },
+        { label: "Prensa adversa", detail: "Pendiente de validacion.", status: "warn" },
+        { label: "Demandas / gravamenes", detail: "Pendiente de validacion.", status: "warn" },
+      ],
+      scoringHighlights: [],
+      financeHighlights: [],
+      sectorHighlights: [],
+      monitoringHighlights: [],
+    };
+  }
+
   const seed = quickHash(`${app.id}:${app.applicantName}:${app.product}`);
   const bureauScore = bureauScoreFromRiskIndex(app.riskScore);
   const riskLevel = riskFromScore(app.riskScore);
@@ -1547,18 +1758,26 @@ function MoralApplicantDetailModal({
   const [feedback, setFeedback] = useState("");
   const [overrideChoice, setOverrideChoice] = useState<ApplicationStatus>("manualReview");
   const [overrideReason, setOverrideReason] = useState("");
+  const isFreshLocalApplication = app.id.startsWith("local-");
   const profile = buildMoralCompanyProfile(app);
   const appRiskLevel = riskFromScore(app.riskScore);
   const scoreTone = app.status === "declined" ? "bad" : app.status === "manualReview" || app.status === "pending" ? "warn" : "ok";
   const stages = [
-    { id: "input", label: "Captura y onboarding", state: "done" },
-    { id: "kyb", label: "KYB / existencia legal", state: profile.kybCompleteness >= 0.9 ? "done" : "current" },
-    { id: "aml", label: "AML / PLD", state: profile.amlAlerts > 0 ? "failed" : "done" },
-    { id: "risk", label: "Scoring y finanzas", state: app.status === "declined" ? "failed" : "done" },
+    { id: "input", label: "Captura y onboarding", state: isFreshLocalApplication ? "current" : "done" },
+    { id: "kyb", label: "KYB / existencia legal", state: isFreshLocalApplication ? "current" : profile.kybCompleteness >= 0.9 ? "done" : "current" },
+    { id: "aml", label: "AML / PLD", state: isFreshLocalApplication ? "current" : profile.amlAlerts > 0 ? "failed" : "done" },
+    { id: "risk", label: "Scoring y finanzas", state: isFreshLocalApplication ? "current" : app.status === "declined" ? "failed" : "done" },
     {
       id: "decision",
       label: "Decision automatizada",
-      state: app.status === "declined" ? "failed" : app.status === "manualReview" || app.status === "pending" ? "current" : "done",
+      state:
+        isFreshLocalApplication
+          ? "current"
+          : app.status === "declined"
+            ? "failed"
+            : app.status === "manualReview" || app.status === "pending"
+              ? "current"
+              : "done",
     },
   ] as const;
 
@@ -1590,7 +1809,7 @@ function MoralApplicantDetailModal({
     .filter((rule) => rule.status === "active" && rule.products.includes(app.product as RuleProduct))
     .map((rule) => {
       const metricValue = metricByField[rule.field] ?? 0;
-      const result = evaluateRuleResult(rule, metricValue, app.status);
+      const result = isFreshLocalApplication ? ("warn" as RuleSeverity) : evaluateRuleResult(rule, metricValue, app.status);
       return { ...rule, metricValue, result };
     });
 
@@ -1692,7 +1911,15 @@ function MoralApplicantDetailModal({
             <div key={stage.id} className="mdc-stage-card">
               <span className={`mdc-stage-dot mdc-stage-dot--${stage.state}`} />
               <strong>{stage.label}</strong>
-              <em>{stage.state === "done" ? "Completado" : stage.state === "current" ? "En proceso" : "Con observacion"}</em>
+              <em>
+                {isFreshLocalApplication
+                  ? "0%"
+                  : stage.state === "done"
+                    ? "Completado"
+                    : stage.state === "current"
+                      ? "En proceso"
+                      : "Con observacion"}
+              </em>
             </div>
           ))}
         </div>
@@ -1832,8 +2059,18 @@ function MoralApplicantDetailModal({
             <section className="mdc-detail-card">
               <div className="mdc-detail-card__head">
                 <h4>6. Motor de reglas y politicas de credito</h4>
-                <span className={failedRuleRows.length > 0 ? "mdc-badge mdc-badge--bad" : warnedRuleRows.length > 0 ? "mdc-badge mdc-badge--warn" : "mdc-badge mdc-badge--ok"}>
-                  {failedRuleRows.length > 0 ? "Con rechazos" : warnedRuleRows.length > 0 ? "Con revision" : "Aprobable"}
+                <span
+                  className={
+                    isFreshLocalApplication
+                      ? "mdc-badge mdc-badge--neutral"
+                      : failedRuleRows.length > 0
+                        ? "mdc-badge mdc-badge--bad"
+                        : warnedRuleRows.length > 0
+                          ? "mdc-badge mdc-badge--warn"
+                          : "mdc-badge mdc-badge--ok"
+                  }
+                >
+                  {isFreshLocalApplication ? "Pendiente" : failedRuleRows.length > 0 ? "Con rechazos" : warnedRuleRows.length > 0 ? "Con revision" : "Aprobable"}
                 </span>
               </div>
               <div className="mdc-detail-rule-list">
@@ -1843,7 +2080,9 @@ function MoralApplicantDetailModal({
                       <strong>{rule.name}</strong>
                       <p>{rule.description}</p>
                     </div>
-                    <span className={chipToneBySeverity(rule.result)}>{ruleResultLabel[rule.result]}</span>
+                    <span className={isFreshLocalApplication ? "mdc-badge mdc-badge--neutral" : chipToneBySeverity(rule.result)}>
+                      {isFreshLocalApplication ? "Pendiente" : ruleResultLabel[rule.result]}
+                    </span>
                   </article>
                 ))}
               </div>
@@ -2682,6 +2921,7 @@ export function MdcScreen() {
   const [productFilter, setProductFilter] = useState<string | "all">("all");
   const [riskFilter, setRiskFilter] = useState<RiskLevel | "all">("all");
   const [page, setPage] = useState(0);
+  const [traceabilityPage, setTraceabilityPage] = useState(0);
 
   const [ruleQuery, setRuleQuery] = useState("");
   const [showRuleModal, setShowRuleModal] = useState(false);
@@ -2723,6 +2963,7 @@ export function MdcScreen() {
     setSearch("");
     setRuleQuery("");
     setPage(0);
+    setTraceabilityPage(0);
     setRuleProductFilter((activeProducts[0] ?? NATURAL_CREDIT_PRODUCTS[0]) as RuleProduct);
     setRuleModalState(defaultRuleForm(activeProducts));
     setDetailApp(null);
@@ -2907,6 +3148,11 @@ export function MdcScreen() {
     () => (applicantMode === "moral" ? MORAL_TRACEABILITY : (creditStore.state.auditLog as MdcTraceabilityEntry[])),
     [applicantMode, creditStore.state.auditLog],
   );
+  const traceabilityPageCount = Math.max(1, Math.ceil(activeTraceability.length / TRACEABILITY_PAGE_SIZE));
+  const paginatedTraceability = useMemo(() => {
+    const start = traceabilityPage * TRACEABILITY_PAGE_SIZE;
+    return activeTraceability.slice(start, start + TRACEABILITY_PAGE_SIZE);
+  }, [activeTraceability, traceabilityPage]);
   const visibleTabs = useMemo(
     () => TABS.filter((tab) => !tab.moralOnly || applicantMode === "moral"),
     [applicantMode],
@@ -3480,7 +3726,7 @@ export function MdcScreen() {
                       </tr>
                     </thead>
                     <tbody>
-                      {activeTraceability.map((entry) => (
+                      {paginatedTraceability.map((entry) => (
                         <tr key={entry.id}>
                           <td className="mdc-traceability__date">{shortDate(entry.timestamp)}</td>
                           <td>
@@ -3496,6 +3742,29 @@ export function MdcScreen() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+                <div className="mdc-pagination">
+                  <p>
+                    Mostrando {activeTraceability.length === 0 ? 0 : traceabilityPage * TRACEABILITY_PAGE_SIZE + 1} - {Math.min((traceabilityPage + 1) * TRACEABILITY_PAGE_SIZE, activeTraceability.length)} de {activeTraceability.length}
+                  </p>
+                  <div>
+                    <button
+                      type="button"
+                      className="mdc-btn mdc-btn--ghost"
+                      onClick={() => setTraceabilityPage((p) => Math.max(0, p - 1))}
+                      disabled={traceabilityPage === 0}
+                    >
+                      Anterior
+                    </button>
+                    <button
+                      type="button"
+                      className="mdc-btn mdc-btn--ghost"
+                      onClick={() => setTraceabilityPage((p) => Math.min(traceabilityPageCount - 1, p + 1))}
+                      disabled={traceabilityPage >= traceabilityPageCount - 1}
+                    >
+                      Siguiente
+                    </button>
+                  </div>
                 </div>
               </article>
             </section>
