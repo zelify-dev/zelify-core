@@ -12,7 +12,7 @@ import { formatBps } from "@/modules/reporting/services/credit-report-pdf-format
 import "./mdc-reports-tab.css";
 
 type ReportSection = "resumen" | "perfil" | "cumplimiento" | "finanzas" | "decision";
-export type ReportKind = "full" | "kyb" | "mdc";
+export type ReportKind = "full" | "kyb" | "mdc" | "shareholders";
 
 const SECTIONS: { id: ReportSection; label: string }[] = [
   { id: "resumen", label: "Resumen" },
@@ -26,10 +26,12 @@ const SECTIONS_BY_KIND: Record<ReportKind, { id: ReportSection; label: string }[
   full: SECTIONS,
   kyb: [{ id: "cumplimiento", label: "KYB" }],
   mdc: [{ id: "decision", label: "MDC" }],
+  shareholders: [{ id: "perfil", label: "Estructura accionaria" }],
 };
 
 function resolveReportKind(prompt: string): ReportKind {
   const normalized = prompt.trim().toUpperCase();
+  if (normalized.includes("ESTRUCTURA ACCIONARIA")) return "shareholders";
   if (normalized.includes("KYB") || normalized.includes("KBY")) return "kyb";
   if (normalized.includes("MDC")) return "mdc";
   return "full";
@@ -85,7 +87,15 @@ export function MdcReportsTab() {
     await new Promise((r) => setTimeout(r, 1400));
     setReport(resolveMoralCreditReportFromPrompt(prompt));
     setReportKind(nextKind);
-    setSection(nextKind === "kyb" ? "cumplimiento" : nextKind === "mdc" ? "decision" : "resumen");
+    setSection(
+      nextKind === "kyb"
+        ? "cumplimiento"
+        : nextKind === "mdc"
+          ? "decision"
+          : nextKind === "shareholders"
+            ? "perfil"
+            : "resumen",
+    );
     setLoading(false);
   }, [prompt]);
 

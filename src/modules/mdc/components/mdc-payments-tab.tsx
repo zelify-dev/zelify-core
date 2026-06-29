@@ -69,7 +69,7 @@ export const MORAL_SESSIONS: Session[] = [
   { id: "pm_ses_1005", userId: "GRUPO DELTA INDUSTRIAL SA DE CV", applicantId: "APP-PM-100280", status: "CAPTURADO", paymentMethod: "spei", amount: 362000, currency: "MXN", createdAt: "2026-05-05" },
   { id: "pm_ses_1006", userId: "Agroinsumos del Pacifico SA de CV", applicantId: "APP-PM-100279", status: "PENDIENTE", paymentMethod: "spei", amount: 148000, currency: "MXN", createdAt: "2026-05-05" },
   { id: "pm_ses_1007", userId: "Servicios Hospitalarios Reforma SA de CV", applicantId: "APP-PM-100278", status: "CAPTURADO", paymentMethod: "spei", amount: 287000, currency: "MXN", createdAt: "2026-05-06" },
-  { id: "pm_ses_1008", userId: "Manufacturas Orion SA de CV", applicantId: "APP-PM-100277", status: "CAPTURADO", paymentMethod: "spei", amount: 530000, currency: "MXN", createdAt: "2026-05-06" },
+  { id: "pm_ses_1008", userId: "GRUPO DELTA INDUSTRIAL SA DE CV", applicantId: "APP-PM-100277", status: "CAPTURADO", paymentMethod: "spei", amount: 530000, currency: "MXN", createdAt: "2026-05-06" },
   { id: "pm_ses_1009", userId: "Distribuidora Electrica Metropoli SA de CV", applicantId: "APP-PM-100276", status: "FALLIDO", paymentMethod: "spei", amount: 196000, currency: "MXN", createdAt: "2026-05-07", errorCode: "issuer_declined", retryable: true },
 ];
 

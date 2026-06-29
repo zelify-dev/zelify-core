@@ -114,6 +114,8 @@ class MoralReportPdfBuilder {
     this.drawMetaAndToc();
     if (this.reportKind === "kyb") {
       this.drawCompliance();
+    } else if (this.reportKind === "shareholders") {
+      this.drawCompanyProfile();
     } else if (this.reportKind === "mdc") {
       this.drawRulesAndDecision();
     } else {
@@ -425,6 +427,8 @@ class MoralReportPdfBuilder {
     doc.text(
       this.reportKind === "kyb"
         ? "INFORME KYB EMPRESARIAL"
+        : this.reportKind === "shareholders"
+          ? "INFORME DE ESTRUCTURA ACCIONARIA"
         : this.reportKind === "mdc"
           ? "INFORME MDC EMPRESARIAL"
           : "INFORME CREDITICIO EMPRESARIAL",
@@ -437,6 +441,8 @@ class MoralReportPdfBuilder {
     doc.text(
       this.reportKind === "kyb"
         ? "KYB · AML · Buro corporativo"
+        : this.reportKind === "shareholders"
+          ? "Socios · participacion · roles · gobierno corporativo"
         : this.reportKind === "mdc"
           ? "Motor MDC · Reglas · Tasa · Dictamen"
           : "KYB · AML · Buro corporativo · Finanzas · Motor MDC · Dictamen",
@@ -553,6 +559,17 @@ class MoralReportPdfBuilder {
             ["Representante legal", c.legalRep],
             ["RFC", c.rfc],
           ]
+        : this.reportKind === "shareholders"
+          ? [
+              ["Canal", this.report.meta.channel],
+              ["Analista responsable", this.report.meta.analyst],
+              ["Razon social", c.legalName],
+              ["ID empresa", c.id],
+              ["RFC", c.rfc],
+              ["Representante legal", c.legalRep],
+              ["Accionistas", String(c.shareholders)],
+              ["Segmento", c.segment],
+            ]
         : this.reportKind === "mdc"
           ? [
               ["Canal", this.report.meta.channel],

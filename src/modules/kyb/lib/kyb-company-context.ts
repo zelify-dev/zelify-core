@@ -53,7 +53,7 @@ const ACTIVE_KYB_COMPANY_KEY = "zelify:kyb:active-company";
 const KYB_COMPANY_REGISTRY_KEY = "zelify:kyb:company-registry";
 
 const COMPANY_PROFILES: Record<string, KybCompanyProfile> = {
-  "Manufacturas Orion SA de CV": {
+  "GRUPO DELTA INDUSTRIAL SA DE CV": {
     rfc: "MOR220518KJ4",
     website: "https://www.orionmanufactura.mx",
     phone: "+52 81 8624 1180",

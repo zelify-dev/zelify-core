@@ -115,7 +115,7 @@ export const PM_MDC_CLIENTS: MdcClientPoolItem[] = [
   },
   {
     id: "PM-CU-500208",
-    name: "Manufacturas Orion SA de CV",
+    name: "GRUPO DELTA INDUSTRIAL SA DE CV",
     email: "planeacion@orionmanufactura.mx",
     amount: 11_100_000,
     creditScore: 752,

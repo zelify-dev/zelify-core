@@ -1,7 +1,7 @@
 import type { AmlMember } from "@/modules/kyb/lib/aml-screening";
 
 export const demoPrefillAnswers: Record<string, string> = {
-  "1.1.1": "Manufacturas Orion SA de CV",
+  "1.1.1": "GRUPO DELTA INDUSTRIAL SA DE CV",
   "1.1.2": "Lic. Verónica Elena Cárdenas Ruiz",
   "1.1.3": "214",
   "1.1.4": "41,982",
@@ -146,7 +146,7 @@ export const demoKycMembers = [
 
 export const demoSatFiscalData = {
   rfc: "MOR220518KJ4",
-  legalName: "Manufacturas Orion SA de CV",
+  legalName: "GRUPO DELTA INDUSTRIAL SA DE CV",
   regime: "Régimen General de Ley Personas Morales (601)",
   status: "Activo",
   registrationDate: "2022-05-18",

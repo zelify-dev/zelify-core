@@ -125,7 +125,7 @@ const MORAL_TRACEABILITY: MdcTraceabilityEntry[] = [
     id: "pm-trace-001",
     timestamp: "2026-06-26T16:48:22Z",
     action: "PM_KYB_UPDATE",
-    details: "KYB corporativo actualizado para Manufacturas Orion SA de CV · RFC validado y acta constitutiva conciliada",
+    details: "KYB corporativo actualizado para GRUPO DELTA INDUSTRIAL SA DE CV · RFC validado y acta constitutiva conciliada",
     channel: "Mesa corporativa",
     user: "Analista KYB",
     correlationId: "corr-pm-1782449822011",

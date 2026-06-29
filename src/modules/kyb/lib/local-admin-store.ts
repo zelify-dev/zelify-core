@@ -18,7 +18,7 @@ const LOCAL_USERS_KEY = "zelify_local_admin_users";
 export const demoOrganizations: LocalOrganization[] = [
   {
     id: "org-manufacturas-orion-demo",
-    legalName: "Manufacturas Orion SA de CV",
+    legalName: "GRUPO DELTA INDUSTRIAL SA DE CV",
     rfc: "MOR220518KJ4",
     status: "under_review",
   },
