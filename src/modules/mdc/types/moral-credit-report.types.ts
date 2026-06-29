@@ -267,6 +267,7 @@ export interface MoralCreditReportPayload {
   paymentHistory: PaymentHistoryRef[];
   monitoringPlan: string[];
   executiveSummary: string[];
+  integratedAnalysis: string[];
   riskFactors: string[];
   strengths: string[];
 }

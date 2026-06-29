@@ -11,10 +11,8 @@ import type { MoralCreditReportPayload, MoralCreditReportRuleRow } from "@/modul
 import { formatBps } from "@/modules/reporting/services/credit-report-pdf-format";
 import "./mdc-reports-tab.css";
 
-const DEFAULT_PROMPT =
-  "Generar informe crediticio empresarial de GRUPO DELTA INDUSTRIAL SA DE CV con analisis KYB, AML, buro corporativo, razones financieras y reglas del motor MDC";
-
 type ReportSection = "resumen" | "perfil" | "cumplimiento" | "finanzas" | "decision";
+export type ReportKind = "full" | "kyb" | "mdc";
 
 const SECTIONS: { id: ReportSection; label: string }[] = [
   { id: "resumen", label: "Resumen" },
@@ -23,6 +21,19 @@ const SECTIONS: { id: ReportSection; label: string }[] = [
   { id: "finanzas", label: "Finanzas" },
   { id: "decision", label: "Decision" },
 ];
+
+const SECTIONS_BY_KIND: Record<ReportKind, { id: ReportSection; label: string }[]> = {
+  full: SECTIONS,
+  kyb: [{ id: "cumplimiento", label: "KYB" }],
+  mdc: [{ id: "decision", label: "MDC" }],
+};
+
+function resolveReportKind(prompt: string): ReportKind {
+  const normalized = prompt.trim().toUpperCase();
+  if (normalized.includes("KYB") || normalized.includes("KBY")) return "kyb";
+  if (normalized.includes("MDC")) return "mdc";
+  return "full";
+}
 
 function verdictTone(v: MoralCreditReportRuleRow["verdict"]): "success" | "warning" | "danger" {
   if (v === "CUMPLE") return "success";
@@ -62,22 +73,25 @@ function Block({ title, badge, children }: { title: string; badge?: React.ReactN
 }
 
 export function MdcReportsTab() {
-  const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
+  const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<MoralCreditReportPayload | null>(null);
+  const [reportKind, setReportKind] = useState<ReportKind>("full");
   const [section, setSection] = useState<ReportSection>("resumen");
 
   const generate = useCallback(async () => {
+    const nextKind = resolveReportKind(prompt);
     setLoading(true);
     await new Promise((r) => setTimeout(r, 1400));
     setReport(resolveMoralCreditReportFromPrompt(prompt));
-    setSection("resumen");
+    setReportKind(nextKind);
+    setSection(nextKind === "kyb" ? "cumplimiento" : nextKind === "mdc" ? "decision" : "resumen");
     setLoading(false);
   }, [prompt]);
 
   const exportPdf = () => {
     if (!report) return;
-    exportMoralCreditReportPdf(report);
+    exportMoralCreditReportPdf(report, reportKind);
   };
 
   const c = report?.company;
@@ -92,6 +106,8 @@ export function MdcReportsTab() {
     };
   }, [report]);
   const totalRateBps = report?.rateCascade.reduce((sum, step) => sum + (step.deltaBps ?? 0), 0) ?? 0;
+  const visibleSections = SECTIONS_BY_KIND[reportKind];
+  const showAllSections = reportKind === "full";
 
   return (
     <section className="mdc-reports">
@@ -115,7 +131,7 @@ export function MdcReportsTab() {
           id="mdc-rpt-prompt"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Describe el informe empresarial que necesitas..."
+          placeholder="¿Que informe quieres generar?"
         />
         <div className="mdc-reports__prompt-actions">
           <AppButton tone="primary" onClick={() => void generate()} disabled={loading}>
@@ -130,7 +146,7 @@ export function MdcReportsTab() {
       {loading && (
         <div className="mdc-reports__loading">
           <div className="mdc-reports__spinner" />
-          <p>Consultando buro · validando KYB · ejecutando motor MDC…</p>
+          <p>Generando informe…</p>
         </div>
       )}
 
@@ -162,21 +178,23 @@ export function MdcReportsTab() {
           </header>
 
           {/* Navegacion por secciones */}
-          <nav className="mdc-rpt-doc__nav" aria-label="Secciones del informe">
-            {SECTIONS.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                className={`mdc-rpt-doc__nav-btn${section === s.id ? " mdc-rpt-doc__nav-btn--active" : ""}`}
-                onClick={() => setSection(s.id)}
-              >
-                {s.label}
-              </button>
-            ))}
-          </nav>
+          {!showAllSections && (
+            <nav className="mdc-rpt-doc__nav" aria-label="Secciones del informe">
+              {visibleSections.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={`mdc-rpt-doc__nav-btn${section === s.id ? " mdc-rpt-doc__nav-btn--active" : ""}`}
+                  onClick={() => setSection(s.id)}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </nav>
+          )}
 
           <div className="mdc-rpt-doc__body">
-            {section === "resumen" && (
+            {(showAllSections || section === "resumen") && (
               <div className="mdc-rpt-layout">
                 <Block title="Resumen ejecutivo">
                   <ol className="mdc-rpt-list mdc-rpt-list--numbered">
@@ -185,6 +203,15 @@ export function MdcReportsTab() {
                     ))}
                   </ol>
                 </Block>
+                {reportKind === "full" && (
+                  <Block title="Lectura consolidada KYB + MDC">
+                    <ol className="mdc-rpt-list mdc-rpt-list--numbered">
+                      {report.integratedAnalysis.map((line) => (
+                        <li key={line}>{line}</li>
+                      ))}
+                    </ol>
+                  </Block>
+                )}
                 <div className="mdc-rpt-cols">
                   <Block title="Fortalezas">
                     <ul className="mdc-rpt-list mdc-rpt-list--ok">
@@ -215,7 +242,7 @@ export function MdcReportsTab() {
               </div>
             )}
 
-            {section === "perfil" && (
+            {(showAllSections || section === "perfil") && (
               <div className="mdc-rpt-layout">
                 <Block title="Expediente y operacion" badge={<AppBadge tone="neutral">{report.application.statusLabel}</AppBadge>}>
                   <div className="mdc-rpt-kv">
@@ -273,7 +300,7 @@ export function MdcReportsTab() {
               </div>
             )}
 
-            {section === "cumplimiento" && (
+            {(showAllSections || section === "cumplimiento") && (
               <div className="mdc-rpt-layout">
                 <div className="mdc-rpt-cols">
                   <Block title="KYB" badge={<AppBadge tone="warning">{pct(c.kybCompleteness)}</AppBadge>}>
@@ -345,7 +372,7 @@ export function MdcReportsTab() {
               </div>
             )}
 
-            {section === "finanzas" && (
+            {(showAllSections || section === "finanzas") && (
               <div className="mdc-rpt-layout">
                 <div className="mdc-rpt-kpi-grid">
                   <Metric label="Facturacion / mes" value={formatMxnCompact(f.monthlyRevenue)} />
@@ -473,7 +500,7 @@ export function MdcReportsTab() {
               </div>
             )}
 
-            {section === "decision" && (
+            {(showAllSections || section === "decision") && (
               <div className="mdc-rpt-layout">
                 <Block
                   title="Motor MDC · Reglas"

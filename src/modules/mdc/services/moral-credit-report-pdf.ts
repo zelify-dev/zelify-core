@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import type { MoralCreditReportPayload } from "@/modules/mdc/types/moral-credit-report.types";
+import type { ReportKind } from "@/modules/mdc/components/mdc-reports-tab";
 import { formatPctMx } from "@/modules/scotia/utils/format-mxn";
 import {
   explainCat,
@@ -101,18 +102,27 @@ class MoralReportPdfBuilder {
   private tocPage = 0;
   private anchors: { title: string; page: number }[] = [];
 
-  constructor(private report: MoralCreditReportPayload) {
+  constructor(
+    private report: MoralCreditReportPayload,
+    private reportKind: ReportKind = "full",
+  ) {
     this.doc = new jsPDF({ unit: "mm", format: "a4" });
   }
 
   build() {
     this.drawCover();
     this.drawMetaAndToc();
-    this.drawExecutiveSummary();
-    this.drawCompanyProfile();
-    this.drawCompliance();
-    this.drawFinancials();
-    this.drawRulesAndDecision();
+    if (this.reportKind === "kyb") {
+      this.drawCompliance();
+    } else if (this.reportKind === "mdc") {
+      this.drawRulesAndDecision();
+    } else {
+      this.drawExecutiveSummary();
+      this.drawCompanyProfile();
+      this.drawCompliance();
+      this.drawFinancials();
+      this.drawRulesAndDecision();
+    }
     this.finalizeToc();
 
     const slug = this.report.company.legalName.replace(/\s+/g, "-").toLowerCase();
@@ -412,11 +422,27 @@ class MoralReportPdfBuilder {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(FS.coverTitle - 2);
     rgb(doc, C.brand);
-    doc.text("INFORME CREDITICIO EMPRESARIAL", MARGIN + 6, 47);
+    doc.text(
+      this.reportKind === "kyb"
+        ? "INFORME KYB EMPRESARIAL"
+        : this.reportKind === "mdc"
+          ? "INFORME MDC EMPRESARIAL"
+          : "INFORME CREDITICIO EMPRESARIAL",
+      MARGIN + 6,
+      47,
+    );
     doc.setFont("helvetica", "normal");
     doc.setFontSize(FS.coverSub);
     rgb(doc, C.muted);
-    doc.text("KYB · AML · Buro corporativo · Finanzas · Motor MDC · Dictamen", MARGIN + 6, 56);
+    doc.text(
+      this.reportKind === "kyb"
+        ? "KYB · AML · Buro corporativo"
+        : this.reportKind === "mdc"
+          ? "Motor MDC · Reglas · Tasa · Dictamen"
+          : "KYB · AML · Buro corporativo · Finanzas · Motor MDC · Dictamen",
+      MARGIN + 6,
+      56,
+    );
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(FS.coverName);
@@ -515,16 +541,40 @@ class MoralReportPdfBuilder {
     const c = this.report.company;
     const app = this.report.application;
     this.sectionTitle("Datos del expediente", "Trazabilidad y canal de originacion");
-    this.twoColGrid([
-      ["Canal", this.report.meta.channel],
-      ["Analista responsable", this.report.meta.analyst],
-      ["Consulta originadora", this.report.promptUsed.slice(0, 120) + (this.report.promptUsed.length > 120 ? "..." : "")],
-      ["ID empresa", c.id],
-      ["Clasificacion AML", `${c.amlStatus} · Riesgo ${c.amlRiskLevel}`],
-      ["Estatus KYB", `${c.kybStatus} (${(c.kybCompleteness * 100).toFixed(0)}%)`],
-      ["Estado solicitud", app.statusLabel],
-      ["Riesgo MDC", `${app.riskLevel} (${app.riskScore})`],
-    ]);
+    this.twoColGrid(
+      this.reportKind === "kyb"
+        ? [
+            ["Canal", this.report.meta.channel],
+            ["Analista responsable", this.report.meta.analyst],
+            ["ID empresa", c.id],
+            ["Razon social", c.legalName],
+            ["Clasificacion AML", `${c.amlStatus} · Riesgo ${c.amlRiskLevel}`],
+            ["Estatus KYB", `${c.kybStatus} (${(c.kybCompleteness * 100).toFixed(0)}%)`],
+            ["Representante legal", c.legalRep],
+            ["RFC", c.rfc],
+          ]
+        : this.reportKind === "mdc"
+          ? [
+              ["Canal", this.report.meta.channel],
+              ["Analista responsable", this.report.meta.analyst],
+              ["Consulta originadora", this.report.promptUsed.slice(0, 120) + (this.report.promptUsed.length > 120 ? "..." : "")],
+              ["Solicitud MDC", app.appNo],
+              ["Producto", c.productName],
+              ["Monto solicitado", mxn(c.requestedAmount)],
+              ["Estado solicitud", app.statusLabel],
+              ["Riesgo MDC", `${app.riskLevel} (${app.riskScore})`],
+            ]
+          : [
+              ["Canal", this.report.meta.channel],
+              ["Analista responsable", this.report.meta.analyst],
+              ["Consulta originadora", this.report.promptUsed.slice(0, 120) + (this.report.promptUsed.length > 120 ? "..." : "")],
+              ["ID empresa", c.id],
+              ["Clasificacion AML", `${c.amlStatus} · Riesgo ${c.amlRiskLevel}`],
+              ["Estatus KYB", `${c.kybStatus} (${(c.kybCompleteness * 100).toFixed(0)}%)`],
+              ["Estado solicitud", app.statusLabel],
+              ["Riesgo MDC", `${app.riskLevel} (${app.riskScore})`],
+            ],
+    );
   }
 
   private drawExecutiveSummary() {
@@ -536,6 +586,11 @@ class MoralReportPdfBuilder {
 
     this.sectionTitle("Resumen ejecutivo", "Lo mas importante en pocas lineas");
     this.bulletList(this.report.executiveSummary);
+
+    if (this.reportKind === "full") {
+      this.sectionTitle("Lectura consolidada KYB + MDC", "Vista integral del expediente empresarial");
+      this.bulletList(this.report.integratedAnalysis);
+    }
 
     this.sectionTitle("Numeros principales (pesos mexicanos)");
     this.kpiRow([
@@ -870,6 +925,6 @@ class MoralReportPdfBuilder {
   }
 }
 
-export function exportMoralCreditReportPdf(report: MoralCreditReportPayload): void {
-  new MoralReportPdfBuilder(report).build();
+export function exportMoralCreditReportPdf(report: MoralCreditReportPayload, reportKind: ReportKind = "full"): void {
+  new MoralReportPdfBuilder(report, reportKind).build();
 }

@@ -229,7 +229,7 @@ const COMPANY_PROFILES: Record<string, KybCompanyProfile> = {
       "https://erp.bajionorte.mx/api/sales, https://hooks.bajionorte.mx/collections",
     credentialFootprint: "sk_dev_cbn_901, pk_dev_cbn_551",
   },
-  "Logistica Maya Integral SA de CV": {
+  "GRUPO DELTA INDUSTRIAL SA DE CV": {
     rfc: "LMI130906CV9",
     website: "https://www.logisticamaya.mx",
     phone: "+52 999 942 7110",

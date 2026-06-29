@@ -91,7 +91,7 @@ export const PM_MDC_CLIENTS: MdcClientPoolItem[] = [
   },
   {
     id: "PM-CU-500205",
-    name: "Logistica Maya Integral SA de CV",
+    name: "GRUPO DELTA INDUSTRIAL SA DE CV",
     email: "control@logisticamaya.mx",
     amount: 9_400_000,
     creditScore: 721,
@@ -306,7 +306,7 @@ const recentMoralApplicationsSeed: Application[] = [
   {
     id: "pm-uuid-005",
     appNo: "APP-PM-100280",
-    applicantName: "Logistica Maya Integral SA de CV",
+    applicantName: "GRUPO DELTA INDUSTRIAL SA DE CV",
     applicantEmail: "control@logisticamaya.mx",
     product: "Credito simple empresarial",
     requestedAmount: 6_900_000,

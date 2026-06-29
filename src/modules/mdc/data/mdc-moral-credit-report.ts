@@ -467,6 +467,13 @@ export function buildGrupoDeltaMoralCreditReport(prompt: string): MoralCreditRep
       `Tasa final propuesta 17.8% anual (CAT 21.8%) tras bonificaciones por paquete transaccional y nómina. Cuota mensual estimada $${payment.toLocaleString("es-MX")} MXN.`,
       `Dictamen preliminar: REVISIÓN MANUAL con aprobación condicionada sujeta a 6 condiciones precedentes.`,
     ],
+    integratedAnalysis: [
+      `Frente KYB: la empresa existe legalmente, su RFC y situación fiscal están conciliados, la estructura societaria está identificada y el expediente documental supera el ${(fp.kybCompleteness * 100).toFixed(0)}% de completitud. El único punto abierto relevante es la opinión 32-D, que sigue en proceso y debe quedar positiva antes del desembolso.`,
+      `Frente de cumplimiento y AML: no hay coincidencias materiales en OFAC, ONU, UIF, CNBV ni PEP. Solo aparece una alerta de prensa adversa de riesgo medio, clasificada como no bloqueante después de revisión documental y contexto legal.`,
+      `Frente de riesgo crediticio: el buró corporativo marca ${fp.bureauScore} y los socios / aval ${fp.shareholderScore}. No hay deterioro severo, pero sí señales de presión por apalancamiento ${fp.leverageRatio.toFixed(2)}x, utilización elevada en líneas vigentes y una tendencia descendente en score que saca el caso de aprobación limpia.`,
+      `Frente financiero: la empresa sí demuestra operación real, ingresos verificables y flujo suficiente para sostener la obligación, pero el DSCR proyectado de ${fp.dscr.toFixed(2)}x y la relación monto / ventas de ${fp.requestedAmountToRevenue.toFixed(2)}x dejan el caso en banda de comité, no en aprobación automática.`,
+      `Lectura consolidada MDC: el expediente no se cae por fraude, inexistencia legal o incumplimiento fiscal confirmado; se va a revisión porque mezcla fortaleza operativa con presión financiera moderada. Por eso el dictamen correcto es aprobación condicionada, sujeto a cierre de KYB, validación fiscal final y mitigantes de estructura.`,
+    ],
     riskFactors: [
       `Apalancamiento neto/EBITDA de ${fp.leverageRatio.toFixed(2)}x excede banda de aprobación automática (2.50x).`,
       `Score buró ${fp.bureauScore} por debajo del umbral de política (650) con tendencia negativa (-58 pts en 12 meses).`,
