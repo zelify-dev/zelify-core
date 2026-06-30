@@ -15,7 +15,7 @@ export function LimPricingAuditPanel({ store }: { store: Store }) {
       <section className="scotia-card">
         <table className="lim-tbl lim-tbl--list scotia-table-compact">
           <thead>
-            <tr>{["Fecha", "Acción", "Cliente", "Detalle", "TIIE", "Factor", "Tasa antes", "Tasa después"].map((h) => <th key={h}>{h}</th>)}</tr>
+            <tr>{["Fecha", "Acción", "Cliente", "Detalle", "TIIE", "Factor", "Item antes", "Item después"].map((h) => <th key={h}>{h}</th>)}</tr>
           </thead>
           <tbody>
             {state.auditLog.map((entry) => (
