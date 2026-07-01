@@ -743,7 +743,7 @@ export function LimScreen() {
   const TABS: { id: MainTab; label: string; badge?: string }[] = [
     { id: "dashboard", label: "LCC Dashboard" },
     { id: "cashflow", label: "Cashflow" },
-    { id: "expected", label: "Flujo Esperado", badge: "4" },
+    { id: "expected", label: "Flujo Esperado" },
     { id: "financing", label: "Financiamiento" },
   ];
 

@@ -228,7 +228,7 @@ function baseLoan(id: string, customerId: string, customerName: string, amount: 
   };
 }
 
-const LOAN_BASELINE: LoanRowSeed[] = [
+export const LOAN_BASELINE: LoanRowSeed[] = [
   baseLoan("LN-2026-0001", "CU-100001", "Andrea Molina", 120000, "PENDING_APPROVAL", null, 22.5),
   baseLoan("LN-2026-0002", "CU-894293", "José Arevalo", 200000, "PARTIAL_APPLICATION", "CAJA", 21.9),
   baseLoan("LN-2026-0003", "CU-552210", "Vicente Narvaez", 200000, "PENDING_APPROVAL", "CAJA", 23.4),
@@ -239,9 +239,9 @@ const LOAN_BASELINE: LoanRowSeed[] = [
   baseLoan("LN-2026-0008", "CU-104110", "Luis Alberto García", 150000, "LOCKED", "TRANSFERENCIA", 21.2),
 ];
 
-const SCHEDULE_BASELINE = LOAN_BASELINE.flatMap((loan) => buildSchedule(loan, 12));
-const TRANSACTION_BASELINE = LOAN_BASELINE.flatMap((loan) => buildTransactions(loan));
-const TRANCHE_BASELINE = LOAN_BASELINE.flatMap((loan) => buildTranches(loan));
+export const SCHEDULE_BASELINE = LOAN_BASELINE.flatMap((loan) => buildSchedule(loan, 12));
+export const TRANSACTION_BASELINE = LOAN_BASELINE.flatMap((loan) => buildTransactions(loan));
+export const TRANCHE_BASELINE = LOAN_BASELINE.flatMap((loan) => buildTranches(loan));
 
 export async function ensureLoanDemoDataset(supabase: SupabaseClient) {
   const { data: products, error: productErr } = await supabase

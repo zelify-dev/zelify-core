@@ -1,39 +1,78 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient, isSupabaseConfigured } from "@/lib/supabase/server";
 import { logSystemActivity } from "@/lib/activity-log";
+import { DEPOSIT_ACCOUNTS_MOCK } from "@/modules/deposits/data/deposit-accounts.mock";
 
-export async function GET() {
-  if (!isSupabaseConfigured()) return NextResponse.json({ error: "Supabase no configurado." }, { status: 503 });
-  const supabase = getSupabaseServerClient();
-  const { data, error } = await supabase.from("deposit_accounts").select("*").order("created_at", { ascending: false });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+function getDepositsFallback() {
   return NextResponse.json({
-    data: (data ?? []).map((x) => ({
+    data: DEPOSIT_ACCOUNTS_MOCK.map((x, index) => ({
       id: x.id,
-      productTypeId: x.product_type_id,
-      productCode: x.product_code,
-      productName: x.product_name,
-      holderKind: x.holder_kind,
-      holderId: x.holder_id,
-      holderName: x.holder_name,
+      productTypeId: `deposit-type-${x.productKey}`,
+      productCode: x.productKey.toUpperCase(),
+      productName: x.productKey.replace(/_/g, " "),
+      holderKind: x.holder.type === "GROUP" ? "COMPANY" : "INDIVIDUAL",
+      holderId: `holder-${index + 1}`,
+      holderName: x.holder.name,
       state: x.state,
-      balance: x.balance,
-      availableBalance: x.available_balance,
-      overdraftLimit: x.overdraft_limit,
-      isDormant: x.is_dormant,
-      dormantAfterDays: x.dormant_after_days,
-      allowInterestAccrual: x.allow_interest_accrual,
-      interestBaseMethod: x.interest_base_method,
-      daysConvention: x.days_convention,
-      rateMode: x.rate_mode,
-      nominalRate: x.nominal_rate,
-      withholdingTaxPct: x.withholding_tax_pct,
-      overdraftInterestRate: x.overdraft_interest_rate,
-      minTxAmount: x.min_tx_amount,
-      maxWithdrawalAmount: x.max_withdrawal_amount,
-      recommendedDepositAmount: x.recommended_deposit_amount,
+      balance: x.balances.total,
+      availableBalance: x.balances.available,
+      overdraftLimit: 0,
+      isDormant: x.state === "DORMANT",
+      dormantAfterDays: 90,
+      allowInterestAccrual: true,
+      interestBaseMethod: "DAILY_BALANCE",
+      daysConvention: "360",
+      rateMode: "FIXED",
+      nominalRate: Number(x.interestRate.replace("%", "")),
+      withholdingTaxPct: 0,
+      overdraftInterestRate: 0,
+      minTxAmount: 0,
+      maxWithdrawalAmount: 0,
+      recommendedDepositAmount: null,
     })),
   });
+}
+
+export async function GET() {
+  if (!isSupabaseConfigured()) return getDepositsFallback();
+  try {
+    const supabase = getSupabaseServerClient();
+    const { data, error } = await supabase.from("deposit_accounts").select("*").order("created_at", { ascending: false });
+    if (error) {
+      console.error("Deposits fallback activated:", error);
+      return getDepositsFallback();
+    }
+    return NextResponse.json({
+      data: (data ?? []).map((x) => ({
+        id: x.id,
+        productTypeId: x.product_type_id,
+        productCode: x.product_code,
+        productName: x.product_name,
+        holderKind: x.holder_kind,
+        holderId: x.holder_id,
+        holderName: x.holder_name,
+        state: x.state,
+        balance: x.balance,
+        availableBalance: x.available_balance,
+        overdraftLimit: x.overdraft_limit,
+        isDormant: x.is_dormant,
+        dormantAfterDays: x.dormant_after_days,
+        allowInterestAccrual: x.allow_interest_accrual,
+        interestBaseMethod: x.interest_base_method,
+        daysConvention: x.days_convention,
+        rateMode: x.rate_mode,
+        nominalRate: x.nominal_rate,
+        withholdingTaxPct: x.withholding_tax_pct,
+        overdraftInterestRate: x.overdraft_interest_rate,
+        minTxAmount: x.min_tx_amount,
+        maxWithdrawalAmount: x.max_withdrawal_amount,
+        recommendedDepositAmount: x.recommended_deposit_amount,
+      })),
+    });
+  } catch (error) {
+    console.error("Deposits fallback activated by exception:", error);
+    return getDepositsFallback();
+  }
 }
 
 export async function POST(request: Request) {

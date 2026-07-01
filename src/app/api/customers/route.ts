@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { AmlStatus, ClientState, Customer, DocumentType, KycStatus } from "@/modules/customers/types/customer.types";
 import { getSupabaseServerClient, isSupabaseConfigured } from "@/lib/supabase/server";
 import { logSystemActivity } from "@/lib/activity-log";
+import { getLoanMockState } from "@/app/api/loans/_mock-store";
 
 type CustomerRow = {
   id: string;
@@ -65,20 +66,25 @@ function mapCustomerToInsert(customer: Customer): Omit<CustomerRow, "last_modifi
 
 export async function GET() {
   if (!isSupabaseConfigured()) {
-    return NextResponse.json({ error: "Supabase no está configurado para clientes." }, { status: 503 });
+    return NextResponse.json({ data: getLoanMockState().customers });
   }
+  try {
+    const supabase = getSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("customers")
+      .select("id, full_name, email, mobile_phone, document_type, document_number, state, status_reason, status_changed_at, address, birth_date, kyc_status, kyc_verified_at, aml_status, last_modified, created_at")
+      .order("last_modified", { ascending: false });
 
-  const supabase = getSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("customers")
-    .select("id, full_name, email, mobile_phone, document_type, document_number, state, status_reason, status_changed_at, address, birth_date, kyc_status, kyc_verified_at, aml_status, last_modified, created_at")
-    .order("last_modified", { ascending: false });
+    if (error) {
+      console.error("Customers fallback activated:", error);
+      return NextResponse.json({ data: getLoanMockState().customers });
+    }
 
-  if (error) {
-    return NextResponse.json({ error: "Error consultando clientes", details: error.message }, { status: 500 });
+    return NextResponse.json({ data: (data ?? []).map((row) => mapRowToCustomer(row as CustomerRow)) });
+  } catch (error) {
+    console.error("Customers fallback activated by exception:", error);
+    return NextResponse.json({ data: getLoanMockState().customers });
   }
-
-  return NextResponse.json({ data: (data ?? []).map((row) => mapRowToCustomer(row as CustomerRow)) });
 }
 
 export async function POST(request: Request) {

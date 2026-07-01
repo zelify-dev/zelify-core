@@ -70,13 +70,7 @@ export function FinancialCurrencyScreen() {
 
       <div className="zelify-financial-currency__footer-actions">
         <AppButton tone="primary" type="button">
-          Add Fiat Currency
-        </AppButton>
-        <AppButton tone="primary" type="button">
-          Add Cryptocurrency
-        </AppButton>
-        <AppButton tone="primary" type="button">
-          Add Non-Traditional Currency
+          Add Currency
         </AppButton>
       </div>
 
@@ -271,4 +265,3 @@ function formatExchangeRate(n: number): string {
   }
   return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
 }
-

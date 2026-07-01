@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient, isSupabaseConfigured } from "@/lib/supabase/server";
+import { getLoanMockState, updateMockProductType } from "@/app/api/loans/_mock-store";
 
 export type ProductTypeDefinitionRow = {
   id: string;
@@ -20,10 +21,8 @@ export async function GET(request: Request) {
   const kind = searchParams.get("kind") as "LOAN" | "DEPOSIT" | null;
 
   if (!isSupabaseConfigured()) {
-    return NextResponse.json(
-      { error: "Supabase no está configurado para consultar tipos de producto." },
-      { status: 503 }
-    );
+    const data = getLoanMockState().productTypes.filter((row) => !kind || row.kind === kind);
+    return NextResponse.json({ data });
   }
 
   const supabase = getSupabaseServerClient();
@@ -37,10 +36,9 @@ export async function GET(request: Request) {
   const { data, error } = await query;
 
   if (error) {
-    return NextResponse.json(
-      { error: "Error consultando product_type_definitions", details: error.message },
-      { status: 500 }
-    );
+    console.error("Product type definitions fallback activated:", error);
+    const fallback = getLoanMockState().productTypes.filter((row) => !kind || row.kind === kind);
+    return NextResponse.json({ data: fallback });
   }
 
   return NextResponse.json({ data: data ?? [] });
@@ -54,10 +52,9 @@ export async function PATCH(request: Request) {
   }
 
   if (!isSupabaseConfigured()) {
-    return NextResponse.json(
-      { error: "Supabase no está configurado para actualizar tipos de producto." },
-      { status: 503 }
-    );
+    const data = updateMockProductType(body.id, { is_active: body.is_active, updated_at: new Date().toISOString().slice(0, 10) });
+    if (!data) return NextResponse.json({ error: "Tipo de producto no encontrado." }, { status: 404 });
+    return NextResponse.json({ data });
   }
 
   const supabase = getSupabaseServerClient();
@@ -69,7 +66,10 @@ export async function PATCH(request: Request) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: "Error al actualizar el tipo de producto", details: error.message }, { status: 500 });
+    console.error("Product type patch fallback activated:", error);
+    const fallback = updateMockProductType(body.id, { is_active: body.is_active, updated_at: new Date().toISOString().slice(0, 10) });
+    if (!fallback) return NextResponse.json({ error: "Tipo de producto no encontrado." }, { status: 404 });
+    return NextResponse.json({ data: fallback });
   }
 
   return NextResponse.json({ data });

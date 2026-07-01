@@ -4,6 +4,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 const supabaseUrl = "https://djrtxzowyxprawntzuol.supabase.co";
 const publishableKey = "sb_publishable_x1pYHmYAw_PJRpVpegwCCw_L-HutejB";
 const serviceRoleKey = "sb_secret_vqKqAxRvRQWAiSQ_dzEN4w_rJ9GcLes";
+let supabaseRuntimeUnavailable = false;
 
 /** Si es "true", no se usa Supabase en rutas API aunque existan variables de entorno (útil en local). */
 export function isSupabaseDisabledByEnv(): boolean {
@@ -12,6 +13,7 @@ export function isSupabaseDisabledByEnv(): boolean {
 
 export function isSupabaseConfigured(): boolean {
   if (isSupabaseDisabledByEnv()) return false;
+  if (supabaseRuntimeUnavailable) return false;
   return Boolean(supabaseUrl && serviceRoleKey);
 }
 
@@ -24,7 +26,7 @@ export function getSupabasePublishableKey(): string {
 }
 
 function fetchWithTimeout(): typeof fetch {
-  const timeoutMs = Number(process.env.SUPABASE_FETCH_TIMEOUT_MS ?? "8000");
+  const timeoutMs = Number(process.env.SUPABASE_FETCH_TIMEOUT_MS ?? "1500");
   return (input, init) => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -33,7 +35,12 @@ function fetchWithTimeout(): typeof fetch {
       const onAbort = () => controller.abort();
       upstream.addEventListener("abort", onAbort, { once: true });
     }
-    return fetch(input, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
+    return fetch(input, { ...init, signal: controller.signal })
+      .catch((error) => {
+        supabaseRuntimeUnavailable = true;
+        throw error;
+      })
+      .finally(() => clearTimeout(timer));
   };
 }
 

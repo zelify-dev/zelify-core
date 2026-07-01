@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { Group, GroupState } from "@/modules/groups/types/group.types";
 import { getSupabaseServerClient, isSupabaseConfigured } from "@/lib/supabase/server";
 import { logSystemActivity } from "@/lib/activity-log";
+import { getLoanMockState } from "@/app/api/loans/_mock-store";
 
 type GroupRow = {
   id: string;
@@ -66,30 +67,34 @@ function groupToRowPayload(group: Group): GroupRow {
 
 export async function GET() {
   if (!isSupabaseConfigured()) {
-    return NextResponse.json({ error: "Supabase no está configurado para empresas." }, { status: 503 });
+    return NextResponse.json({ data: getLoanMockState().groups });
   }
+  try {
+    const supabase = getSupabaseServerClient();
+    const [groupsResult, membersResult] = await Promise.all([
+      supabase.from("companies").select("*").order("last_modified", { ascending: false }),
+      supabase.from("company_members").select("company_id, customer_id, customer_name, role_name, kyc_status, aml_status"),
+    ]);
 
-  const supabase = getSupabaseServerClient();
-  const [groupsResult, membersResult] = await Promise.all([
-    supabase.from("companies").select("*").order("last_modified", { ascending: false }),
-    supabase.from("company_members").select("company_id, customer_id, customer_name, role_name, kyc_status, aml_status"),
-  ]);
+    if (groupsResult.error || membersResult.error) {
+      console.error("Groups fallback activated:", groupsResult.error || membersResult.error);
+      return NextResponse.json({ data: getLoanMockState().groups });
+    }
 
-  if (groupsResult.error || membersResult.error) {
-    const message = groupsResult.error?.message || membersResult.error?.message;
-    return NextResponse.json({ error: "Error consultando empresas", details: message }, { status: 500 });
+    const groups = (groupsResult.data ?? []) as GroupRow[];
+    const members = (membersResult.data ?? []) as GroupMemberRow[];
+    const mapped = groups.map((group) =>
+      mapGroupRowToGroup(
+        group,
+        members.filter((m) => m.company_id === group.id),
+      )
+    );
+
+    return NextResponse.json({ data: mapped });
+  } catch (error) {
+    console.error("Groups fallback activated by exception:", error);
+    return NextResponse.json({ data: getLoanMockState().groups });
   }
-
-  const groups = (groupsResult.data ?? []) as GroupRow[];
-  const members = (membersResult.data ?? []) as GroupMemberRow[];
-  const mapped = groups.map((group) =>
-    mapGroupRowToGroup(
-      group,
-      members.filter((m) => m.company_id === group.id),
-    )
-  );
-
-  return NextResponse.json({ data: mapped });
 }
 
 export async function POST(request: Request) {

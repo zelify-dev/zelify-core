@@ -35,11 +35,22 @@ export default function HomeScreen() {
   const { locale } = useI18n();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [taskBaseDate] = useState(() => new Date());
   const [customers, setCustomers] = useState<Array<{ id: string; state: string }>>([]);
-  const [loans, setLoans] = useState<Array<{ id: string; lifecycleState: string }>>([]);
-  const [deposits, setDeposits] = useState<Array<{ id: string; state: string }>>([]);
-  const [branches, setBranches] = useState<Array<{ id: string }>>([]);
+  const [loans, setLoans] = useState<Array<{ id: string; lifecycleState: string; principalAmount: number; outstandingPrincipal: number }>>([]);
+  const [deposits, setDeposits] = useState<Array<{ id: string; state: string; balance: number; availableBalance: number }>>([]);
+  const [branches, setBranches] = useState<Array<{ id: string; portfolio?: { totalDeposits: number; activeLoans: number; assignedCustomers: number } | null }>>([]);
   const [activities, setActivities] = useState<Array<{ id: string; action: string; module: string; actor: string; created_at: string; affected_item_name?: string | null; affected_item_id?: string | null }>>([]);
+
+  const moneyFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", {
+        style: "currency",
+        currency: "MXN",
+        maximumFractionDigits: 0,
+      }),
+    [locale]
+  );
 
   useEffect(() => {
     const load = async () => {
@@ -51,9 +62,9 @@ export default function HomeScreen() {
         fetch("/api/activities?page=1&pageSize=50&module=all&branch=all", { cache: "no-store" }),
       ]);
       if (c.ok) setCustomers(((await c.json()) as { data: Array<{ id: string; state: string }> }).data ?? []);
-      if (l.ok) setLoans(((await l.json()) as { data: Array<{ id: string; lifecycleState: string }> }).data ?? []);
-      if (d.ok) setDeposits(((await d.json()) as { data: Array<{ id: string; state: string }> }).data ?? []);
-      if (b.ok) setBranches(((await b.json()) as { branches: Array<{ id: string }> }).branches ?? []);
+      if (l.ok) setLoans(((await l.json()) as { data: Array<{ id: string; lifecycleState: string; principalAmount: number; outstandingPrincipal: number }> }).data ?? []);
+      if (d.ok) setDeposits(((await d.json()) as { data: Array<{ id: string; state: string; balance: number; availableBalance: number }> }).data ?? []);
+      if (b.ok) setBranches(((await b.json()) as { branches: Array<{ id: string; portfolio?: { totalDeposits: number; activeLoans: number; assignedCustomers: number } | null }> }).branches ?? []);
       if (a.ok) setActivities(((await a.json()) as { data: Array<{ id: string; action: string; module: string; actor: string; created_at: string; affected_item_name?: string | null; affected_item_id?: string | null }> }).data ?? []);
       setLoading(false);
     };
@@ -66,27 +77,29 @@ export default function HomeScreen() {
     const pendingLoans = loans.filter((l) => l.lifecycleState === "PENDING_APPROVAL").length;
     const par30 = loans.length === 0 ? 0 : (loans.filter((l) => l.lifecycleState === "ACTIVE_IN_ARREARS").length / loans.length) * 100;
     const activeDeposits = deposits.filter((d) => d.state === "ACTIVE").length;
+    const loanPortfolio = loans.reduce((sum, loan) => sum + (loan.outstandingPrincipal ?? loan.principalAmount ?? 0), 0);
+    const liquidity = deposits.reduce((sum, deposit) => sum + (deposit.availableBalance ?? deposit.balance ?? 0), 0);
     return [
-      { label: "Active clients / Clientes activos", value: String(activeClients), meta: "Real-time from customers / Tiempo real desde clientes", href: "/customers" },
-      { label: "Branches / Sedes", value: String(branches.length), meta: "Current configured branches / Sedes configuradas", href: "/branches" },
-      { label: "Open accounts / Cuentas abiertas", value: String(deposits.length), meta: `${activeDeposits} active / ${activeDeposits} activas`, href: "/deposits" },
-      { label: "Transactions today / Eventos hoy", value: String(activities.length), meta: "Based on system activities / Basado en actividades del sistema", href: "/activities" },
-      { label: "Loans awaiting approval / Préstamos pendientes de aprobación", value: String(pendingLoans), meta: "Pending approval queue / Cola pendiente", href: "/loans" },
-      { label: "PAR > 30 days / PAR > 30 días", value: `${par30.toFixed(1)}%`, meta: "From loan lifecycle states / Desde estados de préstamo", href: "/reports" },
+      { label: "Active clients / Clientes activos", value: String(activeClients), meta: "Desde clientes y estados vigentes / From current client states", href: "/customers" },
+      { label: "Loan portfolio / Cartera de préstamos", value: moneyFormatter.format(loanPortfolio), meta: `${activeLoans} activos · ${pendingLoans} por aprobar / active · pending`, href: "/products" },
+      { label: "Available liquidity / Liquidez disponible", value: moneyFormatter.format(liquidity), meta: `${activeDeposits} cuentas activas / active accounts`, href: "/deposits" },
+      { label: "Branches / Sedes", value: String(branches.length), meta: "Sucursales configuradas / Configured branches", href: "/branches" },
+      { label: "Recent events / Eventos recientes", value: String(activities.length), meta: "Tomado de actividades del sistema / From system activity log", href: "/activities" },
+      { label: "PAR > 30 days / PAR > 30 días", value: `${par30.toFixed(1)}%`, meta: "Calculado desde lifecycle state / From loan lifecycle state", href: "/reports" },
     ];
-  }, [customers, loans, deposits, branches, activities]);
+  }, [customers, loans, deposits, branches, activities, moneyFormatter]);
 
   const recentActivity: ActivityFeedItem[] = useMemo(
     () =>
       activities.slice(0, 10).map((a) => ({
         id: a.id,
-        type: `${a.module} / ${a.module}`,
-        title: `${a.action} / ${a.action}`,
-        meta: `${a.affected_item_name ?? "Elemento"} ${a.affected_item_id ?? ""} / ${a.actor}`,
-        time: `${new Date(a.created_at).toLocaleString()} / ${new Date(a.created_at).toLocaleString()}`,
+        type: a.module,
+        title: a.action,
+        meta: `${a.affected_item_name ?? "Elemento"} ${a.affected_item_id ?? ""} · ${a.actor}`,
+        time: new Date(a.created_at).toLocaleString(locale === "es" ? "es-MX" : "en-US"),
         marker: (a.module || "EV").slice(0, 2).toUpperCase(),
       })),
-    [activities]
+    [activities, locale]
   );
 
   const pendingActions: TaskQueueSummaryItem[] = useMemo(() => {
@@ -101,11 +114,11 @@ export default function HomeScreen() {
   }, [loans, deposits, activities]);
 
   const taskQueueItems: TaskQueueItem[] = useMemo(() => [
-    { title: "Revisar préstamos en mora / Revisar préstamos en mora", owner: "Riesgo", dueDate: new Date().toISOString().slice(0, 10) },
-    { title: "Aprobar solicitudes pendientes / Aprobar solicitudes pendientes", owner: "Crédito", dueDate: new Date().toISOString().slice(0, 10) },
-    { title: "Monitorear cuentas dormant / Monitorear cuentas dormant", owner: "Operaciones", dueDate: new Date(Date.now() + 86400000).toISOString().slice(0, 10) },
-    { title: "Validar eventos críticos / Validar eventos críticos", owner: "Cumplimiento", dueDate: new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10) },
-  ], []);
+    { title: "Revisar préstamos en mora / Revisar préstamos en mora", owner: "Riesgo", dueDate: taskBaseDate.toISOString().slice(0, 10) },
+    { title: "Aprobar solicitudes pendientes / Aprobar solicitudes pendientes", owner: "Crédito", dueDate: taskBaseDate.toISOString().slice(0, 10) },
+    { title: "Monitorear cuentas dormant / Monitorear cuentas dormant", owner: "Operaciones", dueDate: new Date(taskBaseDate.getTime() + 86400000).toISOString().slice(0, 10) },
+    { title: "Validar eventos críticos / Validar eventos críticos", owner: "Cumplimiento", dueDate: new Date(taskBaseDate.getTime() + 2 * 86400000).toISOString().slice(0, 10) },
+  ], [taskBaseDate]);
 
   const quickViews: QuickViewItem[] = useMemo(() => [
     { count: String(customers.filter((c) => c.state === "ACTIVE").length), label: "Active clients / Clientes activos", meta: "Real view / Vista real" },

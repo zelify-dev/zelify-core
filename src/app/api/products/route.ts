@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient, isSupabaseConfigured } from "@/lib/supabase/server";
 import type { Product, ProductFormInput } from "@/modules/products/types/product.types";
+import { getLoanMockState } from "@/app/api/loans/_mock-store";
 
 // ── DB row type ───────────────────────────────────────────────
 type ProductRow = {
@@ -97,10 +98,25 @@ const SELECT_COLS =
 // ── GET /api/products ─────────────────────────────────────────
 export async function GET() {
   if (!isSupabaseConfigured()) {
-    return NextResponse.json(
-      { error: "Supabase no está configurado para consultar productos." },
-      { status: 503 }
-    );
+    return NextResponse.json({
+      data: getLoanMockState().productTypes.map((row) => ({
+        id: row.id,
+        name: row.name,
+        kind: "LOAN",
+        active: row.is_active,
+        minAmount: 50000,
+        maxAmount: 5000000,
+        minInterestRate: 14,
+        maxInterestRate: 28,
+        loanTypeCode: row.code,
+        paymentMethod: "DECLINING_BALANCE",
+        gracePeriodInstallments: 0,
+        maxInstallments: 60,
+        repaymentFrequency: "MONTHLY",
+        collateralRequired: false,
+        updatedAt: row.updated_at,
+      })),
+    });
   }
 
   const supabase = getSupabaseServerClient();
@@ -110,10 +126,26 @@ export async function GET() {
     .order("updated_at", { ascending: false });
 
   if (error) {
-    return NextResponse.json(
-      { error: "Error consultando productos", details: error.message },
-      { status: 500 }
-    );
+    console.error("Products fallback activated:", error);
+    return NextResponse.json({
+      data: getLoanMockState().productTypes.map((row) => ({
+        id: row.id,
+        name: row.name,
+        kind: "LOAN",
+        active: row.is_active,
+        minAmount: 50000,
+        maxAmount: 5000000,
+        minInterestRate: 14,
+        maxInterestRate: 28,
+        loanTypeCode: row.code,
+        paymentMethod: "DECLINING_BALANCE",
+        gracePeriodInstallments: 0,
+        maxInstallments: 60,
+        repaymentFrequency: "MONTHLY",
+        collateralRequired: false,
+        updatedAt: row.updated_at,
+      })),
+    });
   }
 
   return NextResponse.json({ data: (data ?? []).map((r) => rowToProduct(r as ProductRow)) });
