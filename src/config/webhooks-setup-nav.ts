@@ -5,8 +5,8 @@ export type WebhooksSetupSubNavItem = {
 
 /** Pestañas de Administración → Webhooks (referencia Figma). */
 export const webhooksSetupSubNavItems: WebhooksSetupSubNavItem[] = [
-  { label: "Notifications", href: "/settings/webhooks" },
-  { label: "Settings", href: "/settings/webhooks/settings" },
+  { label: "APIs", href: "/settings/webhooks" },
+  { label: "Webhooks", href: "/settings/webhooks/settings" },
 ];
 
 export function resolveWebhooksSetupSubNavLabel(
@@ -14,7 +14,7 @@ export function resolveWebhooksSetupSubNavLabel(
   items: WebhooksSetupSubNavItem[] = webhooksSetupSubNavItems
 ): string | null {
   const prefix = "/settings/webhooks";
-  if (pathname === prefix) return "Notifications";
+  if (pathname === prefix) return "APIs";
   if (!pathname.startsWith(`${prefix}/`)) return null;
   const sorted = [...items].sort((a, b) => b.href.length - a.href.length);
   for (const item of sorted) {
@@ -22,5 +22,5 @@ export function resolveWebhooksSetupSubNavLabel(
       return item.label;
     }
   }
-  return "Notifications";
+  return "APIs";
 }

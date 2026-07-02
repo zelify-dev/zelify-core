@@ -1,33 +1,5 @@
 /** Hub Administration (/settings): solo estructura; textos en `i18n/messages` (`administrationHub.*`, títulos vía `nav.admin.*`). */
 
-export type AdminPreviewItem = {
-  id: string;
-  enabled: boolean;
-};
-
-export const ADMIN_NON_PRODUCTION_PREVIEW: AdminPreviewItem[] = [
-  { id: "objStorage", enabled: true },
-  { id: "manualEod", enabled: false },
-  { id: "futureAccDate", enabled: false },
-];
-
-export const ADMIN_EARLY_ACCESS_FEATURES: AdminPreviewItem[] = [
-  { id: "accCutoff", enabled: true },
-  { id: "crypto", enabled: true },
-  { id: "audit", enabled: true },
-  { id: "streaming", enabled: false },
-  { id: "apiV2", enabled: true },
-  { id: "multiCcy", enabled: true },
-  { id: "sandboxSync", enabled: true },
-  { id: "bulkImport", enabled: true },
-  { id: "riskRules", enabled: true },
-  { id: "notifications", enabled: true },
-  { id: "reportsBeta", enabled: true },
-  { id: "sso", enabled: true },
-  { id: "webhooksBeta", enabled: true },
-  { id: "labelsAi", enabled: true },
-];
-
 export type AdminHubCardIcon =
   | "general"
   | "financial"

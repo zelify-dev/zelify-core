@@ -5,7 +5,7 @@ import { applicationsListMock, type Application } from "@/modules/mdc/data/mdc-c
 import { SESSIONS } from "@/modules/mdc/components/mdc-payments-tab";
 import { CASES } from "@/modules/mdc/components/mdc-collections-tab";
 
-type ConfigSection = "general" | "roles" | "users" | "api" | "export" | "webhooks";
+type ConfigSection = "general" | "roles" | "users" | "export";
 
 type GeneralSettings = {
   companyName: string;
@@ -32,13 +32,6 @@ type UserRow = {
   status: "active" | "inactive";
 };
 
-type ApiSettings = {
-  apiKey: string;
-  webhookSecret: string;
-  rateLimitPerMin: number;
-  allowIpList: string;
-};
-
 type ExportJob = {
   id: string;
   name: string;
@@ -47,21 +40,11 @@ type ExportJob = {
   type: "clients" | "applications" | "payments" | "collections" | "lostPayments" | "underwritingResults" | "kycResults" | "full";
 };
 
-type WebhookSettings = {
-  endpoint: string;
-  token: string;
-  retries: number;
-  timeoutSec: number;
-  events: string[];
-};
-
 const STORAGE_KEYS = {
   general: "mdc:config:general",
   roles: "mdc:config:roles",
   users: "mdc:config:users",
-  api: "mdc:config:api",
   exports: "mdc:config:exports",
-  webhooks: "mdc:config:webhooks",
 };
 
 const MDC_STORAGE_KEYS = {
@@ -92,13 +75,6 @@ const DEFAULT_USERS: UserRow[] = [
   { id: "USR-003", fullName: "Paula Torres", email: "paula@zelify.com", role: "Operations", status: "inactive" },
 ];
 
-const DEFAULT_API: ApiSettings = {
-  apiKey: "pk_live_51N2x_890abc",
-  webhookSecret: "whsec_87af32f0a15e",
-  rateLimitPerMin: 300,
-  allowIpList: "201.10.2.4, 201.10.2.5",
-};
-
 const DEFAULT_EXPORTS: ExportJob[] = [
   { id: "EXP-001", name: "export_solicitudes_2026_05_07.csv", date: "2026-05-07 10:30", status: "completed", type: "applications" },
   { id: "EXP-002", name: "export_clientes_2026_05_07.csv", date: "2026-05-07 11:15", status: "running", type: "clients" },
@@ -115,14 +91,6 @@ const EXPORT_OPTIONS: { value: ExportJob["type"]; label: string }[] = [
   { value: "kycResults", label: "Resultados KYC" },
   { value: "full", label: "Exportación completa" },
 ];
-
-const DEFAULT_WEBHOOKS: WebhookSettings = {
-  endpoint: "https://api.tuempresa.com/webhooks/zelify",
-  token: "whk_token_90XYZ",
-  retries: 5,
-  timeoutSec: 20,
-  events: ["application.created", "application.updated", "payment.captured"],
-};
 
 type CsvCell = string | number | boolean | null | undefined;
 type CsvRow = Record<string, CsvCell>;
@@ -386,17 +354,13 @@ export function MdcConfigurationTab() {
   const [general, setGeneral] = useState<GeneralSettings>(() => readStored(STORAGE_KEYS.general, DEFAULT_GENERAL));
   const [roles, setRoles] = useState<RoleRow[]>(() => readStored(STORAGE_KEYS.roles, DEFAULT_ROLES));
   const [users, setUsers] = useState<UserRow[]>(() => readStored(STORAGE_KEYS.users, DEFAULT_USERS));
-  const [api, setApi] = useState<ApiSettings>(() => readStored(STORAGE_KEYS.api, DEFAULT_API));
   const [exportJobs, setExportJobs] = useState<ExportJob[]>(() => readStored(STORAGE_KEYS.exports, DEFAULT_EXPORTS));
   const [selectedExportType, setSelectedExportType] = useState<ExportJob["type"]>("applications");
-  const [webhooks, setWebhooks] = useState<WebhookSettings>(() => readStored(STORAGE_KEYS.webhooks, DEFAULT_WEBHOOKS));
   const sectionTabs: { id: ConfigSection; label: string }[] = [
     { id: "general", label: "General" },
     { id: "roles", label: "Roles" },
     { id: "users", label: "Usuarios" },
-    { id: "api", label: "API" },
     { id: "export", label: "Export" },
-    { id: "webhooks", label: "Webhooks" },
   ];
 
   const roleNames = useMemo(() => Array.from(new Set(roles.map((r) => r.name))), [roles]);
@@ -415,15 +379,11 @@ export function MdcConfigurationTab() {
             setGeneral(DEFAULT_GENERAL);
             setRoles(DEFAULT_ROLES);
             setUsers(DEFAULT_USERS);
-            setApi(DEFAULT_API);
             setExportJobs(DEFAULT_EXPORTS);
-            setWebhooks(DEFAULT_WEBHOOKS);
             writeStored(STORAGE_KEYS.general, DEFAULT_GENERAL);
             writeStored(STORAGE_KEYS.roles, DEFAULT_ROLES);
             writeStored(STORAGE_KEYS.users, DEFAULT_USERS);
-            writeStored(STORAGE_KEYS.api, DEFAULT_API);
             writeStored(STORAGE_KEYS.exports, DEFAULT_EXPORTS);
-            writeStored(STORAGE_KEYS.webhooks, DEFAULT_WEBHOOKS);
           }}
         >
           Restaurar defaults
@@ -615,29 +575,6 @@ export function MdcConfigurationTab() {
         </article>
       )}
 
-      {activeSection === "api" && (
-        <article className="mdc-card">
-          <h3>API</h3>
-          <p>Claves, limites y control de acceso.</p>
-          <div className="mdc-cfg-form-grid">
-            <Field label="API key"><input value={api.apiKey} onChange={(e) => setApi((v) => ({ ...v, apiKey: e.target.value }))} /></Field>
-            <Field label="Webhook secret"><input value={api.webhookSecret} onChange={(e) => setApi((v) => ({ ...v, webhookSecret: e.target.value }))} /></Field>
-            <Field label="Rate limit/min"><input type="number" value={api.rateLimitPerMin} onChange={(e) => setApi((v) => ({ ...v, rateLimitPerMin: Number(e.target.value) }))} /></Field>
-            <Field label="IP allow list"><input value={api.allowIpList} onChange={(e) => setApi((v) => ({ ...v, allowIpList: e.target.value }))} /></Field>
-          </div>
-          <div className="mdc-cfg-actions mdc-cfg-actions--row">
-            <button
-              type="button"
-              className="mdc-btn mdc-btn--ghost"
-              onClick={() => setApi((v) => ({ ...v, apiKey: `pk_live_${Math.random().toString(36).slice(2, 14)}` }))}
-            >
-              Regenerar API key
-            </button>
-            <button type="button" className="mdc-btn mdc-btn--primary" onClick={() => writeStored(STORAGE_KEYS.api, api)}>Guardar cambios</button>
-          </div>
-        </article>
-      )}
-
       {activeSection === "export" && (
         <article className="mdc-card">
           <div className="mdc-cfg-title-row">
@@ -738,26 +675,6 @@ export function MdcConfigurationTab() {
               </tbody>
             </table>
           </div>
-        </article>
-      )}
-
-      {activeSection === "webhooks" && (
-        <article className="mdc-card">
-          <h3>Webhooks</h3>
-          <p>Parametros de envio y eventos suscritos.</p>
-          <div className="mdc-cfg-form-grid">
-            <Field label="Endpoint"><input value={webhooks.endpoint} onChange={(e) => setWebhooks((v) => ({ ...v, endpoint: e.target.value }))} /></Field>
-            <Field label="Token"><input value={webhooks.token} onChange={(e) => setWebhooks((v) => ({ ...v, token: e.target.value }))} /></Field>
-            <Field label="Retries"><input type="number" value={webhooks.retries} onChange={(e) => setWebhooks((v) => ({ ...v, retries: Number(e.target.value) }))} /></Field>
-            <Field label="Timeout (s)"><input type="number" value={webhooks.timeoutSec} onChange={(e) => setWebhooks((v) => ({ ...v, timeoutSec: Number(e.target.value) }))} /></Field>
-            <Field label="Eventos" className="mdc-cfg-form-grid__full">
-              <input
-                value={webhooks.events.join(", ")}
-                onChange={(e) => setWebhooks((v) => ({ ...v, events: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) }))}
-              />
-            </Field>
-          </div>
-          <div className="mdc-cfg-actions"><button type="button" className="mdc-btn mdc-btn--primary" onClick={() => writeStored(STORAGE_KEYS.webhooks, webhooks)}>Guardar cambios</button></div>
         </article>
       )}
 

@@ -4,7 +4,6 @@ import Link from "next/link";
 import {
   AppWindow,
   Building2,
-  Check,
   CircleDollarSign,
   Database,
   FileStack,
@@ -17,7 +16,6 @@ import {
   Settings,
   Shield,
   Webhook,
-  X,
 } from "lucide-react";
 
 import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
@@ -25,9 +23,7 @@ import { SandboxBanner } from "@/modules/customers/components/sandbox-banner";
 import { useI18n } from "@/providers/i18n-provider";
 
 import {
-  ADMIN_EARLY_ACCESS_FEATURES,
   ADMIN_HUB_CARD_DEFS,
-  ADMIN_NON_PRODUCTION_PREVIEW,
   type AdminHubCardIcon,
   type AdminHubNavId,
 } from "../data/administration-landing.data";
@@ -137,20 +133,6 @@ function HubCardIcon({ name, featured }: { name: AdminHubCardIcon; featured: boo
   }
 }
 
-function PreviewStatus({ enabled, labelOn, labelOff }: { enabled: boolean; labelOn: string; labelOff: string }) {
-  return (
-    <span
-      className={[
-        "zelify-admin-landing__preview-status",
-        enabled ? "zelify-admin-landing__preview-status--on" : "zelify-admin-landing__preview-status--off",
-      ].join(" ")}
-      aria-label={enabled ? labelOn : labelOff}
-    >
-      {enabled ? <Check size={12} strokeWidth={3} /> : <X size={12} strokeWidth={3} />}
-    </span>
-  );
-}
-
 function hubCardTitleKey(navAdminId: AdminHubNavId): string {
   return `nav.admin.${navAdminId}`;
 }
@@ -172,44 +154,6 @@ export function AdministrationLandingScreen() {
           </header>
 
           <div className="zelify-admin-landing__layout">
-            <aside className="zelify-admin-landing__sidebar" aria-label={t("administrationHub.asideAriaLabel")}>
-              <section className="zelify-admin-landing__panel">
-                <h2 className="zelify-admin-landing__panel-title">{t("administrationHub.sections.nonProductionPreview")}</h2>
-                <ul className="zelify-admin-landing__preview-list">
-                  {ADMIN_NON_PRODUCTION_PREVIEW.map((item) => (
-                    <li key={item.id} className="zelify-admin-landing__preview-row">
-                      <PreviewStatus
-                        enabled={item.enabled}
-                        labelOn={t("administrationHub.status.enabled")}
-                        labelOff={t("administrationHub.status.disabled")}
-                      />
-                      <span className="zelify-admin-landing__preview-label">
-                        {t(`administrationHub.preview.nonProduction.${item.id}`)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-
-              <section className="zelify-admin-landing__panel">
-                <h2 className="zelify-admin-landing__panel-title">{t("administrationHub.sections.earlyAccessFeatures")}</h2>
-                <ul className="zelify-admin-landing__preview-list">
-                  {ADMIN_EARLY_ACCESS_FEATURES.map((item) => (
-                    <li key={item.id} className="zelify-admin-landing__preview-row">
-                      <PreviewStatus
-                        enabled={item.enabled}
-                        labelOn={t("administrationHub.status.enabled")}
-                        labelOff={t("administrationHub.status.disabled")}
-                      />
-                      <span className="zelify-admin-landing__preview-label">
-                        {t(`administrationHub.preview.earlyAccess.${item.id}`)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            </aside>
-
             <div className="zelify-admin-landing__main">
               <ul className="zelify-admin-landing__card-grid">
                 {ADMIN_HUB_CARD_DEFS.map((card) => (

@@ -33,81 +33,11 @@
 }
 
 .zelify-admin-landing__layout {
-  display: flex;
-  align-items: flex-start;
-  gap: 28px;
-}
-
-.zelify-admin-landing__sidebar {
-  flex: 0 0 min(100%, 300px);
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  display: block;
 }
 
 .zelify-admin-landing__main {
-  flex: 1;
   min-width: 0;
-}
-
-.zelify-admin-landing__panel {
-  background: #fff;
-  border: 1px solid rgba(26, 39, 64, 0.12);
-  border-radius: 10px;
-  padding: 16px 16px 14px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-}
-
-.zelify-admin-landing__panel-title {
-  margin: 0 0 12px;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: #64748b;
-}
-
-.zelify-admin-landing__preview-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.zelify-admin-landing__preview-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  font-size: 0.875rem;
-  line-height: 1.35;
-  color: #334155;
-}
-
-.zelify-admin-landing__preview-label {
-  flex: 1;
-}
-
-.zelify-admin-landing__preview-status {
-  flex-shrink: 0;
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 1px;
-}
-
-.zelify-admin-landing__preview-status--on {
-  background: var(--zelify-brand-green);
-  color: var(--zelify-brand-on-green);
-}
-
-.zelify-admin-landing__preview-status--off {
-  background: #e2e8f0;
-  color: #64748b;
 }
 
 /* Grid: misma altura por fila (la fila mide lo que pide la tarjeta más alta; el texto corto deja hueco abajo, alineado). */
@@ -128,17 +58,6 @@
   padding: 0;
   min-width: 0;
   min-height: 0;
-}
-
-@media (max-width: 1024px) {
-  .zelify-admin-landing__layout {
-    flex-direction: column;
-  }
-
-  .zelify-admin-landing__sidebar {
-    flex-basis: auto;
-    width: 100%;
-  }
 }
 
 @media (max-width: 720px) {
