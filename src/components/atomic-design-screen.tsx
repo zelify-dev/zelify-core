@@ -100,7 +100,6 @@ const ROUTE_LINKS: { href: string; label: string }[] = [
   { href: "/settings/organization", label: "Admin → Branches" },
   { href: "/settings/financial/currency", label: "Financial Setup → Currency" },
   { href: "/settings/financial/transaction-channels", label: "Financial Setup → Transaction Channels" },
-  { href: "/settings/financial/eod-processing", label: "Financial Setup → EOD Processing" },
   { href: "/settings/products", label: "Administration → Products" },
   { href: "/settings/views", label: "Administration → Views" },
   { href: "/settings/fields", label: "Administration → Fields (placeholder)" },

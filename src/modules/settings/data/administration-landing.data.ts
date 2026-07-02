@@ -33,7 +33,6 @@ export type AdminHubCardIcon =
   | "financial"
   | "organization"
   | "access"
-  | "products"
   | "fields"
   | "views"
   | "forms"
@@ -52,7 +51,6 @@ export type AdminHubNavId =
   | "financialSetup"
   | "organization"
   | "access"
-  | "products"
   | "fields"
   | "views"
   | "forms"
@@ -77,7 +75,6 @@ export const ADMIN_HUB_CARD_DEFS: readonly AdminHubCardDef[] = [
   { navAdminId: "financialSetup", href: "/settings/financial", featured: false, icon: "financial" },
   { navAdminId: "organization", href: "/settings/organization", featured: false, icon: "organization" },
   { navAdminId: "access", href: "/settings/access", featured: false, icon: "access" },
-  { navAdminId: "products", href: "/settings/products", featured: false, icon: "products" },
   { navAdminId: "fields", href: "/settings/fields", featured: false, icon: "fields" },
   { navAdminId: "views", href: "/settings/views", featured: false, icon: "views" },
   { navAdminId: "webhooks", href: "/settings/webhooks", featured: false, icon: "webhooks" },

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 
 import { LanguageSwitcher } from "@/components/common/language-switcher/language-switcher";
@@ -22,6 +21,7 @@ import { DropdownMenu } from "@/components/ui/molecules/dropdown-menu/dropdown-m
 import { NavTab } from "@/components/ui/molecules/nav-tab/nav-tab";
 import { ProfileMenu } from "@/components/ui/molecules/profile-trigger/profile-menu";
 import { TopbarSearchBox } from "@/components/ui/molecules/search-box/topbar-search-box";
+import { useBranding } from "@/providers/branding-provider";
 import { useI18n } from "@/providers/i18n-provider";
 import type { DropdownMenuItem } from "@/components/ui/molecules/dropdown-menu/dropdown-menu";
 
@@ -291,15 +291,19 @@ type BrandBlockProps = {
 };
 
 function BrandBlock({ organizationLabel, brandAlt }: BrandBlockProps) {
+  const { branding } = useBranding();
   return (
     <div className="zelify-topbar__brand">
-      <Image
-        src="/zelifyLogo_dark.svg"
-        alt={brandAlt}
-        width={106}
-        height={30}
-        priority
-      />
+      {branding.logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={branding.logoUrl}
+          alt={branding.displayName || brandAlt}
+          className="zelify-topbar__brand-logo"
+        />
+      ) : (
+        <span className="zelify-topbar__brand-name">{branding.displayName || brandAlt}</span>
+      )}
 
       <ContextSelector label={organizationLabel} icon={<ChevronDownIcon />} />
     </div>

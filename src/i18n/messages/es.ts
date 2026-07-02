@@ -154,7 +154,6 @@ export const es: Messages = {
       branchDetails: "Detalle de sede",
       holidays: "Festivos",
       clientTypes: "Tipos de cliente",
-      internalControls: "Controles internos",
       labels: "Etiquetas",
       idTemplates: "Plantillas de ID",
       groupRoles: "Roles de grupo",

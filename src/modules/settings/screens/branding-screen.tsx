@@ -3,17 +3,65 @@
 import { useState } from "react";
 import { AppButton } from "@/components/ui/atoms/button/app-button";
 import { AppInput } from "@/components/ui/atoms/input/app-input";
+import { DEFAULT_BRANDING, useBranding, type BrandingState } from "@/providers/branding-provider";
 
 import "./settings-workspace-shared.css";
 import "./branding-screen.css";
 
 export function BrandingScreen() {
-  const [displayName, setDisplayName] = useState("Zelify");
-  const [tagline, setTagline] = useState("Core banking para equipos modernos");
-  const [primaryHex, setPrimaryHex] = useState("#1a2740");
-  const [accentHex, setAccentHex] = useState("#c4f542");
-  const [logoUrl, setLogoUrl] = useState("https://zelify.com/logo.svg");
-  const [loginMessage, setLoginMessage] = useState("Mensaje opcional en la pantalla de acceso.");
+  const { branding, setBranding, resetBranding } = useBranding();
+  return (
+    <BrandingEditor
+      key={JSON.stringify(branding)}
+      branding={branding}
+      setBranding={setBranding}
+      resetBranding={resetBranding}
+    />
+  );
+}
+
+function BrandingEditor({
+  branding,
+  setBranding,
+  resetBranding,
+}: {
+  branding: BrandingState;
+  setBranding: (next: BrandingState) => void;
+  resetBranding: () => void;
+}) {
+  const [draft, setDraft] = useState<BrandingState>(branding);
+  const [saved, setSaved] = useState(false);
+
+  function updateField<K extends keyof BrandingState>(field: K, value: BrandingState[K]) {
+    setDraft((prev) => ({ ...prev, [field]: value }));
+    setSaved(false);
+  }
+
+  async function handleLogoUpload(file: File | null) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : DEFAULT_BRANDING.logoUrl;
+      updateField("logoUrl", result);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleReset() {
+    setDraft(branding);
+    setSaved(false);
+  }
+
+  function handleSave() {
+    setBranding(draft);
+    setSaved(true);
+  }
+
+  function handleRestoreDefaults() {
+    resetBranding();
+    setDraft(DEFAULT_BRANDING);
+    setSaved(true);
+  }
 
   return (
     <div className="zelify-settings-workspace zelify-branding">
@@ -29,19 +77,23 @@ export function BrandingScreen() {
           <h2>Identidad</h2>
           <label className="zelify-branding__field">
             Nombre para mostrar
-            <AppInput value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+            <AppInput value={draft.displayName} onChange={(e) => updateField("displayName", e.target.value)} />
           </label>
           <label className="zelify-branding__field">
             Eslogan (subtítulo)
-            <AppInput value={tagline} onChange={(e) => setTagline(e.target.value)} />
+            <AppInput value={draft.tagline} onChange={(e) => updateField("tagline", e.target.value)} />
           </label>
           <label className="zelify-branding__field">
             URL del logotipo
-            <AppInput value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://…" />
+            <AppInput value={draft.logoUrl} onChange={(e) => updateField("logoUrl", e.target.value)} placeholder="https://…" />
+          </label>
+          <label className="zelify-branding__field">
+            Subir logotipo
+            <input type="file" accept="image/*" onChange={(e) => handleLogoUpload(e.target.files?.[0] ?? null)} />
           </label>
           <label className="zelify-branding__field">
             Mensaje en pantalla de login
-            <AppInput value={loginMessage} onChange={(e) => setLoginMessage(e.target.value)} />
+            <AppInput value={draft.loginMessage} onChange={(e) => updateField("loginMessage", e.target.value)} />
           </label>
         </section>
 
@@ -50,25 +102,31 @@ export function BrandingScreen() {
           <div className="zelify-branding__color-row">
             <label>
               Primario
-              <input type="color" value={primaryHex} onChange={(e) => setPrimaryHex(e.target.value)} aria-label="Color primario" />
-              <AppInput value={primaryHex} onChange={(e) => setPrimaryHex(e.target.value)} />
+              <input type="color" value={draft.primaryHex} onChange={(e) => updateField("primaryHex", e.target.value)} aria-label="Color primario" />
+              <AppInput value={draft.primaryHex} onChange={(e) => updateField("primaryHex", e.target.value)} />
             </label>
             <label>
               Acento
-              <input type="color" value={accentHex} onChange={(e) => setAccentHex(e.target.value)} aria-label="Color de acento" />
-              <AppInput value={accentHex} onChange={(e) => setAccentHex(e.target.value)} />
+              <input type="color" value={draft.accentHex} onChange={(e) => updateField("accentHex", e.target.value)} aria-label="Color de acento" />
+              <AppInput value={draft.accentHex} onChange={(e) => updateField("accentHex", e.target.value)} />
             </label>
           </div>
           <div
             className="zelify-branding__preview"
             style={{
-              background: `linear-gradient(135deg, ${primaryHex} 0%, ${primaryHex}dd 45%, ${accentHex} 100%)`,
+              background: `linear-gradient(135deg, ${draft.primaryHex} 0%, ${draft.primaryHex}dd 45%, ${draft.accentHex} 100%)`,
             }}
           >
             <div className="zelify-branding__preview-card">
-              <strong style={{ color: primaryHex }}>{displayName || "Institución"}</strong>
-              <span style={{ color: "#475569" }}>{tagline}</span>
-              <span className="zelify-branding__preview-cta" style={{ background: accentHex, color: primaryHex }}>
+              <div className="zelify-branding__preview-logo-wrap">
+                {draft.logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={draft.logoUrl} alt={draft.displayName || "Logo"} className="zelify-branding__preview-logo" />
+                ) : null}
+              </div>
+              <strong style={{ color: draft.primaryHex }}>{draft.displayName || "Institución"}</strong>
+              <span style={{ color: "#475569" }}>{draft.tagline}</span>
+              <span className="zelify-branding__preview-cta" style={{ background: draft.accentHex, color: draft.primaryHex }}>
                 Acción principal
               </span>
             </div>
@@ -77,13 +135,17 @@ export function BrandingScreen() {
       </div>
 
       <div className="zelify-policy-footer">
-        <AppButton type="button" tone="neutral">
+        <AppButton type="button" tone="neutral" onClick={handleReset}>
           Restablecer borrador
         </AppButton>
-        <AppButton type="button" tone="primary">
+        <AppButton type="button" tone="secondary" onClick={handleRestoreDefaults}>
+          Restaurar defaults
+        </AppButton>
+        <AppButton type="button" tone="primary" onClick={handleSave}>
           Guardar marca
         </AppButton>
       </div>
+      {saved ? <p className="zelify-branding__saved">Marca actualizada.</p> : null}
     </div>
   );
 }

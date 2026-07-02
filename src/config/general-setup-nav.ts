@@ -8,9 +8,6 @@ export const generalSetupSubNavItems: GeneralSetupSubNavItem[] = [
   { labelKey: "nav.generalSetup.branchDetails", href: "/settings/general/organization-details" },
   { labelKey: "nav.generalSetup.holidays", href: "/settings/general/holidays" },
   { labelKey: "nav.generalSetup.clientTypes", href: "/settings/general/client-types" },
-  { labelKey: "nav.generalSetup.internalControls", href: "/settings/general/internal-controls" },
-  { labelKey: "nav.generalSetup.labels", href: "/settings/general/labels" },
-  { labelKey: "nav.generalSetup.idTemplates", href: "/settings/general/id-templates" },
   { labelKey: "nav.generalSetup.groupRoles", href: "/settings/general/group-roles" },
   { labelKey: "nav.generalSetup.branding", href: "/settings/general/branding" },
 ];

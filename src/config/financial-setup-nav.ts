@@ -6,12 +6,8 @@ export type FinancialSetupSubNavItem = {
 /** Pestañas de Administración → Financial Setup (referencia Figma). */
 export const financialSetupSubNavItems: FinancialSetupSubNavItem[] = [
   { label: "Currency", href: "/settings/financial/currency" },
-  { label: "Risk Levels", href: "/settings/financial/risk-levels" },
-  { label: "Rates", href: "/settings/financial/rates" },
   { label: "Transaction Channels", href: "/settings/financial/transaction-channels" },
-  { label: "EOD Processing", href: "/settings/financial/eod-processing" },
   { label: "Accounting", href: "/settings/financial/accounting" },
-  { label: "Authorization Holds", href: "/settings/financial/authorization-holds" },
 ];
 
 export function resolveFinancialSetupSubNavLabel(

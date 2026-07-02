@@ -36,6 +36,13 @@
   margin-bottom: 12px;
 }
 
+.zelify-branding__field input[type="file"] {
+  border: 1px dashed rgba(26, 39, 64, 0.2);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #f8fafc;
+}
+
 .zelify-branding__color-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -80,6 +87,18 @@
   min-width: 220px;
 }
 
+.zelify-branding__preview-logo-wrap {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+}
+
+.zelify-branding__preview-logo {
+  max-width: 160px;
+  max-height: 38px;
+  object-fit: contain;
+}
+
 .zelify-branding__preview-cta {
   margin-top: 8px;
   align-self: flex-start;
@@ -87,4 +106,11 @@
   font-weight: 700;
   padding: 6px 12px;
   border-radius: 8px;
+}
+
+.zelify-branding__saved {
+  margin: 4px 0 0;
+  color: #15803d;
+  font-size: 13px;
+  font-weight: 700;
 }

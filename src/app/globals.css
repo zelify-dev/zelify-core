@@ -1,5 +1,7 @@
 /* Verde primario de producto (alineado con botones del topbar, ej. Create) */
 :root {
+  --zelify-brand-primary: #1a2740;
+  --zelify-brand-primary-rgb: 26, 39, 64;
   --zelify-brand-green: #a9fb5d;
   --zelify-brand-green-hover: #98e84a;
   --zelify-brand-green-active: #86d441;
@@ -22,7 +24,7 @@ body {
   display: flex;
   flex-direction: column;
   background:
-    radial-gradient(circle at top, rgba(31, 100, 191, 0.09), transparent 32%),
+    radial-gradient(circle at top, rgba(var(--zelify-brand-primary-rgb), 0.14), transparent 32%),
     linear-gradient(180deg, #f5f8fc 0%, #eef3f9 100%);
   color: #102033;
   font-family: var(--font-nata-sans), Arial, Helvetica, sans-serif;

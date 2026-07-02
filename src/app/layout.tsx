@@ -5,6 +5,7 @@ import { AuthGuard } from "@/components/auth/auth-guard";
 import { getLocaleFromCookie } from "@/i18n/server";
 import { getMessages } from "@/i18n/messages";
 import { I18nProvider } from "@/providers/i18n-provider";
+import { BrandingProvider } from "@/providers/branding-provider";
 import { TamaguiProvider } from "@/providers/tamagui-provider";
 
 import "@/styles/tailwind.css";
@@ -47,9 +48,11 @@ export default async function RootLayout({
     <html lang={locale} className={nataSans.variable} suppressHydrationWarning>
       <body>
         <TamaguiProvider>
-          <I18nProvider initialLocale={locale} initialMessages={messages}>
-            <AuthGuard>{children}</AuthGuard>
-          </I18nProvider>
+          <BrandingProvider>
+            <I18nProvider initialLocale={locale} initialMessages={messages}>
+              <AuthGuard>{children}</AuthGuard>
+            </I18nProvider>
+          </BrandingProvider>
         </TamaguiProvider>
       </body>
     </html>

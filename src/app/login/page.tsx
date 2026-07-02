@@ -1,8 +1,8 @@
 "use client";
 
 import { EyeClosedIcon, EyeOpenIcon } from "@/assets/login-icons";
-import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import InputGroup from "@/components/form-elements/input-group";
 import { login, verifyDashboardOtp, persistAuthSession, AuthError, syncMe, type AuthSuccessResponse } from "@/lib/auth-api";
@@ -10,6 +10,7 @@ import { getLoginAuthErrorDisplay } from "@/lib/auth-error-messages";
 import { getDefaultDashboardPath } from "@/lib/dashboard-routing";
 import { seedScotiaDemoStorage } from "@/modules/lim/hooks/use-lim-demo-store";
 import { seedScotiaCreditStorage } from "@/modules/cortex/hooks/use-credit-demo-store";
+import { useBranding } from "@/providers/branding-provider";
 
 const DEMO_BYPASS_EMAIL = "demo@zwippe.com";
 const DEMO_BYPASS_PASSWORD = "image.png";
@@ -116,15 +117,6 @@ const COLORS = {
   halftoneDark: "rgba(255, 255, 255, 1)", // Color de puntos en dark mode
 } as const;
 
-// ============================================================================
-// CONSTANTS - Logo URLs (Cambia las URLs de los logos aquí)
-// ============================================================================
-const LOGO_URLS = {
-  dark: "https://flowchart-diagrams-zelify.s3.us-east-1.amazonaws.com/zelifyLogo_dark.svg",
-  light:
-    "https://flowchart-diagrams-zelify.s3.us-east-1.amazonaws.com/zelifyLogo_ligth.svg",
-} as const;
-
 function AnimatedHalftoneBackdrop({ isDarkMode }: { isDarkMode: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | undefined>(undefined);
@@ -160,7 +152,7 @@ function AnimatedHalftoneBackdrop({ isDarkMode }: { isDarkMode: boolean }) {
       resizeObserverRef.current = observer;
     }
 
-    let start = performance.now();
+    const start = performance.now();
     const spacing = 26;
     const waveFrequency = 1.35;
     const waveSpeed = 0.35;
@@ -230,6 +222,8 @@ function EdgeFadeOverlay({ isDarkMode }: { isDarkMode: boolean }) {
 }
 
 export default function LoginPage() {
+  const { branding } = useBranding();
+  const router = useRouter();
   const [data, setData] = useState({
     email: "",
     password: "",
@@ -257,7 +251,10 @@ export default function LoginPage() {
   });
   const [requiresOrganizationId, setRequiresOrganizationId] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [sessionExpiredInfo, setSessionExpiredInfo] = useState(false);
+  const [sessionExpiredInfo] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return new URLSearchParams(window.location.search).get("reason") === "session_expired";
+  });
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -303,18 +300,16 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (!sessionExpiredInfo) return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get("reason") === "session_expired") {
-      setSessionExpiredInfo(true);
-      params.delete("reason");
-      const q = params.toString();
-      window.history.replaceState(
-        {},
-        "",
-        `${window.location.pathname}${q ? `?${q}` : ""}`,
-      );
-    }
-  }, []);
+    params.delete("reason");
+    const q = params.toString();
+    window.history.replaceState(
+      {},
+      "",
+      `${window.location.pathname}${q ? `?${q}` : ""}`,
+    );
+  }, [sessionExpiredInfo]);
 
   // Agregar estilos de animación
   useEffect(() => {
@@ -407,7 +402,7 @@ export default function LoginPage() {
         seedScotiaCreditStorage(true);
       }
       setLoading(false);
-      window.location.href = getDefaultDashboardPath(demoAuthSession.roles);
+      router.replace(getDefaultDashboardPath(demoAuthSession.roles));
       return;
     }
 
@@ -450,7 +445,7 @@ export default function LoginPage() {
               /* mantener datos del response */
             }
             setLoading(false);
-            window.location.href = getDefaultDashboardPath(authResult.roles);
+            router.replace(getDefaultDashboardPath(authResult.roles));
             return;
           }
         }
@@ -498,7 +493,7 @@ export default function LoginPage() {
             /* mantener datos del response */
           }
           setLoading(false);
-          window.location.href = getDefaultDashboardPath(result.roles);
+          router.replace(getDefaultDashboardPath(result.roles));
           return;
         }
 
@@ -614,29 +609,30 @@ export default function LoginPage() {
             {/* Logo + título centrados */}
             <div className="mb-10 flex justify-center">
               <Link href="/" className="inline-block">
-                <Image
-                  className="hidden dark:block"
-                  src={LOGO_URLS.dark}
-                  alt="Zelify Logo"
-                  width={176}
-                  height={32}
-                />
-                <Image
-                  className="dark:hidden"
-                  src={LOGO_URLS.light}
-                  alt="Zelify Logo"
-                  width={176}
-                  height={32}
-                />
+                {branding.logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={branding.logoUrl}
+                    alt={branding.displayName || "Logo"}
+                    style={{ maxWidth: "176px", maxHeight: "40px", objectFit: "contain" }}
+                  />
+                ) : (
+                  <span className="text-2xl font-bold text-dark dark:text-white">{branding.displayName}</span>
+                )}
               </Link>
             </div>
 
             <h1 className="mb-2 text-center text-2xl font-bold text-dark dark:text-white sm:text-heading-3">
-              {step === 1 ? t.welcome : t.otpTitle}
+              {step === 1 ? branding.displayName || t.welcome : t.otpTitle}
             </h1>
             <p className="mb-8 text-center text-sm text-dark-6 dark:text-dark-6">
-              {step === 1 ? t.subWelcome : t.otpSub}
+              {step === 1 ? branding.tagline || t.subWelcome : t.otpSub}
             </p>
+            {step === 1 && branding.loginMessage ? (
+              <p className="mb-6 text-center text-xs text-slate-500 dark:text-slate-300">
+                {branding.loginMessage}
+              </p>
+            ) : null}
 
             <form onSubmit={handleSubmit}>
               {/* Mensaje de error */}
