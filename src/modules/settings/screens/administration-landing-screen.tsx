@@ -10,12 +10,10 @@ import {
   FileStack,
   FileText,
   Landmark,
-  LayoutGrid,
   LayoutList,
   ListTodo,
   Mail,
   MessageSquare,
-  Radio,
   Settings,
   Shield,
   Webhook,
@@ -82,12 +80,6 @@ function HubCardIcon({ name, featured }: { name: AdminHubCardIcon; featured: boo
           <LayoutList size={22} strokeWidth={stroke} />
         </span>
       );
-    case "views":
-      return (
-        <span className={className} aria-hidden>
-          <LayoutGrid size={22} strokeWidth={stroke} />
-        </span>
-      );
     case "forms":
       return (
         <span className={className} aria-hidden>
@@ -110,12 +102,6 @@ function HubCardIcon({ name, featured }: { name: AdminHubCardIcon; featured: boo
       return (
         <span className={className} aria-hidden>
           <Webhook size={22} strokeWidth={stroke} />
-        </span>
-      );
-    case "streaming":
-      return (
-        <span className={className} aria-hidden>
-          <Radio size={22} strokeWidth={stroke} />
         </span>
       );
     case "templates":

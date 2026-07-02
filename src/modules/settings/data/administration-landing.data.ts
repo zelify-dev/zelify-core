@@ -34,12 +34,10 @@ export type AdminHubCardIcon =
   | "organization"
   | "access"
   | "fields"
-  | "views"
   | "forms"
   | "sms"
   | "email"
   | "webhooks"
-  | "streaming"
   | "templates"
   | "apps"
   | "tasks"
@@ -52,12 +50,10 @@ export type AdminHubNavId =
   | "organization"
   | "access"
   | "fields"
-  | "views"
   | "forms"
   | "sms"
   | "email"
   | "webhooks"
-  | "eventsStreaming"
   | "templates"
   | "apps"
   | "tasks"
@@ -76,7 +72,5 @@ export const ADMIN_HUB_CARD_DEFS: readonly AdminHubCardDef[] = [
   { navAdminId: "organization", href: "/settings/organization", featured: false, icon: "organization" },
   { navAdminId: "access", href: "/settings/access", featured: false, icon: "access" },
   { navAdminId: "fields", href: "/settings/fields", featured: false, icon: "fields" },
-  { navAdminId: "views", href: "/settings/views", featured: false, icon: "views" },
   { navAdminId: "webhooks", href: "/settings/webhooks", featured: false, icon: "webhooks" },
-  { navAdminId: "eventsStreaming", href: "/settings/event-streaming", featured: false, icon: "streaming" },
 ];

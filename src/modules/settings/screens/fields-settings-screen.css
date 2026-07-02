@@ -19,6 +19,40 @@
   font-size: 1.25rem;
 }
 
+.zelify-fields-settings__lead {
+  margin: 6px 0 0;
+  color: #64748b;
+}
+
+.zelify-fields-settings__summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  border: 1px solid rgba(26, 39, 64, 0.08);
+  background: rgba(248, 250, 252, 0.92);
+  border-radius: 12px;
+}
+
+.zelify-fields-settings__summary p {
+  margin: 0;
+  color: #475569;
+}
+
+.zelify-fields-settings__usage {
+  min-width: 260px;
+  color: #475569;
+}
+
+.zelify-fields-settings__modal-note {
+  border-radius: 10px;
+  background: rgba(var(--zelify-brand-green-rgb), 0.1);
+  color: #1e293b;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+}
+
 .zelify-settings-tabs {
   display: flex;
   gap: 8px;

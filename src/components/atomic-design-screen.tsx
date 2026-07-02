@@ -101,7 +101,6 @@ const ROUTE_LINKS: { href: string; label: string }[] = [
   { href: "/settings/financial/currency", label: "Financial Setup → Currency" },
   { href: "/settings/financial/transaction-channels", label: "Financial Setup → Transaction Channels" },
   { href: "/settings/products", label: "Administration → Products" },
-  { href: "/settings/views", label: "Administration → Views" },
   { href: "/settings/fields", label: "Administration → Fields (placeholder)" },
   { href: "/settings/forms", label: "Administration → Forms (placeholder)" },
   { href: "/settings/templates", label: "Administration → Templates (placeholder)" },
@@ -110,7 +109,6 @@ const ROUTE_LINKS: { href: string; label: string }[] = [
   { href: "/settings/email", label: "Administration → Email" },
   { href: "/settings/webhooks", label: "Administration → Webhooks → Notifications" },
   { href: "/settings/webhooks/settings", label: "Administration → Webhooks → Settings (placeholder)" },
-  { href: "/settings/event-streaming", label: "Administration → Events Streaming" },
   { href: "/settings/tasks", label: "Administration → Tasks (placeholder)" },
   { href: "/settings/data", label: "Administration → Data (placeholder)" },
 ];
