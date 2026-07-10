@@ -477,12 +477,30 @@ function readStoredJson<T>(key: string, fallback: T): T {
   }
 }
 
+function isRemovedMoralDuplicateApplication(app: Application) {
+  const normalizedName = app.applicantName.trim().toUpperCase();
+  const normalizedEmail = app.applicantEmail.trim().toLowerCase();
+  return (
+    app.appNo === "PM-APP-001264" ||
+    (normalizedName === "GRUPO DELTA INDUSTRIAL SA DE CV" &&
+      normalizedEmail === "planeacion@orionmanufactura.mx" &&
+      app.requestedAmount === 9_727_414)
+  );
+}
+
+function sanitizeApplications(mode: MdcApplicantMode, rows: Application[]) {
+  if (mode !== "moral") return rows;
+  return rows.filter((app) => !isRemovedMoralDuplicateApplication(app));
+}
+
 function mergeApplicationsWithDefaults(stored: Application[], defaults: Application[]) {
   const byAppNo = new Map<string, Application>();
-  for (const row of defaults) {
+  const safeDefaults = sanitizeApplications("moral", defaults);
+  const safeStored = sanitizeApplications("moral", stored);
+  for (const row of safeDefaults) {
     byAppNo.set(row.appNo, row);
   }
-  for (const row of stored) {
+  for (const row of safeStored) {
     byAppNo.set(row.appNo, row);
   }
   return [...byAppNo.values()].sort(
@@ -495,7 +513,8 @@ function reconcileMockTimeline(
   stored: Application[],
   defaults: Application[],
 ) {
-  if (mode !== "moral" || defaults.length === 0) return stored;
+  const safeStored = sanitizeApplications(mode, stored);
+  if (mode !== "moral" || defaults.length === 0) return safeStored;
 
   const defaultLatestTs = defaults.reduce(
     (max, row) => Math.max(max, new Date(row.submittedAt).getTime()),
@@ -503,7 +522,7 @@ function reconcileMockTimeline(
   );
 
   let nextTs = defaultLatestTs + 5 * 60 * 1000;
-  return stored.map((row) => {
+  return safeStored.map((row) => {
     const rowTs = new Date(row.submittedAt).getTime();
     const tooFarAhead = rowTs - defaultLatestTs > 14 * DAY_MS;
     if (!tooFarAhead) return row;
@@ -1534,7 +1553,7 @@ function normalizeRequestedAmount(product: string, requestedAmount: number) {
 }
 
 function hydrateApplications(mode: MdcApplicantMode, rows: Application[]) {
-  return rows.map((app) => ({
+  return sanitizeApplications(mode, rows).map((app) => ({
     ...app,
     product: normalizeProductName(app.product),
     riskScore: normalizeRiskScoreForStatus(app.status, app.riskScore),

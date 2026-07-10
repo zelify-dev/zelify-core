@@ -114,14 +114,6 @@ export const PM_MDC_CLIENTS: MdcClientPoolItem[] = [
     product: "Credito simple empresarial",
   },
   {
-    id: "PM-CU-500208",
-    name: "GRUPO DELTA INDUSTRIAL SA DE CV",
-    email: "planeacion@orionmanufactura.mx",
-    amount: 11_100_000,
-    creditScore: 752,
-    product: "Arrendamiento financiero",
-  },
-  {
     id: "PM-CU-500209",
     name: "Distribuidora Electrica Metropoli SA de CV",
     email: "tesoreria@demetropoli.mx",

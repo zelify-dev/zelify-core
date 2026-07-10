@@ -5,6 +5,7 @@ import { AppButton } from "@/components/ui/atoms/button/app-button";
 import { AppInput } from "@/components/ui/atoms/input/app-input";
 import { AppBadge } from "@/components/ui/atoms/badge/app-badge";
 import { formatMxnFull, formatMxnCompact } from "@/modules/scotia/utils/format-mxn";
+import { APPLICATIONS_BY_MODE, type Application } from "@/modules/mdc/data/mdc-credit-mock";
 import { resolveMoralCreditReportFromPrompt } from "@/modules/mdc/data/mdc-moral-credit-report";
 import { exportMoralCreditReportPdf } from "@/modules/mdc/services/moral-credit-report-pdf";
 import type { MoralCreditReportPayload, MoralCreditReportRuleRow } from "@/modules/mdc/types/moral-credit-report.types";
@@ -28,6 +29,103 @@ const SECTIONS_BY_KIND: Record<ReportKind, { id: ReportSection; label: string }[
   mdc: [{ id: "decision", label: "MDC" }],
   shareholders: [{ id: "perfil", label: "Estructura accionaria" }],
 };
+
+const MORAL_APPLICATIONS_STORAGE_KEY = "mdc:moral:applications";
+const STATUS_LABEL_BY_APP_STATUS: Record<Application["status"], string> = {
+  approved: "Aprobada",
+  declined: "Rechazada",
+  pending: "Pendiente",
+  manualReview: "Revision manual",
+  overridden: "Override",
+};
+
+function normalizeSearchValue(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function readStoredMoralApplications(): Application[] {
+  if (typeof window === "undefined") return APPLICATIONS_BY_MODE.moral;
+  try {
+    const raw = window.localStorage.getItem(MORAL_APPLICATIONS_STORAGE_KEY);
+    if (!raw) return APPLICATIONS_BY_MODE.moral;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return APPLICATIONS_BY_MODE.moral;
+    return parsed as Application[];
+  } catch {
+    return APPLICATIONS_BY_MODE.moral;
+  }
+}
+
+function findApplicationMention(prompt: string, applications: Application[]): Application | null {
+  const normalizedPrompt = normalizeSearchValue(prompt);
+  if (!normalizedPrompt) return null;
+
+  const ranked = applications
+    .map((application) => ({
+      application,
+      candidate: normalizeSearchValue(application.applicantName),
+    }))
+    .filter(({ candidate }) => candidate && normalizedPrompt.includes(candidate))
+    .sort((a, b) => b.candidate.length - a.candidate.length);
+
+  return ranked[0]?.application ?? null;
+}
+
+function estimateMonthlyPayment(principal: number, annualRate: number, months: number): number {
+  if (!principal || months <= 0) return 0;
+  const r = annualRate / 100 / 12;
+  if (r === 0) return Math.round(principal / months);
+  return Math.round((principal * r * Math.pow(1 + r, months)) / (Math.pow(1 + r, months) - 1));
+}
+
+function replaceCompanyMentions(lines: string[], previousName: string, nextName: string): string[] {
+  if (!previousName || previousName === nextName) return lines;
+  const prevUpper = previousName.toUpperCase();
+  const nextUpper = nextName.toUpperCase();
+  return lines.map((line) => line.replaceAll(prevUpper, nextUpper).replaceAll(previousName, nextName));
+}
+
+function applyApplicationToReport(report: MoralCreditReportPayload, application: Application): MoralCreditReportPayload {
+  const previousName = report.company.legalName;
+  const nextName = application.applicantName;
+  const nextRequestedAmount = application.requestedAmount || report.company.requestedAmount;
+  const nextMonthlyPayment = estimateMonthlyPayment(nextRequestedAmount, report.company.finalRate, report.company.termMonths);
+
+  return {
+    ...report,
+    reportId: `RPT-PM-2026-${application.appNo.replace("APP-PM-", "").replace("PM-APP-", "")}`,
+    application: {
+      ...report.application,
+      appNo: application.appNo,
+      appId: application.id,
+      submittedAt: application.submittedAt,
+      status: application.status,
+      statusLabel: STATUS_LABEL_BY_APP_STATUS[application.status],
+      riskLevel: application.risk,
+      riskScore: application.riskScore,
+    },
+    company: {
+      ...report.company,
+      legalName: nextName,
+      tradeName: nextName,
+      email: application.applicantEmail,
+      productName: application.product,
+      requestedAmount: nextRequestedAmount,
+      monthlyPayment: nextMonthlyPayment,
+      totalInterest: Math.max(nextMonthlyPayment * report.company.termMonths - nextRequestedAmount, 0),
+      decisionSummary: report.company.decisionSummary.replaceAll(previousName.toUpperCase(), nextName.toUpperCase()).replaceAll(previousName, nextName),
+    },
+    executiveSummary: replaceCompanyMentions(report.executiveSummary, previousName, nextName),
+    integratedAnalysis: replaceCompanyMentions(report.integratedAnalysis, previousName, nextName),
+    riskFactors: replaceCompanyMentions(report.riskFactors, previousName, nextName),
+    strengths: replaceCompanyMentions(report.strengths, previousName, nextName),
+  };
+}
 
 function resolveReportKind(prompt: string): ReportKind {
   const normalized = prompt.trim().toUpperCase();
@@ -85,7 +183,9 @@ export function MdcReportsTab() {
     const nextKind = resolveReportKind(prompt);
     setLoading(true);
     await new Promise((r) => setTimeout(r, 1400));
-    setReport(resolveMoralCreditReportFromPrompt(prompt));
+    const baseReport = resolveMoralCreditReportFromPrompt(prompt);
+    const matchedApplication = findApplicationMention(prompt, readStoredMoralApplications());
+    setReport(matchedApplication ? applyApplicationToReport(baseReport, matchedApplication) : baseReport);
     setReportKind(nextKind);
     setSection(
       nextKind === "kyb"
