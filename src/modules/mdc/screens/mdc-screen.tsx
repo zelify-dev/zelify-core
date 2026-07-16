@@ -2156,6 +2156,409 @@ function MoralApplicantDetailModal({
   );
 }
 
+function formatDurationLabel(minutes: number) {
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (!rest) return `${hours} h`;
+  return `${hours} h ${rest} min`;
+}
+
+type ApplicationFlowStep = {
+  id: string;
+  label: string;
+  owner: string;
+  state: "done" | "current" | "failed" | "pending";
+  startedAt: string;
+  completedAt: string | null;
+  minutes: number;
+  note: string;
+};
+
+function buildApplicationFlow(app: Application, mode: MdcApplicantMode): ApplicationFlowStep[] {
+  const isMoral = mode === "moral";
+  const baseDate = new Date(app.submittedAt).getTime();
+  const seed = quickHash(`${app.id}:${app.appNo}:${app.status}`);
+  const stageDurations = [
+    18 + (seed % 24),
+    24 + (seed % 42),
+    35 + (seed % 55),
+    20 + (seed % 36),
+    28 + (seed % 48),
+    16 + (seed % 34),
+  ];
+  const currentIndex =
+    app.status === "pending"
+      ? 1
+      : app.status === "manualReview"
+        ? 4
+        : app.status === "declined"
+          ? 5
+          : 5;
+
+  const definitions = [
+    {
+      id: "capture",
+      label: "Captura de solicitud",
+      owner: "Originacion digital",
+      note: `Alta inicial de ${app.product} por ${money(app.requestedAmount)}.` ,
+    },
+    {
+      id: "docs",
+      label: "Validacion documental",
+      owner: isMoral ? "Mesa KYB" : "Mesa KYC",
+      note: isMoral ? "Revision de expediente corporativo y soportes legales." : "Revision de identidad, domicilio e ingresos.",
+    },
+    {
+      id: isMoral ? "kyb" : "kyc",
+      label: isMoral ? "KYB / existencia legal" : "KYC / listas",
+      owner: isMoral ? "Analista KYB" : "Analista KYC",
+      note: isMoral ? "Validacion de RFC, estructura societaria y beneficiarios." : "Validacion de listas y consistencia documental.",
+    },
+    {
+      id: "aml",
+      label: "AML / PLD",
+      owner: "Cumplimiento",
+      note: "Cruce contra listas, alertas regulatorias y observaciones de prensa.",
+    },
+    {
+      id: "engine",
+      label: "Motor de decision",
+      owner: "Sistema MDC",
+      note: "Evaluacion de score, reglas, capacidad de pago y politicas de originacion.",
+    },
+    {
+      id: "decision",
+      label: "Decision y salida",
+      owner: app.status === "overridden" ? "Comite / analista" : "Sistema / analista",
+      note:
+        app.status === "approved"
+          ? "Solicitud aprobada y lista para formalizacion."
+          : app.status === "declined"
+            ? "Solicitud cerrada por rechazo de politica."
+            : app.status === "manualReview"
+              ? "Solicitud enviada a revision manual."
+              : app.status === "overridden"
+                ? "Solicitud ajustada con override manual."
+                : "Solicitud pendiente por completar validaciones.",
+    },
+  ];
+
+  let cursor = baseDate;
+  return definitions.map((definition, index) => {
+    const minutes = stageDurations[index] ?? 20;
+    const startedAt = new Date(cursor).toISOString();
+    const completedAt = index < currentIndex || app.status !== "pending"
+      ? new Date(cursor + minutes * 60_000).toISOString()
+      : index === currentIndex
+        ? null
+        : null;
+    cursor += minutes * 60_000;
+
+    let state: "done" | "current" | "failed" | "pending" = "done";
+    if (index > currentIndex) state = "pending";
+    if (index === currentIndex && (app.status === "pending" || app.status === "manualReview" || app.status === "overridden")) state = "current";
+    if (definition.id === "decision" && app.status === "declined") state = "failed";
+
+    return {
+      ...definition,
+      state,
+      startedAt,
+      completedAt,
+      minutes,
+    };
+  });
+}
+
+function ApplicationFlowModal({
+  app,
+  mode,
+  onClose,
+}: {
+  app: Application;
+  mode: MdcApplicantMode;
+  onClose: () => void;
+}) {
+  const steps = useMemo(() => buildApplicationFlow(app, mode), [app, mode]);
+  const totalMinutes = steps.reduce((sum, step) => sum + step.minutes, 0);
+  const completedSteps = steps.filter((step) => step.state === "done").length;
+  const resolvedIndex = steps.findIndex((step) => step.state === "current" || step.state === "failed");
+  const currentIndex =
+    resolvedIndex >= 0
+      ? resolvedIndex
+      : Math.max(0, steps.map((step) => step.state).lastIndexOf("done"));
+  const [selectedStepId, setSelectedStepId] = useState<string>(steps[currentIndex]?.id ?? steps[0]?.id ?? "");
+
+  const selectedStep = steps.find((step) => step.id === selectedStepId) ?? steps[currentIndex] ?? steps[0];
+
+  return (
+    <div className="mdc-modal-backdrop" onClick={onClose}>
+      <div className="mdc-modal mdc-modal--flow" onClick={(e) => e.stopPropagation()}>
+        <header className="mdc-modal-head mdc-flow-head">
+          <div>
+            <p>Solicitud · Flujo visual</p>
+            <h3>{app.applicantName}</h3>
+            <span className="mdc-flow-head__meta">{app.appNo} · {app.product} · {shortDate(app.submittedAt)}</span>
+          </div>
+          <button type="button" className="mdc-icon-btn" onClick={onClose}>×</button>
+        </header>
+
+        <section className="mdc-flow-summary">
+          <div className="mdc-flow-summary__card">
+            <span>Estado actual</span>
+            <strong>{STATUS_LABELS[app.status]}</strong>
+          </div>
+          <div className="mdc-flow-summary__card">
+            <span>Etapas cerradas</span>
+            <strong>{completedSteps} / {steps.length}</strong>
+          </div>
+          <div className="mdc-flow-summary__card">
+            <span>Tiempo acumulado</span>
+            <strong>{formatDurationLabel(totalMinutes)}</strong>
+          </div>
+          <div className="mdc-flow-summary__card">
+            <span>Riesgo</span>
+            <strong>{RISK_LABELS[riskFromApplicationStatus(app.status, app.riskScore)]} · {normalizeRiskScoreForStatus(app.status, app.riskScore)}</strong>
+          </div>
+        </section>
+
+        <section className="mdc-flow-layout">
+          <div className="mdc-flow-canvas-shell">
+            <div className="mdc-flow-toolbar">
+              <div>
+                <strong>Mapa del flujo</strong>
+                <span>Selecciona una tarea para revisar responsable, tiempo y salida de esa etapa.</span>
+              </div>
+              <div className="mdc-flow-toolbar__pill">Etapa actual: {selectedStep?.label ?? "N/D"}</div>
+            </div>
+
+            {(() => {
+              const isMoral = mode === "moral";
+              const stepMap = Object.fromEntries(steps.map((step) => [step.id, step]));
+              const docStepId = isMoral ? "kyb" : "kyc";
+              const statusKind =
+                app.status === "approved"
+                  ? "approved"
+                  : app.status === "declined"
+                    ? "declined"
+                    : app.status === "manualReview" || app.status === "overridden"
+                      ? "review"
+                      : "pending";
+              const buildVisualDetail = (
+                stepId: string | null,
+                fallback: {
+                  owner: string;
+                  note: string;
+                  state?: "done" | "current" | "failed" | "pending";
+                  startedAt?: string;
+                  completedAt?: string | null;
+                  minutes?: number;
+                },
+              ) => {
+                const step = stepId ? stepMap[stepId] : null;
+                return {
+                  owner: step?.owner ?? fallback.owner,
+                  note: step?.note ?? fallback.note,
+                  state: step?.state ?? fallback.state ?? "pending",
+                  startedAt: step?.startedAt ?? fallback.startedAt ?? app.submittedAt,
+                  completedAt: step?.completedAt ?? fallback.completedAt ?? null,
+                  minutes: step?.minutes ?? fallback.minutes ?? 0,
+                };
+              };
+
+              const visualNodes = [
+                { id: "start", label: "Inicio", x: 36, y: 300, type: "event", clickable: false, compact: false, outcome: false, ...buildVisualDetail("capture", { owner: "Canal digital", note: "Recepcion inicial del caso.", state: "done", minutes: 5 }) },
+                { id: "capture", label: "Captura de solicitud", x: 205, y: 180, type: "task", clickable: true, compact: false, outcome: false, ...buildVisualDetail("capture", { owner: "Originacion digital", note: "Alta inicial y datos basicos de la solicitud." }) },
+                { id: "docs", label: "Validacion documental", x: 425, y: 180, type: "task", clickable: true, compact: false, outcome: false, ...buildVisualDetail("docs", { owner: isMoral ? "Mesa KYB" : "Mesa KYC", note: "Revision de anexos y soporte documental." }) },
+                { id: docStepId, label: isMoral ? "KYB / existencia legal" : "KYC / listas", x: 645, y: 180, type: "task", clickable: true, compact: false, outcome: false, ...buildVisualDetail(docStepId, { owner: isMoral ? "Analista KYB" : "Analista KYC", note: "Validacion de identidad, estructura y consistencia." }) },
+                { id: "buro", label: isMoral ? "Buro empresa" : "Consulta buro", x: 425, y: 395, type: "task", clickable: true, compact: false, outcome: false, ...buildVisualDetail("engine", { owner: "Motor externo", note: "Consulta de buro y antecedentes de riesgo.", state: stepMap.engine?.state === "done" ? "done" : stepMap.engine?.state === "failed" ? "failed" : stepMap.engine?.state === "current" ? "current" : "pending", minutes: 18 }) },
+                { id: "aml", label: "AML / PLD", x: 645, y: 395, type: "task", clickable: true, compact: false, outcome: false, ...buildVisualDetail("aml", { owner: "Cumplimiento", note: "Cruce contra listas, alertas y hallazgos regulatorios." }) },
+                { id: "engine", label: "Motor de decision", x: 940, y: 395, type: "task", clickable: true, compact: false, outcome: false, ...buildVisualDetail("engine", { owner: "Sistema MDC", note: "Ejecucion de score, politicas y capacidad de pago." }) },
+                { id: "decision", label: "Nodo de decision", x: 1175, y: 395, type: "diamond", clickable: true, compact: false, outcome: false, ...buildVisualDetail("decision", { owner: "Sistema / analista", note: "Define aprobacion, rechazo o revision manual." }) },
+                { id: "approved", label: "Aprobacion", x: 1375, y: 150, type: "task", clickable: true, compact: false, outcome: true, ...buildVisualDetail("decision", { owner: "Sistema / analista", note: "Caso aprobado y enviado a formalizacion.", state: statusKind === "approved" ? "done" : "pending", minutes: 14 }) },
+                { id: "review", label: "Revision manual", x: 1375, y: 395, type: "task", clickable: true, compact: false, outcome: true, ...buildVisualDetail("decision", { owner: "Sistema / analista", note: "Caso escalado para revision o override.", state: statusKind === "review" ? "current" : "pending", minutes: 22 }) },
+                { id: "declined", label: "Rechazo", x: 1375, y: 640, type: "task", clickable: true, compact: false, outcome: true, ...buildVisualDetail("decision", { owner: "Sistema / analista", note: "Solicitud rechazada por politica o riesgo.", state: statusKind === "declined" ? "failed" : "pending", minutes: 12 }) },
+                { id: "notifyClient", label: "Send update to client", x: 565, y: 56, type: "task", clickable: false, compact: true, outcome: false, ...buildVisualDetail(null, { owner: "Canal cliente", note: "Actualizacion automatica al cliente.", state: "pending", minutes: 8 }) },
+                { id: "notifyEnd", label: "Fin", x: 705, y: 56, type: "event", clickable: false, compact: false, outcome: false, ...buildVisualDetail(null, { owner: "Canal cliente", note: "Notificacion entregada.", state: "pending", minutes: 0 }) },
+              ] as const;
+
+              const decorativeNodes = [
+                { id: "support", label: "Ask clerk for support", x: 1005, y: 200, type: "ghost" },
+                { id: "createRecord", label: "Create customer record", x: 520, y: 560, type: "ghost" },
+                { id: "rejectMessage", label: "Send rejection message to client", x: 1040, y: 560, type: "ghost" },
+                { id: "clientUpdate", label: "See update", x: 365, y: 705, type: "ghost-small" },
+                { id: "universalUpdate", label: "Universal update", x: 845, y: 705, type: "ghost-small" },
+              ] as const;
+
+              const nodesById = Object.fromEntries(visualNodes.map((node) => [node.id, node]));
+              const selectedVisual = nodesById[selectedStepId] ?? nodesById.engine ?? visualNodes[0];
+              const selectedDetail = selectedVisual;
+
+              const routeByStatus = {
+                approved: ["start", "capture", "docs", docStepId, "aml", "engine", "decision", "approved"],
+                review: ["start", "capture", "docs", docStepId, "aml", "engine", "decision", "review"],
+                declined: ["start", "capture", "docs", docStepId, "aml", "engine", "decision", "declined"],
+                pending: ["start", "capture", "docs", docStepId, "aml", "engine"],
+              } as const;
+              const activeRoute = routeByStatus[statusKind];
+              const activeRouteSet = new Set(activeRoute);
+              const point = (nodeId: string) => `${nodesById[nodeId].x},${nodesById[nodeId].y}`;
+              const routePoints = activeRoute.map(point).join(" ");
+              const routeMotion = `M ${activeRoute.map(point).join(" L ")}`;
+              const edgeLabels = [
+                { key: "t1", text: formatDurationLabel(nodesById.capture.minutes), x: 315, y: 98 },
+                { key: "t2", text: formatDurationLabel(nodesById.docs.minutes), x: 535, y: 98 },
+                { key: "t3", text: formatDurationLabel(nodesById[docStepId].minutes), x: 695, y: 288 },
+                { key: "t4", text: formatDurationLabel(nodesById.aml.minutes), x: 535, y: 344 },
+                { key: "t5", text: formatDurationLabel(nodesById.engine.minutes), x: 795, y: 318 },
+                { key: "t6", text: formatDurationLabel(nodesById.decision.minutes), x: 1175, y: 324 },
+              ];
+              const finalLabel = statusKind === "approved" ? "Aprobada" : statusKind === "declined" ? "Rechazada" : statusKind === "review" ? "Revision" : "En proceso";
+              const labelState = (state: "done" | "current" | "failed" | "pending") =>
+                state === "done" ? "Completado" : state === "failed" ? "Rechazo" : state === "pending" ? "Pendiente" : "En curso";
+
+              return (
+                <>
+                  <div className="mdc-flow-diagram mdc-flow-diagram--bpmn" aria-label="Flujo de la solicitud">
+                    <svg className="mdc-flow-svg" viewBox="0 0 1480 820" preserveAspectRatio="none" aria-hidden>
+                      <polyline className="mdc-flow-svg__route-base" points="36,300 100,300 100,180 205,180" />
+                      <polyline className="mdc-flow-svg__route-base" points="205,180 425,180 645,180" />
+                      <polyline className="mdc-flow-svg__route-base" points="425,180 425,395" />
+                      <polyline className="mdc-flow-svg__route-base" points="425,395 645,395" />
+                      <polyline className="mdc-flow-svg__route-base" points="645,180 645,395" />
+                      <polyline className="mdc-flow-svg__route-base" points="645,395 940,395" />
+                      <polyline className="mdc-flow-svg__route-base" points="940,395 1175,395" />
+                      <polyline className="mdc-flow-svg__route-base" points="1175,395 1175,150 1375,150" />
+                      <polyline className="mdc-flow-svg__route-base" points="1175,395 1375,395" />
+                      <polyline className="mdc-flow-svg__route-base" points="1175,395 1175,640 1375,640" />
+                      <polyline className="mdc-flow-svg__route-base" points="410,70 410,56 565,56 705,56" />
+                      <polyline className="mdc-flow-svg__route-glow" points={routePoints} />
+                      <circle className="mdc-flow-svg__light" r="1.15">
+                        <animateMotion dur="3.6s" repeatCount="1" fill="freeze" path={routeMotion} />
+                      </circle>
+                    </svg>
+
+                    <div className="mdc-flow-process-frame">
+                      <span className="mdc-flow-process-frame__title">Customer Validation and Verification</span>
+                    </div>
+                    <div className="mdc-flow-process-border mdc-flow-process-border--validation">
+                      <span>Validation tools</span>
+                    </div>
+                    <div className="mdc-flow-process-border mdc-flow-process-border--reporting">
+                      <span>Reporting findings</span>
+                    </div>
+                    <div className="mdc-flow-process-border mdc-flow-process-border--actions">
+                      <span>Actions</span>
+                    </div>
+                    <div className="mdc-flow-process-border mdc-flow-process-border--updates-left">
+                      <span>Client update</span>
+                    </div>
+                    <div className="mdc-flow-process-border mdc-flow-process-border--updates-right">
+                      <span>Universal update</span>
+                    </div>
+
+                    <span className="mdc-flow-sla">SLA warning</span>
+                    <span className="mdc-flow-branch-label mdc-flow-branch-label--approved">Approved</span>
+                    <span className="mdc-flow-branch-label mdc-flow-branch-label--review">Review</span>
+                    <span className="mdc-flow-branch-label mdc-flow-branch-label--declined">Reject</span>
+
+                    {edgeLabels.map((edge) => (
+                      <span key={edge.key} className="mdc-flow-edge-label mdc-flow-edge-label--active" style={{ left: `${edge.x}px`, top: `${edge.y}px` }}>
+                        {edge.text}
+                      </span>
+                    ))}
+
+                    {visualNodes.map((node, index) => {
+                      const isSelected = selectedVisual.id === node.id;
+                      const isEvent = node.type === "event";
+                      const isDiamond = node.type === "diamond";
+                      const clickable = node.clickable !== false;
+                      const content = isEvent ? (
+                        <span className="mdc-flow-item__event-core" />
+                      ) : (
+                        <>
+                          <div className="mdc-flow-item__chrome">
+                            <span className={`mdc-flow-node__state mdc-flow-node__state--${node.state}`}>{labelState(node.state)}</span>
+                            <span className="mdc-flow-item__step">{index + 1}</span>
+                          </div>
+                          <strong>{node.label}</strong>
+                          <span>{node.owner}</span>
+                          {!isDiamond && <em>Ver detalle</em>}
+                        </>
+                      );
+
+                      const className = `mdc-flow-item mdc-flow-item--${node.type}${node.compact ? " mdc-flow-item--compact" : ""}${node.outcome ? " mdc-flow-item--outcome" : ""} mdc-flow-item--${node.state}${isSelected ? " mdc-flow-item--selected" : ""}${!clickable ? " mdc-flow-item--static" : ""}`;
+                      const style = { left: `${node.x}px`, top: `${node.y}px` };
+
+                      return clickable ? (
+                        <button key={`${app.id}-${node.id}`} type="button" className={className} style={style} onClick={() => setSelectedStepId(node.id)}>
+                          {content}
+                        </button>
+                      ) : (
+                        <div key={`${app.id}-${node.id}`} className={className} style={style}>
+                          {content}
+                        </div>
+                      );
+                    })}
+
+                    {decorativeNodes.map((node) => (
+                      <div key={node.id} className={`mdc-flow-item mdc-flow-item--${node.type} mdc-flow-item--static`} style={{ left: `${node.x}px`, top: `${node.y}px` }}>
+                        <strong>{node.label}</strong>
+                      </div>
+                    ))}
+
+                    <div className="mdc-flow-orb" style={{ left: `${nodesById[activeRoute[activeRoute.length - 1]].x}px`, top: `${nodesById[activeRoute[activeRoute.length - 1]].y}px` }} />
+                  </div>
+
+                  <aside className="mdc-flow-detail mdc-flow-detail--inline">
+                    <div className="mdc-flow-detail__head">
+                      <span className={`mdc-flow-node__state mdc-flow-node__state--${selectedDetail.state}`}>
+                        {labelState(selectedDetail.state)}
+                      </span>
+                      <strong>{selectedDetail.label}</strong>
+                      <p>{selectedDetail.note}</p>
+                    </div>
+
+                    <dl className="mdc-flow-detail__grid">
+                      <div>
+                        <dt>Responsable</dt>
+                        <dd>{selectedDetail.owner}</dd>
+                      </div>
+                      <div>
+                        <dt>Inicio</dt>
+                        <dd>{shortDate(selectedDetail.startedAt)}</dd>
+                      </div>
+                      <div>
+                        <dt>Fin</dt>
+                        <dd>{selectedDetail.completedAt ? shortDate(selectedDetail.completedAt) : "En proceso"}</dd>
+                      </div>
+                      <div>
+                        <dt>Tiempo</dt>
+                        <dd>{formatDurationLabel(selectedDetail.minutes)}</dd>
+                      </div>
+                    </dl>
+
+                    <div className="mdc-flow-detail__timeline">
+                      <strong>Detalle operativo</strong>
+                      <ul>
+                        <li>Fecha de registro: {shortDate(selectedDetail.startedAt)}</li>
+                        <li>Tiempo transcurrido: {formatDurationLabel(selectedDetail.minutes)}</li>
+                        <li>Resultado visible: {selectedDetail.state === "done" ? "Paso validado" : selectedDetail.state === "failed" ? "Corte por rechazo" : selectedDetail.state === "pending" ? "Aun no inicia" : "Sigue abierto"}</li>
+                        <li>Salida de la etapa: {selectedDetail.completedAt ? `Cerro el ${shortDate(selectedDetail.completedAt)}` : "Aun no hay cierre"}</li>
+                        <li>Ruta actual: {finalLabel}</li>
+                      </ul>
+                    </div>
+                  </aside>
+                </>
+              );
+            })()}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
 function AppDetailModal({
   app,
   rules,
@@ -2934,6 +3337,7 @@ export function MdcScreen() {
 
   const [showAddApplication, setShowAddApplication] = useState(false);
   const [detailApp, setDetailApp] = useState<Application | null>(null);
+  const [flowApp, setFlowApp] = useState<Application | null>(null);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | "all">("all");
@@ -2986,6 +3390,7 @@ export function MdcScreen() {
     setRuleProductFilter((activeProducts[0] ?? NATURAL_CREDIT_PRODUCTS[0]) as RuleProduct);
     setRuleModalState(defaultRuleForm(activeProducts));
     setDetailApp(null);
+    setFlowApp(null);
   }, [activeProducts, activeStorageKeys.applications, activeStorageKeys.rules, applicantMode, defaultApplications, defaultRules]);
 
   useEffect(() => {
@@ -3549,6 +3954,14 @@ export function MdcScreen() {
                                     >
                                       Reenviar onboarding
                                     </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setFlowApp(app);
+                                      }}
+                                    >
+                                      Ver flujo
+                                    </button>
                                     {applicantMode === "moral" && (
                                       <button
                                         type="button"
@@ -3867,6 +4280,15 @@ export function MdcScreen() {
           mode={applicantMode}
           creditStore={creditStore}
           onClose={() => setDetailApp(null)}
+        />
+      )}
+
+      {flowApp && (
+        <ApplicationFlowModal
+          key={`${flowApp.id}-${applicantMode}`}
+          app={flowApp}
+          mode={applicantMode}
+          onClose={() => setFlowApp(null)}
         />
       )}
 

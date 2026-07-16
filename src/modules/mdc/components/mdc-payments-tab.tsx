@@ -62,6 +62,13 @@ export const NATURAL_SESSIONS: Session[] = [
 ];
 
 export const MORAL_SESSIONS: Session[] = [
+  { id: "pm_ses_0910", userId: "Grupo Delta Industrial SA de CV", applicantId: "APP-PM-100266", status: "CAPTURADO", paymentMethod: "spei", amount: 295000, currency: "MXN", createdAt: "2026-03-18" },
+  { id: "pm_ses_0911", userId: "TechStart Solutions SA de CV", applicantId: "APP-PM-100267", status: "FALLIDO", paymentMethod: "spei", amount: 118000, currency: "MXN", createdAt: "2026-03-27", errorCode: "issuer_declined", retryable: true },
+  { id: "pm_ses_0912", userId: "Agroinsumos del Pacifico SA de CV", applicantId: "APP-PM-100268", status: "CAPTURADO", paymentMethod: "spei", amount: 214000, currency: "MXN", createdAt: "2026-04-02" },
+  { id: "pm_ses_0913", userId: "Servicios Hospitalarios Reforma SA de CV", applicantId: "APP-PM-100269", status: "PROCESANDO", paymentMethod: "spei", amount: 173000, currency: "MXN", createdAt: "2026-04-09" },
+  { id: "pm_ses_0914", userId: "Distribuidora Electrica Metropoli SA de CV", applicantId: "APP-PM-100270", status: "CAPTURADO", paymentMethod: "spei", amount: 326000, currency: "MXN", createdAt: "2026-04-15" },
+  { id: "pm_ses_0915", userId: "Inversiones del Norte SA de CV", applicantId: "APP-PM-100271", status: "FALLIDO", paymentMethod: "spei", amount: 142000, currency: "MXN", createdAt: "2026-04-21", errorCode: "insufficient_funds", retryable: true },
+  { id: "pm_ses_0916", userId: "GRUPO DELTA INDUSTRIAL SA DE CV", applicantId: "APP-PM-100272", status: "CAPTURADO", paymentMethod: "spei", amount: 405000, currency: "MXN", createdAt: "2026-04-28" },
   { id: "pm_ses_1001", userId: "TechStart Solutions SA de CV", applicantId: "APP-PM-100284", status: "CAPTURADO", paymentMethod: "spei", amount: 185000, currency: "MXN", createdAt: "2026-05-01" },
   { id: "pm_ses_1002", userId: "Grupo Delta Industrial SA de CV", applicantId: "APP-PM-100283", status: "CAPTURADO", paymentMethod: "spei", amount: 240000, currency: "MXN", createdAt: "2026-05-02" },
   { id: "pm_ses_1003", userId: "Inversiones del Norte SA de CV", applicantId: "APP-PM-100282", status: "CAPTURADO", paymentMethod: "spei", amount: 410000, currency: "MXN", createdAt: "2026-05-03" },
@@ -74,6 +81,10 @@ export const MORAL_SESSIONS: Session[] = [
 ];
 
 export const SESSIONS = NATURAL_SESSIONS;
+
+function rangeLabel(days: number) {
+  return days === 7 ? "Ultimos 7 dias" : days === 30 ? "Ultimos 30 dias" : "Ultimos 90 dias";
+}
 
 export function MdcPaymentsTab({ mode = "natural", sessions = mode === "moral" ? MORAL_SESSIONS : NATURAL_SESSIONS, range, onRangeChange }: MdcPaymentsTabProps) {
   const [selectedPayment, setSelectedPayment] = useState<Session | null>(null);
@@ -204,11 +215,11 @@ export function MdcPaymentsTab({ mode = "natural", sessions = mode === "moral" ?
         </article>
 
         <div className="mdc-pay-kpis">
-          <KpiCard title="Intentos de pago" value={String(kpis.totalSessions)} delta="Total de intentos en el periodo" />
-          <KpiCard title="Pagos exitosos" value={`${kpis.successRate.toFixed(1)}%`} delta={`${kpis.totalSessions - kpis.failed} de ${kpis.totalSessions} intentos`} />
+          <KpiCard title="Pagos" value={String(kpis.totalSessions)} delta={`Total de operaciones en ${rangeLabel(rangeDays).toLowerCase()}`} />
+          <KpiCard title="Pagos exitosos" value={`${kpis.successRate.toFixed(1)}%`} delta={`${kpis.totalSessions - kpis.failed} de ${kpis.totalSessions} operaciones`} />
           <KpiCard title="Motivo principal de no pago" value={kpis.failed ? kpis.topFailureReason : "Sin fallos"} delta={kpis.failed ? `${kpis.topFailureCount} caso(s)` : "0 casos"} />
-          <KpiCard title="Ticket promedio mensual" value={`$${formatMoney(kpis.avgTicket)} MXN`} delta="Promedio de pagos exitosos" />
-          <KpiCard title="Ingresos totales mensuales" value={`$${formatMoney(kpis.revenue)} MXN`} delta="Suma de pagos capturados" />
+          <KpiCard title="Ticket promedio del periodo" value={`$${formatMoney(kpis.avgTicket)} MXN`} delta="Promedio de pagos exitosos" />
+          <KpiCard title="Ingresos totales del periodo" value={`$${formatMoney(kpis.revenue)} MXN`} delta="Suma de pagos capturados" />
         </div>
 
         <article className="mdc-card">
