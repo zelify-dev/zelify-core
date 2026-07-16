@@ -200,18 +200,6 @@ export function MdcPaymentsTab({ mode = "natural", sessions = mode === "moral" ?
             <h3>Pagos</h3>
             <p>{mode === "moral" ? "Gestione cobros empresariales y sesiones de pago corporativas." : "Gestione y supervise todas las sesiones de pago."}</p>
           </div>
-          <div className="mdc-pay-range">
-            <label htmlFor="mdc-pay-range">Rango</label>
-            <select
-              id="mdc-pay-range"
-              value={activeRange}
-              onChange={(e) => setActiveRange(e.target.value as RangePreset)}
-            >
-              <option value="7d">Ultimos 7 dias</option>
-              <option value="30d">Ultimos 30 dias</option>
-              <option value="90d">Ultimos 90 dias</option>
-            </select>
-          </div>
         </article>
 
         <div className="mdc-pay-kpis">
