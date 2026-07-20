@@ -3497,9 +3497,9 @@ export function MdcScreen() {
     const highTarget = rangeScopedApps.filter((a) => riskFromApplicationStatus(a.status, a.riskScore) === "high").length;
 
     const riskDistribution = [
-      { label: "Perfil conservador", value: lowTarget, color: "#0f766e" },
-      { label: "Perfil moderado", value: mediumTarget, color: "#1d4ed8" },
-      { label: "Perfil expuesto", value: highTarget, color: "#b91c1c" },
+      { label: "Bajo", value: lowTarget, color: "#0f766e" },
+      { label: "Medio", value: mediumTarget, color: "#1d4ed8" },
+      { label: "Alto", value: highTarget, color: "#b91c1c" },
     ];
 
     const recent = [...rangeScopedApps]
