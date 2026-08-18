@@ -9,8 +9,9 @@ import {
   type MdcApplicantMode,
   type MdcProduct,
 } from "@/modules/mdc/data/mdc-products-mock";
+import { getStoredOrganization } from "@/lib/auth-api";
 
-const PRODUCTS_STORAGE_KEY = "mdc:products";
+const PRODUCTS_STORAGE_KEY = "mdc:products:v3";
 
 type ModalMode = "metrics" | "config";
 type ModalState = { mode: ModalMode; product: MdcProduct } | null;
@@ -29,8 +30,8 @@ function normalizeProductFinancials(product: MdcProduct): MdcProduct {
       ...product,
       name,
       metrics: {
-        activeClients: product.metrics.activeClients < 8 ? 10 : product.metrics.activeClients,
-        totalPortfolio: product.metrics.totalPortfolio < 1_000_000 ? 5_460_000 : product.metrics.totalPortfolio,
+        activeClients: 0,
+        totalPortfolio: 0,
       },
       configuration: {
         ...product.configuration,
@@ -47,8 +48,8 @@ function normalizeProductFinancials(product: MdcProduct): MdcProduct {
       ...product,
       name,
       metrics: {
-        activeClients: product.metrics.activeClients < 6 ? 8 : product.metrics.activeClients,
-        totalPortfolio: product.metrics.totalPortfolio < 500_000 ? 1_880_000 : product.metrics.totalPortfolio,
+        activeClients: 0,
+        totalPortfolio: 0,
       },
       configuration: {
         ...product.configuration,
@@ -59,7 +60,14 @@ function normalizeProductFinancials(product: MdcProduct): MdcProduct {
     };
   }
 
-  return { ...product, name };
+  return { 
+    ...product, 
+    name,
+    metrics: {
+      activeClients: 0,
+      totalPortfolio: 0,
+    } 
+  };
 }
 
 function dedupeProducts(products: MdcProduct[]) {
@@ -96,7 +104,9 @@ function writeStoredProducts(storageKey: string, products: MdcProduct[]) {
 }
 
 function formatCurrency(value: number) {
-  return `$${formatMdcNumber(value)} MXN`;
+  const num = Number(value);
+  if (isNaN(num)) return "$0 MXN";
+  return `$${formatMdcNumber(num)} MXN`;
 }
 
 type MdcProductsTabProps = {
@@ -119,20 +129,71 @@ export function MdcProductsTab({
     () => dedupeProducts((initialProducts ?? MDC_PRODUCTS_BY_MODE[mode] ?? MDC_PRODUCTS).map(normalizeProductFinancials)),
     [initialProducts, mode],
   );
-  const [products, setProducts] = useState<MdcProduct[]>(() => readStoredProducts(effectiveStorageKey, defaultProducts));
+  const [products, setProducts] = useState<MdcProduct[]>(defaultProducts);
+  const [isMounted, setIsMounted] = useState(false);
   const [modal, setModal] = useState<ModalState>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
     setProducts(readStoredProducts(effectiveStorageKey, defaultProducts));
-  }, [defaultProducts, effectiveStorageKey]);
+
+    const fetchProducts = async () => {
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_MDC_API_URL || "http://127.0.0.1:3000";
+        const currentOrg = getStoredOrganization();
+        const orgId = currentOrg?.id || "ORG-001";
+        console.log("=== MDC DEBUG GET ===", { baseUrl, orgId, currentOrg });
+        const res = await fetch(`${baseUrl}/finance-products?orgId=${orgId}`);
+        if (res.ok) {
+          const data = await res.json();
+          const backendProducts = data
+            .filter((item: any) => mode === "natural" ? item.individualPerson : item.legalEntity)
+            .map((item: any) => ({
+              id: item.id || `product_${Math.random()}`,
+              name: item.financialProduct || "Producto financiero",
+              description: `${item.contractType || ""} - ${item.contractDestination || ""}`,
+              status: item.status === "ACTIVE" ? "ACTIVO" : "INACTIVO",
+              metrics: { 
+                activeClients: 0, 
+                totalPortfolio: 0 
+              },
+              configuration: {
+                interestRate: { min: item.creditRate || 0, max: item.creditRate || 0 },
+                amount: { min: item.minimumAmount || 0, max: item.maximumAmount || 0 },
+                residualAmount: 0,
+                term: { min: item.dueDatesCount || 1, max: item.dueDatesCount || 1, frequency: (item.paymentFrequency || "mensual").toLowerCase() }
+              }
+            }));
+          setProducts(backendProducts);
+        }
+      } catch (err) {
+        console.error("Failed to load products from API", err);
+      }
+    };
+    fetchProducts();
+  }, [defaultProducts, effectiveStorageKey, mode]);
 
   useEffect(() => {
-    writeStoredProducts(effectiveStorageKey, products);
-  }, [effectiveStorageKey, products]);
+    if (isMounted) {
+      writeStoredProducts(effectiveStorageKey, products);
+    }
+  }, [effectiveStorageKey, products, isMounted]);
 
-  const activeClients = products.reduce((acc, product) => acc + product.metrics.activeClients, 0);
-  const totalPortfolio = products.reduce((acc, product) => acc + product.metrics.totalPortfolio, 0);
+  const activeClients = products.reduce((acc, product) => {
+    const val = Number(product.metrics?.activeClients);
+    return acc + (isNaN(val) ? 0 : val);
+  }, 0);
+  
+  const totalPortfolio = products.reduce((acc, product) => {
+    const val = Number(product.metrics?.totalPortfolio);
+    return acc + (isNaN(val) ? 0 : val);
+  }, 0);
+
+  const avgMorosidad = products.length > 0 
+    ? (products.reduce((acc, p) => acc + (p.status === "ACTIVO" ? 6.8 : p.status === "SUSPENDIDO" ? 11.2 : 4.5), 0) / products.length).toFixed(1)
+    : "0.0";
+  const avgAprobacion = products.length > 0 ? "25.0" : "0.0";
 
   return (
     <section className="mdc-section">
@@ -154,8 +215,8 @@ export function MdcProductsTab({
         <div className="mdc-prod-summary-grid">
           <MetricCard value={String(activeClients)} label="Clientes activos" />
           <MetricCard value={formatCurrency(totalPortfolio)} label="Cartera total" />
-          <MetricCard value="11.1%" label="Tasa de morosidad" />
-          <MetricCard value="25.0%" label="Tasa de aprobacion" />
+          <MetricCard value={`${avgMorosidad}%`} label="Tasa de morosidad" />
+          <MetricCard value={`${avgAprobacion}%`} label="Tasa de aprobacion" />
         </div>
       </article>
 
@@ -184,15 +245,16 @@ export function MdcProductsTab({
           }}
         />
       ) : null}
-      {isCreateOpen ? (
+      <div style={{ display: isCreateOpen ? "block" : "none" }}>
         <CreateProductModal
+          mode={mode}
           onClose={() => setIsCreateOpen(false)}
-          onCreate={(product) => {
-            setProducts((prev) => [product, ...prev]);
+          onCreate={(newProd) => {
+            setProducts([...products, newProd]);
             setIsCreateOpen(false);
           }}
         />
-      ) : null}
+      </div>
     </section>
   );
 }
@@ -277,7 +339,7 @@ function MetricsModal({ product, onClose }: { product: MdcProduct; onClose: () =
   );
 
   return (
-    <div className="mdc-modal-backdrop" onClick={onClose} role="dialog" aria-modal="true">
+    <div className="mdc-modal-backdrop" role="dialog" aria-modal="true">
       <div className="mdc-modal mdc-modal--wide" onClick={(e) => e.stopPropagation()}>
         <div className="mdc-modal-head">
           <div>
@@ -345,7 +407,7 @@ function ConfigPanel({
     parsedInterestMax >= parsedInterestMin;
 
   return (
-    <div className="mdc-modal-backdrop" onClick={onClose}>
+    <div className="mdc-modal-backdrop">
       <aside className="mdc-side-panel" onClick={(e) => e.stopPropagation()}>
         <div className="mdc-modal-head">
           <div>
@@ -368,11 +430,11 @@ function ConfigPanel({
             </select>
           </Field>
           <Field label="Descripcion" className="mdc-form-grid__full"><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} /></Field>
-          <Field label="Tasa interes min. (%)"><input type="number" step="any" value={interestMin} onChange={(e) => setInterestMin(e.target.value)} /></Field>
-          <Field label="Tasa interes max. (%)"><input type="number" step="any" value={interestMax} onChange={(e) => setInterestMax(e.target.value)} /></Field>
-          <Field label="Monto minimo"><input type="number" value={amountMin} onChange={(e) => setAmountMin(Number(e.target.value))} /></Field>
-          <Field label="Monto maximo"><input type="number" value={amountMax} onChange={(e) => setAmountMax(Number(e.target.value))} /></Field>
-          <Field label="Monto residual (%)"><input type="number" value={residualAmount} onChange={(e) => setResidualAmount(Number(e.target.value))} /></Field>
+          <Field label="Tasa interes min. (%)"><input type="number" min="0" step="any" value={interestMin} onChange={(e) => { const v = e.target.value; if (v === '' || Number(v) >= 0) setInterestMin(v); }} /></Field>
+          <Field label="Tasa interes max. (%)"><input type="number" min="0" step="any" value={interestMax} onChange={(e) => { const v = e.target.value; if (v === '' || Number(v) >= 0) setInterestMax(v); }} /></Field>
+          <Field label="Monto minimo"><input type="number" min="0" value={amountMin} onChange={(e) => setAmountMin(Math.max(0, Number(e.target.value)))} /></Field>
+          <Field label="Monto maximo"><input type="number" min="0" value={amountMax} onChange={(e) => setAmountMax(Math.max(0, Number(e.target.value)))} /></Field>
+          <Field label="Monto residual (%)"><input type="number" min="0" value={residualAmount} onChange={(e) => setResidualAmount(Math.max(0, Number(e.target.value)))} /></Field>
           <Field label="Frecuencia">
             <select value={frequency} onChange={(e) => setFrequency(e.target.value)}>
               <option value="diario">diario</option>
@@ -381,8 +443,8 @@ function ConfigPanel({
               <option value="mensual">mensual</option>
             </select>
           </Field>
-          <Field label="Plazo minimo"><input type="number" value={termMin} onChange={(e) => setTermMin(Number(e.target.value))} /></Field>
-          <Field label="Plazo maximo"><input type="number" value={termMax} onChange={(e) => setTermMax(Number(e.target.value))} /></Field>
+          <Field label="Plazo minimo"><input type="number" min="0" value={termMin} onChange={(e) => setTermMin(Math.max(0, Number(e.target.value)))} /></Field>
+          <Field label="Plazo maximo"><input type="number" min="0" value={termMax} onChange={(e) => setTermMax(Math.max(0, Number(e.target.value)))} /></Field>
 
           <div className="mdc-form-grid__full mdc-side-panel__actions">
             <button type="button" className="mdc-btn mdc-btn--ghost" onClick={onClose}>Cancelar</button>
@@ -415,44 +477,122 @@ function ConfigPanel({
 }
 
 function CreateProductModal({
+  mode,
   onClose,
   onCreate,
 }: {
+  mode: MdcApplicantMode;
   onClose: () => void;
   onCreate: (product: MdcProduct) => void;
 }) {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [status, setStatus] = useState<MdcProduct["status"]>("ACTIVO");
-  const [activeClients, setActiveClients] = useState(0);
-  const [totalPortfolio, setTotalPortfolio] = useState(0);
-  const [interestMin, setInterestMin] = useState("0");
-  const [interestMax, setInterestMax] = useState("0");
-  const [amountMin, setAmountMin] = useState(0);
-  const [amountMax, setAmountMax] = useState(0);
-  const [residualAmount, setResidualAmount] = useState(0);
-  const [termMin, setTermMin] = useState(1);
-  const [termMax, setTermMax] = useState(1);
-  const [frequency, setFrequency] = useState("mensual");
+  const [financialProduct, setFinancialProduct] = useState("");
+  const [creditRate, setCreditRate] = useState<number | "">(0);
+  const [defaultInterestRate, setDefaultInterestRate] = useState<number | "">(0);
+  const [ivaType, setIvaType] = useState("GENERAL");
+  const [paymentScheme, setPaymentScheme] = useState("AMORTIZADO");
+  const [dueDatesCount, setDueDatesCount] = useState<number | "">(12);
+  const [creditPoints, setCreditPoints] = useState("0.00000 x 0.00000");
+  const [defaultPoints, setDefaultPoints] = useState("0.0000");
+  const [ivaZone, setIvaZone] = useState("FRONTERA");
+  const [paymentPeriod, setPaymentPeriod] = useState("MENSUAL");
+  const [scheme, setScheme] = useState("FIJO");
+  const [gracePeriod, setGracePeriod] = useState<number | "">(0);
+  const [contractType, setContractType] = useState("APERTURA_CREDITO");
+  const [paymentFrequency, setPaymentFrequency] = useState("MENSUAL");
+  const [operationalClassification, setOperationalClassification] = useState("COMERCIAL");
+  const [minimumAmount, setMinimumAmount] = useState<number | "">(10000);
+  const [maximumAmount, setMaximumAmount] = useState<number | "">(500000);
 
-  const parsedInterestMin = Number(interestMin);
-  const parsedInterestMax = Number(interestMax);
+  const individualPerson = mode === "natural";
+  const legalEntity = mode === "moral";
+  const [businessActivityIndividual, setBusinessActivityIndividual] = useState(true);
+  const [indistinct, setIndistinct] = useState(false);
+  const [guaranteedWithFega, setGuaranteedWithFega] = useState(false);
+  const [guaranteedWithFonaga, setGuaranteedWithFonaga] = useState(false);
 
-  const isValid =
-    name.trim().length > 1 &&
-    amountMax >= amountMin &&
-    interestMin.trim() !== "" &&
-    interestMax.trim() !== "" &&
-    !Number.isNaN(parsedInterestMin) &&
-    !Number.isNaN(parsedInterestMax) &&
-    parsedInterestMax >= parsedInterestMin;
+  const [contractDestination, setContractDestination] = useState("CAPITAL_TRABAJO");
+  const [status, setStatus] = useState("ACTIVE");
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isValid = financialProduct.trim().length > 1 && Number(maximumAmount) >= Number(minimumAmount);
+
+  const handleCreate = async () => {
+    if (!isValid || isSubmitting) return;
+    setIsSubmitting(true);
+
+    const currentOrg = getStoredOrganization();
+    const payload = {
+      orgId: currentOrg?.id || "ORG-001",
+      financialProduct: financialProduct.trim(),
+      creditRate: Number(creditRate),
+      defaultInterestRate: Number(defaultInterestRate),
+      ivaType,
+      paymentScheme,
+      dueDatesCount: Number(dueDatesCount),
+      creditPoints,
+      defaultPoints,
+      ivaZone,
+      paymentPeriod,
+      scheme,
+      gracePeriod: Number(gracePeriod),
+      contractType,
+      paymentFrequency,
+      operationalClassification,
+      minimumAmount: Number(minimumAmount),
+      maximumAmount: Number(maximumAmount),
+      individualPerson,
+      legalEntity,
+      businessActivityIndividual,
+      indistinct,
+      guaranteedWithFega,
+      guaranteedWithFonaga,
+      contractDestination,
+      status
+    };
+
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_MDC_API_URL || "http://localhost:3000";
+      console.log("=== MDC DEBUG POST ===", { baseUrl, payload });
+      const response = await fetch(`${baseUrl}/finance-products`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        onCreate({
+          id: data.id || `product_${Date.now()}`,
+          name: financialProduct.trim(),
+          description: `${contractType} - ${contractDestination}`,
+          status: status === "ACTIVE" ? "ACTIVO" : "INACTIVO",
+          metrics: { activeClients: 0, totalPortfolio: 0 },
+          configuration: {
+            interestRate: { min: Number(creditRate), max: Number(creditRate) },
+            amount: { min: Number(minimumAmount), max: Number(maximumAmount) },
+            residualAmount: 0,
+            term: { min: Number(dueDatesCount), max: Number(dueDatesCount), frequency: paymentFrequency.toLowerCase() }
+          }
+        });
+      } else {
+        console.error("Error al crear producto:", await response.text());
+        alert("Hubo un error al crear el producto en el backend.");
+      }
+    } catch (err) {
+      console.error("Network error:", err);
+      alert("No se pudo conectar al backend.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
-    <div className="mdc-modal-backdrop" onClick={onClose}>
+    <div className="mdc-modal-backdrop">
       <aside className="mdc-side-panel" onClick={(e) => e.stopPropagation()}>
         <div className="mdc-modal-head">
           <div>
-            <p>Alta de producto</p>
+            <p>Alta de producto financiero</p>
             <h3>Agregar producto</h3>
           </div>
           <button type="button" onClick={onClose} className="mdc-icon-btn">
@@ -460,62 +600,137 @@ function CreateProductModal({
           </button>
         </div>
 
-        <form className="mdc-form-grid" onSubmit={(e) => e.preventDefault()}>
-          <Field label="Nombre del producto"><input value={name} onChange={(e) => setName(e.target.value)} /></Field>
-          <Field label="Estado">
-            <select value={status} onChange={(e) => setStatus(e.target.value as MdcProduct["status"])}>
-              <option value="ACTIVO">ACTIVO</option>
-              <option value="INACTIVO">INACTIVO</option>
-              <option value="BORRADOR">BORRADOR</option>
-              <option value="SUSPENDIDO">SUSPENDIDO</option>
+        <form className="mdc-form-grid" onSubmit={(e) => e.preventDefault()} style={{ maxHeight: 'calc(100vh - 120px)', overflowY: 'auto', paddingRight: '0.5rem' }}>
+          <Field label="Nombre del producto" className="mdc-form-grid__full"><input value={financialProduct} onChange={(e) => setFinancialProduct(e.target.value)} /></Field>
+
+          <Field label="Tasa del crédito (%)"><input type="number" min="0" step="any" value={creditRate} onChange={(e) => setCreditRate(e.target.value === "" ? "" : Math.max(0, Number(e.target.value)))} /></Field>
+          <Field label="Tasa moratoria (%)"><input type="number" min="0" step="any" value={defaultInterestRate} onChange={(e) => setDefaultInterestRate(e.target.value === "" ? "" : Math.max(0, Number(e.target.value)))} /></Field>
+
+          <Field label="Monto mínimo"><input type="number" min="0" value={minimumAmount} onChange={(e) => setMinimumAmount(e.target.value === "" ? "" : Math.max(0, Number(e.target.value)))} /></Field>
+          <Field label="Monto máximo"><input type="number" min="0" value={maximumAmount} onChange={(e) => setMaximumAmount(e.target.value === "" ? "" : Math.max(0, Number(e.target.value)))} /></Field>
+
+          <Field label="No. Vencimientos"><input type="number" min="0" value={dueDatesCount} onChange={(e) => setDueDatesCount(e.target.value === "" ? "" : Math.max(0, Number(e.target.value)))} /></Field>
+          <Field label="Gracia (periodos)"><input type="number" min="0" value={gracePeriod} onChange={(e) => setGracePeriod(e.target.value === "" ? "" : Math.max(0, Number(e.target.value)))} /></Field>
+
+          <Field label="Puntos crédito"><input value={creditPoints} onChange={(e) => setCreditPoints(e.target.value)} /></Field>
+          <Field label="Puntos moratorios"><input value={defaultPoints} onChange={(e) => setDefaultPoints(e.target.value)} /></Field>
+
+          <Field label="Tipo de IVA">
+            <select value={ivaType} onChange={(e) => setIvaType(e.target.value)}>
+              <option value="SIN IVA">SIN IVA</option>
+              <option value="GENERAL">GENERAL</option>
             </select>
           </Field>
-          <Field label="Descripcion" className="mdc-form-grid__full"><textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
-          <Field label="Clientes activos"><input type="number" value={activeClients} onChange={(e) => setActiveClients(Number(e.target.value))} /></Field>
-          <Field label="Cartera total"><input type="number" value={totalPortfolio} onChange={(e) => setTotalPortfolio(Number(e.target.value))} /></Field>
-          <Field label="Tasa interes min. (%)"><input type="number" step="any" value={interestMin} onChange={(e) => setInterestMin(e.target.value)} /></Field>
-          <Field label="Tasa interes max. (%)"><input type="number" step="any" value={interestMax} onChange={(e) => setInterestMax(e.target.value)} /></Field>
-          <Field label="Monto minimo"><input type="number" value={amountMin} onChange={(e) => setAmountMin(Number(e.target.value))} /></Field>
-          <Field label="Monto maximo"><input type="number" value={amountMax} onChange={(e) => setAmountMax(Number(e.target.value))} /></Field>
-          <Field label="Monto residual (%)"><input type="number" value={residualAmount} onChange={(e) => setResidualAmount(Number(e.target.value))} /></Field>
-          <Field label="Frecuencia">
-            <select value={frequency} onChange={(e) => setFrequency(e.target.value)}>
-              <option value="diario">diario</option>
-              <option value="semanal">semanal</option>
-              <option value="quincenal">quincenal</option>
-              <option value="mensual">mensual</option>
+          <Field label="Zona IVA">
+            <select value={ivaZone} onChange={(e) => setIvaZone(e.target.value)}>
+              <option value="ZONA 1">ZONA 1</option>
+              <option value="FRONTERA">FRONTERA</option>
             </select>
           </Field>
-          <Field label="Plazo minimo"><input type="number" value={termMin} onChange={(e) => setTermMin(Number(e.target.value))} /></Field>
-          <Field label="Plazo maximo"><input type="number" value={termMax} onChange={(e) => setTermMax(Number(e.target.value))} /></Field>
+
+          <Field label="Esquema de pago">
+            <select value={paymentScheme} onChange={(e) => setPaymentScheme(e.target.value)}>
+              <option value="SIMPLE">SIMPLE</option>
+              <option value="AMORTIZADO">AMORTIZADO</option>
+            </select>
+          </Field>
+          <Field label="Periodo de pago">
+            <select value={paymentPeriod} onChange={(e) => setPaymentPeriod(e.target.value)}>
+              <option value="AL VENCIMIENTO">AL VENCIMIENTO</option>
+              <option value="MENSUAL">MENSUAL</option>
+            </select>
+          </Field>
+
+          <Field label="Esquema">
+            <select value={scheme} onChange={(e) => setScheme(e.target.value)}>
+              <option value="FIJO">FIJO</option>
+              <option value="AMORTIZACIONES CONSTANTES">AMORTIZACIONES CONSTANTES</option>
+            </select>
+          </Field>
+          <Field label="Tipo de contrato">
+            <select value={contractType} onChange={(e) => setContractType(e.target.value)}>
+              <option value="CREDITO SIMPLE">CREDITO SIMPLE</option>
+              <option value="APERTURA_CREDITO">APERTURA_CREDITO</option>
+            </select>
+          </Field>
+
+          <Field label="Frecuencia de pago">
+            <select value={paymentFrequency} onChange={(e) => setPaymentFrequency(e.target.value)}>
+              <option value="CATORCENAL">CATORCENAL</option>
+              <option value="MENSUAL">MENSUAL</option>
+            </select>
+          </Field>
+          <Field label="Clasificación operativa">
+            <select value={operationalClassification} onChange={(e) => setOperationalClassification(e.target.value)}>
+              <option value="AL CONSUMO">AL CONSUMO</option>
+              <option value="COMERCIAL">COMERCIAL</option>
+            </select>
+          </Field>
+
+          <Field label="Destino del contrato" className="mdc-form-grid__full">
+            <select value={contractDestination} onChange={(e) => setContractDestination(e.target.value)}>
+              <option value="CONSUMO">CONSUMO</option>
+              <option value="CAPITAL_TRABAJO">CAPITAL_TRABAJO</option>
+            </select>
+          </Field>
+
+          <fieldset className="mdc-form-grid__full" style={{ border: '1px solid var(--mdc-border)', padding: '1rem 1.25rem 1.25rem', borderRadius: '8px', margin: '0' }}>
+            <legend style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--mdc-text-muted)', padding: '0 0.5rem' }}>Elegibilidad y Garantías</legend>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem 1.5rem', marginTop: '0.5rem' }}>
+              {([
+                { label: 'Física act. empresarial', value: businessActivityIndividual, set: setBusinessActivityIndividual },
+                { label: 'Indistinto', value: indistinct, set: setIndistinct },
+                { label: 'Garantizado con FEGA', value: guaranteedWithFega, set: setGuaranteedWithFega },
+                { label: 'Garantizado con FONAGA', value: guaranteedWithFonaga, set: setGuaranteedWithFonaga },
+              ] as { label: string; value: boolean; set: (v: boolean) => void }[]).map(({ label, value, set }) => {
+                const id = label.toLowerCase().replace(/\s+/g, '-');
+                return (
+                  <div key={id} style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--mdc-text)' }}>{label}</span>
+                    <div style={{ display: 'flex', gap: '0.75rem' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.8125rem', cursor: 'pointer', color: 'var(--mdc-text-muted)' }}>
+                        <input
+                          type="radio"
+                          name={id}
+                          checked={value === true}
+                          onChange={() => set(true)}
+                          style={{ accentColor: 'var(--mdc-primary, #4f6ef7)', width: '15px', height: '15px', cursor: 'pointer' }}
+                        />
+                        Sí
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.8125rem', cursor: 'pointer', color: 'var(--mdc-text-muted)' }}>
+                        <input
+                          type="radio"
+                          name={id}
+                          checked={value === false}
+                          onChange={() => set(false)}
+                          style={{ accentColor: 'var(--mdc-primary, #4f6ef7)', width: '15px', height: '15px', cursor: 'pointer' }}
+                        />
+                        No
+                      </label>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </fieldset>
+
+          <Field label="Estado" className="mdc-form-grid__full">
+            <select value={status} onChange={(e) => setStatus(e.target.value)}>
+              <option value="ACTIVE">ACTIVO (ACTIVE)</option>
+              <option value="INACTIVE">INACTIVO (INACTIVE)</option>
+            </select>
+          </Field>
 
           <div className="mdc-form-grid__full mdc-side-panel__actions">
             <button type="button" className="mdc-btn mdc-btn--ghost" onClick={onClose}>Cancelar</button>
             <button
               type="button"
               className="mdc-btn mdc-btn--primary"
-              disabled={!isValid}
-              onClick={() => {
-                if (!isValid) return;
-                onCreate({
-                  id: `product_${Date.now()}`,
-                  name: name.trim(),
-                  description: description.trim() || "Sin descripcion",
-                  status,
-                  metrics: {
-                    activeClients,
-                    totalPortfolio,
-                  },
-                  configuration: {
-                    interestRate: { min: parsedInterestMin, max: parsedInterestMax },
-                    amount: { min: amountMin, max: amountMax },
-                    residualAmount,
-                    term: { min: termMin, max: termMax, frequency },
-                  },
-                });
-              }}
+              disabled={!isValid || isSubmitting}
+              onClick={handleCreate}
             >
-              Crear producto
+              {isSubmitting ? "Creando..." : "Crear producto"}
             </button>
           </div>
         </form>

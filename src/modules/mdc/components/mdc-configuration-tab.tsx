@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { applicationsListMock, type Application } from "@/modules/mdc/data/mdc-credit-mock";
 import { SESSIONS } from "@/modules/mdc/components/mdc-payments-tab";
-import { CASES } from "@/modules/mdc/components/mdc-collections-tab";
+
 
 type ConfigSection = "general" | "roles" | "users" | "export";
 
@@ -28,8 +28,11 @@ type UserRow = {
   id: string;
   fullName: string;
   email: string;
-  role: string;
-  status: "active" | "inactive";
+  roles: string[];
+  status: "ACTIVE" | "INACTIVE";
+  updatedAt: string;
+  requiresPasswordChange: boolean;
+  otp: "DESACTIVADO" | "REQUERIDO";
 };
 
 type ExportJob = {
@@ -41,10 +44,10 @@ type ExportJob = {
 };
 
 const STORAGE_KEYS = {
-  general: "mdc:config:general",
-  roles: "mdc:config:roles",
-  users: "mdc:config:users",
-  exports: "mdc:config:exports",
+  general: "mdc:config:general:v5",
+  roles: "mdc:config:roles:v2",
+  users: "mdc:config:users:v2",
+  exports: "mdc:config:exports:v2",
 };
 
 const MDC_STORAGE_KEYS = {
@@ -52,34 +55,72 @@ const MDC_STORAGE_KEYS = {
 };
 
 const DEFAULT_GENERAL: GeneralSettings = {
-  companyName: "Zelify MX",
-  legalName: "Zelify Financial Technologies SA de CV",
-  taxId: "ZFT190101ABC",
-  supportEmail: "soporte@zelify.com",
-  supportPhone: "+52 55 9999 2000",
-  address: "Av. Reforma 220, Ciudad de Mexico",
+  companyName: "Kumaza",
+  legalName: "TuLana S.A.",
+  taxId: "12313142343",
+  supportEmail: "nzpf2502@outlook.com",
+  supportPhone: "",
+  address: "Paseo de Los Tamarindos 384, Bosques de las Lomas, Ciudad de México, CDMX, México",
   timezone: "America/Mexico_City",
   currency: "MXN",
 };
 
-const DEFAULT_ROLES: RoleRow[] = [
-  { name: "Super Admin", description: "Acceso total a configuraciones y datos.", permissions: "Todos" },
-  { name: "Risk Analyst", description: "Gestion de solicitudes y reglas de riesgo.", permissions: "Evaluacion, Reglas, Productos" },
-  { name: "Operations", description: "Monitoreo operativo y pagos.", permissions: "Solicitudes, Pagos, Cobranza" },
-  { name: "Viewer", description: "Solo lectura de metricas y reportes.", permissions: "Lectura general" },
-];
+const DEFAULT_ROLES: RoleRow[] = [];
 
 const DEFAULT_USERS: UserRow[] = [
-  { id: "USR-001", fullName: "Andrea Molina", email: "andrea@zelify.com", role: "Super Admin", status: "active" },
-  { id: "USR-002", fullName: "Diego Ramirez", email: "diego@zelify.com", role: "Risk Analyst", status: "active" },
-  { id: "USR-003", fullName: "Paula Torres", email: "paula@zelify.com", role: "Operations", status: "inactive" },
+  {
+    id: "USR-001",
+    fullName: "Alexis Fernando Montenegro Tapia",
+    email: "esotomayor878@gmail.com",
+    roles: ["ORG_ADMIN", "USER_APP"],
+    status: "ACTIVE",
+    updatedAt: "13/8/2026, 2:47:56 p. m.",
+    requiresPasswordChange: false,
+    otp: "DESACTIVADO",
+  },
+  {
+    id: "USR-002",
+    fullName: "Ernesto Perez",
+    email: "eperezamigo@yahoo.com",
+    roles: ["USER_APP"],
+    status: "ACTIVE",
+    updatedAt: "23/7/2026, 11:34:01 a. m.",
+    requiresPasswordChange: false,
+    otp: "REQUERIDO",
+  },
+  {
+    id: "USR-003",
+    fullName: "Admin Kumaza",
+    email: "nzpf2502@outlook.com",
+    roles: ["ORG_ADMIN"],
+    status: "ACTIVE",
+    updatedAt: "13/8/2026, 2:46:23 p. m.",
+    requiresPasswordChange: true,
+    otp: "DESACTIVADO",
+  },
+  {
+    id: "USR-004",
+    fullName: "Juan Sanchez",
+    email: "bmwgt80@gmail.com",
+    roles: ["ORG_ADMIN"],
+    status: "ACTIVE",
+    updatedAt: "13/8/2026, 2:52:39 p. m.",
+    requiresPasswordChange: true,
+    otp: "DESACTIVADO",
+  },
+  {
+    id: "USR-005",
+    fullName: "Mauro Ortiz",
+    email: "mauroortiz73@hotmail.com",
+    roles: ["ORG_ADMIN"],
+    status: "ACTIVE",
+    updatedAt: "12/8/2026, 11:22:51 a. m.",
+    requiresPasswordChange: true,
+    otp: "DESACTIVADO",
+  },
 ];
 
-const DEFAULT_EXPORTS: ExportJob[] = [
-  { id: "EXP-001", name: "export_solicitudes_2026_05_07.csv", date: "2026-05-07 10:30", status: "completed", type: "applications" },
-  { id: "EXP-002", name: "export_clientes_2026_05_07.csv", date: "2026-05-07 11:15", status: "running", type: "clients" },
-  { id: "EXP-003", name: "export_pagos_2026_05_06.csv", date: "2026-05-06 18:00", status: "failed", type: "payments" },
-];
+const DEFAULT_EXPORTS: ExportJob[] = [];
 
 const EXPORT_OPTIONS: { value: ExportJob["type"]; label: string }[] = [
   { value: "clients", label: "Clientes" },
@@ -122,7 +163,7 @@ function normalizeProductName(name: string) {
   return name;
 }
 
-function riskFromScore(score: number) {
+function riskFromScore(score: number): "low" | "medium" | "high" {
   const bureauScore = Math.round(850 - (Math.max(0, Math.min(100, score)) / 100) * 450);
   if (bureauScore <= 549) return "high";
   if (bureauScore <= 649) return "medium";
@@ -283,7 +324,7 @@ function buildKycRows(applications: Application[]): CsvRow[] {
 }
 
 function buildCollectionsRows() {
-  return CASES.map((item) => ({
+  return ([] as any[]).map((item) => ({
     caso_id: item.caseId,
     solicitud: item.applicationNo,
     cliente: item.customerName,
@@ -340,7 +381,7 @@ function buildExportRows(type: ExportJob["type"], applications: Application[]) {
     ...clientsRows.map((row) => ({ seccion: "clientes", ...row })),
     ...applicationsRows.map((row) => ({ seccion: "solicitudes", ...row })),
     ...paymentsRows.map((row) => ({ seccion: "pagos", ...row })),
-    ...collectionsRows.map((row) => ({ seccion: "cobranza", ...row })),
+    ...collectionsRows.map((row: any) => ({ seccion: "cobranza", ...row })),
     ...lostPaymentsRows.map((row) => ({ seccion: "pagos_perdidos", ...row })),
     ...underwritingRows.map((row) => ({ seccion: "resultados_suscripcion", ...row })),
     ...kycRows.map((row) => ({ seccion: "resultados_kyc", ...row })),
@@ -447,7 +488,11 @@ export function MdcConfigurationTab() {
             <table className="mdc-table mdc-cfg-table">
               <thead><tr><th>Nombre</th><th>Descripcion</th><th>Permisos</th><th>Acciones</th></tr></thead>
               <tbody>
-                {roles.map((role, index) => (
+                {roles.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8" }}>Sin roles configurados. Haz clic en &quot;Agregar rol&quot; para comenzar.</td>
+                  </tr>
+                ) : roles.map((role, index) => (
                   <tr key={`${role.name}-${index}`}>
                     <td>{role.name}</td>
                     <td>{role.description}</td>
@@ -502,8 +547,11 @@ export function MdcConfigurationTab() {
                   id: `USR-${String(users.length + 1).padStart(3, "0")}`,
                   fullName: "Nuevo usuario",
                   email: `nuevo${users.length + 1}@zelify.com`,
-                  role: roleNames[0] ?? "Viewer",
-                  status: "active",
+                  roles: [roleNames[0] ?? "Viewer"],
+                  status: "ACTIVE",
+                  updatedAt: new Date().toLocaleString("es-MX"),
+                  requiresPasswordChange: true,
+                  otp: "DESACTIVADO",
                 };
                 const updated = [next, ...users];
                 setUsers(updated);
@@ -514,61 +562,94 @@ export function MdcConfigurationTab() {
             </button>
           </div>
           <div className="mdc-table-wrap">
-            <table className="mdc-table mdc-cfg-table">
-              <thead><tr><th>ID</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead>
+            <table className="mdc-table mdc-cfg-table" style={{ borderCollapse: 'collapse', width: '100%' }}>
+              <thead>
+                <tr style={{ textTransform: 'uppercase', fontSize: '11px', color: '#64748b', letterSpacing: '0.05em' }}>
+                  <th style={{ width: '40px', padding: '1rem' }}><input type="checkbox" /></th>
+                  <th style={{ padding: '1rem' }}>Miembro</th>
+                  <th style={{ padding: '1rem' }}>Estado</th>
+                  <th style={{ padding: '1rem' }}>Roles</th>
+                  <th style={{ padding: '1rem' }}>Actualizado</th>
+                  <th style={{ padding: '1rem' }}>OTP</th>
+                  <th style={{ padding: '1rem', textAlign: 'right' }}>Acciones</th>
+                </tr>
+              </thead>
               <tbody>
-                {users.map((user) => (
-                  <tr key={user.id}>
-                    <td>{user.id}</td>
-                    <td>{user.fullName}</td>
-                    <td>{user.email}</td>
-                    <td>
-                      <select
-                        value={user.role}
-                        onChange={(e) => {
-                          const updated = users.map((row) => (row.id === user.id ? { ...row, role: e.target.value } : row));
-                          setUsers(updated);
-                          writeStored(STORAGE_KEYS.users, updated);
-                        }}
-                      >
-                        {roleNames.map((roleName) => <option key={roleName} value={roleName}>{roleName}</option>)}
-                      </select>
-                    </td>
-                    <td>
-                      <span className={user.status === "active" ? "mdc-badge mdc-badge--ok" : "mdc-badge mdc-badge--neutral"}>
-                        {user.status === "active" ? "Activo" : "Inactivo"}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="mdc-actions">
-                        <button
-                          type="button"
-                          className="mdc-btn mdc-btn--xs"
-                          onClick={() => {
-                            const updated = users.map((row) =>
-                              row.id === user.id ? { ...row, status: row.status === "active" ? "inactive" : "active" } : row,
-                            );
-                            setUsers(updated);
-                            writeStored(STORAGE_KEYS.users, updated);
-                          }}
-                        >
-                          {user.status === "active" ? "Desactivar" : "Activar"}
-                        </button>
-                        <button
-                          type="button"
-                          className="mdc-btn mdc-btn--xs mdc-btn--danger"
-                          onClick={() => {
-                            const updated = users.filter((row) => row.id !== user.id);
-                            setUsers(updated);
-                            writeStored(STORAGE_KEYS.users, updated);
-                          }}
-                        >
-                          Eliminar
-                        </button>
-                      </div>
+                {users.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8" }}>
+                      No hay usuarios configurados. Haz clic en "Agregar usuario" para comenzar.
                     </td>
                   </tr>
-                ))}
+                ) : users.map((user) => {
+                  const initials = user.fullName.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
+                  return (
+                    <tr key={user.id} style={{ borderTop: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '1rem' }}>
+                        <input type="checkbox" />
+                      </td>
+                      <td style={{ padding: '1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#e2e8f0', color: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '14px' }}>
+                            {initials}
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 600, color: '#1e293b', fontSize: '14px' }}>{user.fullName}</div>
+                            <div style={{ color: '#64748b', fontSize: '12px' }}>{user.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ padding: '1rem' }}>
+                        <span className="mdc-badge mdc-badge--ok" style={{ textTransform: 'uppercase' }}>
+                          {user.status}
+                        </span>
+                      </td>
+                      <td style={{ padding: '1rem' }}>
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                          {user.roles.map(role => (
+                            <span key={role} style={{ backgroundColor: '#e2e8f0', color: '#334155', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
+                              {role}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td style={{ padding: '1rem' }}>
+                        <div style={{ fontSize: '13px', color: '#334155' }}>{user.updatedAt}</div>
+                        {user.requiresPasswordChange && (
+                          <div style={{ color: '#d97706', fontSize: '12px', marginTop: '4px' }}>Requiere cambio de contraseña</div>
+                        )}
+                      </td>
+                      <td style={{ padding: '1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <label className="mdc-switch" style={{ margin: 0 }}>
+                            <input
+                              type="checkbox"
+                              checked={user.otp === "REQUERIDO"}
+                              onChange={(e) => {
+                                const updated = users.map(r => r.id === user.id ? { ...r, otp: (e.target.checked ? "REQUERIDO" : "DESACTIVADO") as "REQUERIDO" | "DESACTIVADO" } : r);
+                                setUsers(updated);
+                                writeStored(STORAGE_KEYS.users, updated);
+                              }}
+                            />
+                            <span className="mdc-slider"></span>
+                          </label>
+                          <span style={{ fontSize: '11px', fontWeight: 600, color: user.otp === "REQUERIDO" ? '#059669' : '#94a3b8' }}>
+                            {user.otp}
+                          </span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '1rem', textAlign: 'right' }}>
+                        <button type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="1"></circle>
+                            <circle cx="12" cy="5" r="1"></circle>
+                            <circle cx="12" cy="19" r="1"></circle>
+                          </svg>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -598,7 +679,7 @@ export function MdcConfigurationTab() {
               <button
                 type="button"
                 className="mdc-btn mdc-btn--primary"
-                onClick={() => {
+                onClick={async () => {
                   const now = nowForExport();
                   const jobId = `EXP-${String(exportJobs.length + 1).padStart(3, "0")}`;
                   const runningJob: ExportJob = {
@@ -614,20 +695,49 @@ export function MdcConfigurationTab() {
                   writeStored(STORAGE_KEYS.exports, runningJobs);
 
                   try {
-                    const applications = readApplications();
+                    let applications = readApplications();
+                    try {
+                      const baseUrl = process.env.NEXT_PUBLIC_MDC_API_URL || "http://localhost:3000";
+                      const res = await fetch(`${baseUrl}/finance-requests?orgId=ORG-001`);
+                      if (res.ok) {
+                        const data = await res.json();
+                        applications = data.map((item: any) => ({
+                          id: item.id,
+                          appNo: `APP-${item.id.split("-")[0].toUpperCase()}`,
+                          applicantName: item.personType === "natural"
+                            ? `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Desconocido'
+                            : item.businessName || 'Desconocido',
+                          applicantEmail: item.email || 'N/A',
+                          product: item.product || 'N/A',
+                          requestedAmount: Number(item.amount) || 0,
+                          currency: 'MXN',
+                          status: item.status === "Aprobada" ? "approved" :
+                            item.status === "Rechazada" ? "declined" :
+                              item.status === "Revision manual" ? "manualReview" :
+                                item.status === "Override" ? "overridden" : "pending",
+                          risk: item.riskLevel === "Bajo" ? "low" :
+                            item.riskLevel === "Alto" ? "high" : "medium",
+                          riskScore: item.riskScore || 50,
+                          submittedAt: item.createdAt || new Date().toISOString()
+                        })) as Application[];
+                      }
+                    } catch (e) {
+                      // Fallback to local storage if API fails
+                    }
+
                     const { rows, fileBase } = buildExportRows(selectedExportType, applications);
                     const csv = rowsToCsv(rows);
                     const filename = `${fileBase}_${now.stamp}.csv`;
                     downloadCsv(filename, csv);
 
                     const completedJobs = runningJobs.map((job) =>
-                      job.id === jobId ? { ...job, name: filename, status: "completed" } : job,
+                      job.id === jobId ? { ...job, name: filename, status: "completed" as const } : job,
                     );
                     setExportJobs(completedJobs);
                     writeStored(STORAGE_KEYS.exports, completedJobs);
                   } catch {
                     const failedJobs = runningJobs.map((job) =>
-                      job.id === jobId ? { ...job, status: "failed" } : job,
+                      job.id === jobId ? { ...job, status: "failed" as const } : job,
                     );
                     setExportJobs(failedJobs);
                     writeStored(STORAGE_KEYS.exports, failedJobs);
@@ -642,7 +752,13 @@ export function MdcConfigurationTab() {
             <table className="mdc-table mdc-cfg-table">
               <thead><tr><th>ID</th><th>Nombre</th><th>Fecha</th><th>Tipo</th><th>Estado</th><th>Acciones</th></tr></thead>
               <tbody>
-                {exportJobs.map((job) => (
+                {exportJobs.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8" }}>
+                      No hay exportaciones recientes.
+                    </td>
+                  </tr>
+                ) : exportJobs.map((job) => (
                   <tr key={job.id}>
                     <td>{job.id}</td>
                     <td>{job.name}</td>
@@ -660,7 +776,7 @@ export function MdcConfigurationTab() {
                         onClick={() => {
                           const updated = exportJobs.map((item) =>
                             item.id === job.id
-                              ? { ...item, status: item.status === "running" ? "completed" : item.status === "completed" ? "failed" : "completed" }
+                              ? { ...item, status: (item.status === "running" ? "completed" : item.status === "completed" ? "failed" : "completed") as ExportJob["status"] }
                               : item,
                           );
                           setExportJobs(updated);

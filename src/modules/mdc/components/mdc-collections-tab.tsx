@@ -1,154 +1,91 @@
 "use client";
 
-import { NotebookPen } from "lucide-react";
-import { useMemo, useState } from "react";
+import { ChevronRight, NotebookPen, X } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
 import type { MdcApplicantMode } from "@/modules/mdc/data/mdc-credit-mock";
+import { fetchCollections, createCollectionCase, deleteCollectionCase, addCollectionNote, type CollectionCase, type CollectionNote } from "@/modules/mdc/services/mdc-collections.service";
 
-export type CollectionCase = {
-  caseId: string;
-  applicationNo: string;
-  customerName: string;
-  email: string;
-  phone: string;
-  identification: string;
-  birthDate: string;
-  address: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  amountDue: number;
-  dpd: number;
-  status: "active" | "escalated";
-  assignedAgent: string;
-  lastActivity: string;
-  createdAt: string;
-};
-
-export const NATURAL_CASES: CollectionCase[] = [
-  {
-    caseId: "case-001",
-    applicationNo: "APP-001272",
-    customerName: "Gabriela Torres Lopez",
-    email: "gabriela.torres@gmail.com",
-    phone: "+52 55 1200 1272",
-    identification: "INE GATL950606MDF",
-    birthDate: "06/06/1995",
-    address: "Av. Vallarta 2040",
-    city: "Zapopan",
-    state: "Jalisco",
-    zipCode: "45000",
-    amountDue: 3158,
-    dpd: 8,
-    status: "active",
-    assignedAgent: "AGT-001",
-    lastActivity: "07/05/2026",
-    createdAt: "05/05/2026",
-  },
-  {
-    caseId: "case-002",
-    applicationNo: "APP-001265",
-    customerName: "Miguel Hernandez Paz",
-    email: "miguel.hernandez@gmail.com",
-    phone: "+52 55 1200 1265",
-    identification: "INE MIHP930404HDF",
-    birthDate: "04/04/1993",
-    address: "Av. Universidad 900",
-    city: "Puebla",
-    state: "Puebla",
-    zipCode: "72000",
-    amountDue: 3508,
-    dpd: 14,
-    status: "escalated",
-    assignedAgent: "AGT-002",
-    lastActivity: "07/05/2026",
-    createdAt: "06/05/2026",
-  },
-];
-
-export const MORAL_CASES: CollectionCase[] = [
-  {
-    caseId: "pm-case-001",
-    applicationNo: "APP-PM-100281",
-    customerName: "Comercializadora Bajio Norte SA de CV",
-    email: "direccion.financiera@bajionorte.mx",
-    phone: "+52 442 900 1281",
-    identification: "RFC CBN140501KJ3",
-    birthDate: "15/04/2014",
-    address: "Parque Industrial Bajio 220",
-    city: "Queretaro",
-    state: "Queretaro",
-    zipCode: "76120",
-    amountDue: 125000,
-    dpd: 11,
-    status: "active",
-    assignedAgent: "AGT-PM-001",
-    lastActivity: "07/05/2026",
-    createdAt: "05/05/2026",
-  },
-  {
-    caseId: "pm-case-002",
-    applicationNo: "APP-PM-100276",
-    customerName: "Distribuidora Electrica Metropoli SA de CV",
-    email: "tesoreria@demetropoli.mx",
-    phone: "+52 55 8800 1276",
-    identification: "RFC DEM170903PZ8",
-    birthDate: "03/09/2017",
-    address: "Av. Ceylan 1440",
-    city: "Azcapotzalco",
-    state: "CDMX",
-    zipCode: "02300",
-    amountDue: 196000,
-    dpd: 19,
-    status: "escalated",
-    assignedAgent: "AGT-PM-002",
-    lastActivity: "07/05/2026",
-    createdAt: "06/05/2026",
-  },
-  {
-    caseId: "pm-case-003",
-    applicationNo: "APP-PM-100279",
-    customerName: "Agroinsumos del Pacifico SA de CV",
-    email: "tesoreria@agropacifico.mx",
-    phone: "+52 667 400 1279",
-    identification: "RFC APA150712TR6",
-    birthDate: "12/07/2015",
-    address: "Carretera Culiacan Navolato 5400",
-    city: "Culiacan",
-    state: "Sinaloa",
-    zipCode: "80370",
-    amountDue: 148000,
-    dpd: 7,
-    status: "active",
-    assignedAgent: "AGT-PM-003",
-    lastActivity: "08/05/2026",
-    createdAt: "05/05/2026",
-  },
-];
-
-export const CASES = NATURAL_CASES;
+export type { CollectionCase, CollectionNote };
 
 const PAGE_SIZE = 10;
 
 export function MdcCollectionsTab({
   mode = "natural",
-  cases = mode === "moral" ? MORAL_CASES : NATURAL_CASES,
 }: {
   mode?: MdcApplicantMode;
-  cases?: CollectionCase[];
 }) {
+  const [cases, setCases] = useState<CollectionCase[]>([]);
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [selectedCase, setSelectedCase] = useState<CollectionCase | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
-  const [savedNotes, setSavedNotes] = useState<Record<string, string[]>>({});
+
+  useEffect(() => {
+    async function load() {
+      const data = await fetchCollections(mode);
+      setCases(data);
+    }
+    load();
+  }, [mode]);
+
+  const handleCreateTest = async () => {
+    const isMoral = mode === "moral";
+    const newCase = await createCollectionCase({
+      applicationNo: `APP-${Date.now().toString().slice(-4)}`,
+      customerName: isMoral ? "Empresa Deudora SA" : "Carlos Deudor",
+      email: "test@deuda.com",
+      phone: "555-1234",
+      identification: "ID-12345",
+      birthDate: "1990-01-01",
+      address: "Calle Falsa 123",
+      city: "CDMX",
+      state: "CDMX",
+      zipCode: "10000",
+      amountDue: Math.floor(Math.random() * 10000) + 1000,
+      dpd: Math.floor(Math.random() * 90) + 1,
+      status: "active",
+      assignedAgent: "AGT-001",
+      lastActivity: new Date().toISOString().split('T')[0],
+      individualPerson: !isMoral,
+      legalEntity: isMoral,
+    } as any);
+    if (newCase) {
+      setCases(prev => [...prev, newCase]);
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    for (const c of cases) {
+      if (c.id) await deleteCollectionCase(c.id);
+    }
+    setCases([]);
+  };
+
+  const handleSaveNote = async () => {
+    if (!selectedCase?.id || !noteDraft.trim()) return;
+    const text = noteDraft.trim();
+    const note = await addCollectionNote(selectedCase.id, text);
+    if (note) {
+      setCases(prev => prev.map(c => {
+        if (c.id === selectedCase.id) {
+          return { ...c, notes: [...(c.notes || []), note] };
+        }
+        return c;
+      }));
+      setSelectedCase({ ...selectedCase, notes: [...(selectedCase.notes || []), note] });
+    }
+    setNoteDraft("");
+    setIsNoteModalOpen(false);
+    setIsDetailModalOpen(true);
+  };
 
   const filteredCases = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return cases;
     return cases.filter((item) =>
-      [item.caseId, item.applicationNo, item.customerName, item.assignedAgent, item.status]
+      [item.id, item.applicationNo, item.customerName, item.assignedAgent, item.status]
         .join(" ")
         .toLowerCase()
         .includes(q),
@@ -165,7 +102,7 @@ export function MdcCollectionsTab({
 
   return (
     <section className="mdc-section">
-      <article className="mdc-card">
+      <article className="mdc-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3>Cobranza</h3>
       </article>
 
@@ -180,8 +117,8 @@ export function MdcCollectionsTab({
         </div>
       </article>
 
-        <article className="mdc-card">
-          <h3>Casos de cobranza</h3>
+      <article className="mdc-card">
+        <h3>Casos de cobranza</h3>
         <p>{mode === "moral" ? "Casos activos de seguimiento a empresas y razones sociales." : "Casos de cobranza activos."}</p>
 
         <div className="mdc-col-search-wrap">
@@ -213,16 +150,22 @@ export function MdcCollectionsTab({
               </tr>
             </thead>
             <tbody>
-              {pagedCases.map((item) => (
+              {pagedCases.length === 0 ? (
+                <tr>
+                  <td colSpan={10} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8" }}>
+                    No hay casos de cobranza activos.
+                  </td>
+                </tr>
+              ) : pagedCases.map((item) => (
                 <tr
-                  key={item.caseId}
+                  key={item.id}
                   className="mdc-col-row"
                   onClick={() => {
                     setSelectedCase(item);
                     setIsDetailModalOpen(true);
                   }}
                 >
-                  <td>{item.caseId}</td>
+                  <td>{item.id}</td>
                   <td>{item.applicationNo}</td>
                   <td>{item.customerName}</td>
                   <td>${formatMoney(item.amountDue)}</td>
@@ -230,12 +173,12 @@ export function MdcCollectionsTab({
                   <td><StatusBadge status={item.status} /></td>
                   <td>{item.assignedAgent}</td>
                   <td>{item.lastActivity}</td>
-                  <td>{item.createdAt}</td>
+                  <td>{item.createdAt || "-"}</td>
                   <td>
                     <button
                       type="button"
                       className="mdc-col-note-btn"
-                      aria-label={`Agregar nota a ${item.caseId}`}
+                      aria-label={`Agregar nota a ${item.id}`}
                       onClick={(event) => {
                         event.stopPropagation();
                         setIsDetailModalOpen(false);
@@ -270,7 +213,7 @@ export function MdcCollectionsTab({
             <div className="mdc-modal-head">
               <div>
                 <p>Detalle del caso</p>
-                <h3>{selectedCase.caseId} · {selectedCase.customerName}</h3>
+                <h3>{selectedCase.id} · {selectedCase.customerName}</h3>
               </div>
               <button
                 type="button"
@@ -292,7 +235,7 @@ export function MdcCollectionsTab({
               <DetailItem label="Estado" value={selectedCase.status === "active" ? "activo" : "escalado"} />
               <DetailItem label="Agente asignado" value={selectedCase.assignedAgent} />
               <DetailItem label="Ultima actividad" value={selectedCase.lastActivity} />
-              <DetailItem label="Creado el" value={selectedCase.createdAt} />
+              <DetailItem label="Creado el" value={selectedCase.createdAt || "-"} />
             </div>
 
             <div className="mdc-col-box">
@@ -325,10 +268,10 @@ export function MdcCollectionsTab({
                   Agregar nota
                 </button>
               </div>
-              {savedNotes[selectedCase.caseId]?.length ? (
+              {selectedCase.notes?.length ? (
                 <ul>
-                  {savedNotes[selectedCase.caseId].map((note, idx) => (
-                    <li key={`${selectedCase.caseId}-detail-note-${idx}`}>• {note}</li>
+                  {selectedCase.notes.map((note, idx) => (
+                    <li key={`${selectedCase.id}-detail-note-${idx}`}>• {note.text}</li>
                   ))}
                 </ul>
               ) : (
@@ -345,7 +288,7 @@ export function MdcCollectionsTab({
             <div className="mdc-modal-head">
               <div>
                 <p>Agregar nota</p>
-                <h3>{selectedCase.caseId} · {selectedCase.customerName}</h3>
+                <h3>{selectedCase.id} · {selectedCase.customerName}</h3>
               </div>
               <button type="button" className="mdc-btn mdc-btn--ghost" onClick={() => { setIsNoteModalOpen(false); setIsDetailModalOpen(true); }}>
                 Cerrar
@@ -363,29 +306,19 @@ export function MdcCollectionsTab({
                   type="button"
                   className="mdc-btn mdc-btn--primary"
                   disabled={!noteDraft.trim()}
-                  onClick={() => {
-                    const text = noteDraft.trim();
-                    if (!text) return;
-                    setSavedNotes((prev) => ({
-                      ...prev,
-                      [selectedCase.caseId]: [...(prev[selectedCase.caseId] ?? []), text],
-                    }));
-                    setNoteDraft("");
-                    setIsNoteModalOpen(false);
-                    setIsDetailModalOpen(true);
-                  }}
+                  onClick={handleSaveNote}
                 >
                   Guardar nota
                 </button>
               </div>
             </div>
 
-            {savedNotes[selectedCase.caseId]?.length ? (
+            {selectedCase.notes?.length ? (
               <div className="mdc-col-box">
                 <p>Notas guardadas</p>
                 <ul>
-                  {savedNotes[selectedCase.caseId].map((note, idx) => (
-                    <li key={`${selectedCase.caseId}-note-${idx}`}>• {note}</li>
+                  {selectedCase.notes.map((note, idx) => (
+                    <li key={`${selectedCase.id}-note-${idx}`}>• {note.text}</li>
                   ))}
                 </ul>
               </div>

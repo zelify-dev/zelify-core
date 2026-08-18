@@ -1,9 +1,8 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-// Hardcoded Supabase credentials (requested project setup)
-const supabaseUrl = "https://djrtxzowyxprawntzuol.supabase.co";
-const publishableKey = "sb_publishable_x1pYHmYAw_PJRpVpegwCCw_L-HutejB";
-const serviceRoleKey = "sb_secret_vqKqAxRvRQWAiSQ_dzEN4w_rJ9GcLes";
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 let supabaseRuntimeUnavailable = false;
 
 /** Si es "true", no se usa Supabase en rutas API aunque existan variables de entorno (útil en local). */

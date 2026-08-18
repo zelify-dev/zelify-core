@@ -46,7 +46,7 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} className={nataSans.variable} suppressHydrationWarning>
-      <body>
+      <body suppressHydrationWarning>
         <TamaguiProvider>
           <BrandingProvider>
             <I18nProvider initialLocale={locale} initialMessages={messages}>

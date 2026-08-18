@@ -1,21 +1,11 @@
 "use client";
 
 import { ChevronRight, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import type { MdcApplicantMode } from "@/modules/mdc/data/mdc-credit-mock";
+import { fetchPayments, createPayment, deletePayment, type PaymentSession } from "@/modules/mdc/services/mdc-payments.service";
 
-export type Session = {
-  id: string;
-  userId: string;
-  applicantId: string;
-  status: "PENDIENTE" | "PROCESANDO" | "CAPTURADO" | "FALLIDO";
-  paymentMethod: "tarjeta" | "spei";
-  amount: number;
-  currency: "MXN";
-  createdAt: string;
-  errorCode?: string;
-  retryable?: boolean;
-};
+export type Session = PaymentSession;
 
 type Installment = {
   installmentNumber: number;
@@ -27,7 +17,6 @@ type Installment = {
 type RangePreset = "7d" | "30d" | "90d";
 type MdcPaymentsTabProps = {
   mode?: MdcApplicantMode;
-  sessions?: Session[];
   range?: RangePreset;
   onRangeChange?: (range: RangePreset) => void;
 };
@@ -86,9 +75,52 @@ function rangeLabel(days: number) {
   return days === 7 ? "Ultimos 7 dias" : days === 30 ? "Ultimos 30 dias" : "Ultimos 90 dias";
 }
 
-export function MdcPaymentsTab({ mode = "natural", sessions = mode === "moral" ? MORAL_SESSIONS : NATURAL_SESSIONS, range, onRangeChange }: MdcPaymentsTabProps) {
+export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPaymentsTabProps) {
+  const [sessions, setSessions] = useState<PaymentSession[]>([]);
   const [selectedPayment, setSelectedPayment] = useState<Session | null>(null);
   const [internalRange, setInternalRange] = useState<RangePreset>("30d");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(`mdc:payments:${mode}`);
+      if (saved) {
+        setSessions(JSON.parse(saved));
+      } else {
+        setSessions([]);
+      }
+    }
+  }, [mode]);
+
+  const handleCreateTestPayment = async () => {
+    const isMoral = mode === "moral";
+    const newPayment: Session = {
+      id: `ses_${Date.now()}`,
+      userId: isMoral ? "Empresa Test SA" : "Juan Perez",
+      applicantId: `APP-${Date.now().toString().slice(-4)}`,
+      status: "CAPTURADO",
+      paymentMethod: "tarjeta",
+      amount: Math.floor(Math.random() * 5000) + 1000,
+      currency: "MXN",
+      individualPerson: !isMoral,
+      legalEntity: isMoral,
+      createdAt: new Date().toISOString().split("T")[0],
+    };
+    
+    setSessions((prev) => {
+      const updated = [...prev, newPayment];
+      if (typeof window !== "undefined") {
+        localStorage.setItem(`mdc:payments:${mode}`, JSON.stringify(updated));
+      }
+      return updated;
+    });
+  };
+
+  const handleDeleteAll = async () => {
+    setSessions([]);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(`mdc:payments:${mode}`, JSON.stringify([]));
+    }
+  };
   const activeRange = range ?? internalRange;
   const rangeDays = RANGE_DAYS[activeRange];
 
@@ -105,13 +137,13 @@ export function MdcPaymentsTab({ mode = "natural", sessions = mode === "moral" ?
     }
 
     const latestDayMs = sessions.reduce(
-      (max, session) => Math.max(max, sessionDayStartMs(session.createdAt)),
+      (max, session) => Math.max(max, sessionDayStartMs(session.createdAt ?? "")),
       0,
     );
     const rangeEnd = latestDayMs + DAY_MS - 1;
     const rangeStart = rangeEnd - (rangeDays * DAY_MS - 1);
     const filtered = sessions.filter((session) => {
-      const dayMs = sessionDayStartMs(session.createdAt);
+      const dayMs = sessionDayStartMs(session.createdAt ?? "");
       return dayMs >= rangeStart && dayMs <= rangeEnd;
     });
 
@@ -156,7 +188,7 @@ export function MdcPaymentsTab({ mode = "natural", sessions = mode === "moral" ?
     const byDate = new Map<number, number>();
     for (const session of filteredSessions) {
       if (session.status !== "CAPTURADO") continue;
-      const dayMs = sessionDayStartMs(session.createdAt);
+      const dayMs = sessionDayStartMs(session.createdAt ?? "");
       byDate.set(dayMs, (byDate.get(dayMs) ?? 0) + session.amount);
     }
 
@@ -195,7 +227,7 @@ export function MdcPaymentsTab({ mode = "natural", sessions = mode === "moral" ?
   return (
     <>
       <section className="mdc-section">
-        <article className="mdc-card mdc-pay-header">
+        <article className="mdc-card mdc-pay-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <h3>Pagos</h3>
             <p>{mode === "moral" ? "Gestione cobros empresariales y sesiones de pago corporativas." : "Gestione y supervise todas las sesiones de pago."}</p>

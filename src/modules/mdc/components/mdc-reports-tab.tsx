@@ -135,16 +135,16 @@ function resolveReportKind(prompt: string): ReportKind {
   return "full";
 }
 
-function verdictTone(v: MoralCreditReportRuleRow["verdict"]): "success" | "warning" | "danger" {
+function verdictTone(v: MoralCreditReportRuleRow["verdict"]): "success" | "warning" | "error" {
   if (v === "CUMPLE") return "success";
   if (v === "REVISAR") return "warning";
-  return "danger";
+  return "error";
 }
 
-function decisionTone(d: MoralCreditReportPayload["company"]["decision"]): "success" | "warning" | "danger" {
+function decisionTone(d: MoralCreditReportPayload["company"]["decision"]): "success" | "warning" | "error" {
   if (d === "APROBADO") return "success";
   if (d === "REVISION") return "warning";
-  return "danger";
+  return "error";
 }
 
 function pct(v: number) {

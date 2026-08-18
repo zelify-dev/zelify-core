@@ -440,6 +440,8 @@
 
 .mdc-table-wrap {
   overflow-x: auto;
+  min-height: 320px;
+  padding-bottom: 60px;
 }
 
 .mdc-table {

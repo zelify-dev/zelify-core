@@ -23,6 +23,7 @@ import { ProfileMenu } from "@/components/ui/molecules/profile-trigger/profile-m
 import { TopbarSearchBox } from "@/components/ui/molecules/search-box/topbar-search-box";
 import { useBranding } from "@/providers/branding-provider";
 import { useI18n } from "@/providers/i18n-provider";
+import { getStoredUser } from "@/lib/auth-api";
 import type { DropdownMenuItem } from "@/components/ui/molecules/dropdown-menu/dropdown-menu";
 
 import "./zelify-top-navbar.css";
@@ -100,6 +101,28 @@ export function ZelifyTopNavbar({
 
   const [isCondensed, setIsCondensed] = useState(false);
   const [openMenu, setOpenMenu] = useState<null | "create" | "view">(null);
+  
+  const [actualUserName, setActualUserName] = useState(userName);
+  const [actualUserInitials, setActualUserInitials] = useState(userInitials);
+
+  useEffect(() => {
+    const user = getStoredUser();
+    if (user && user.full_name) {
+      setActualUserName(user.full_name);
+      const initials = user.full_name
+        .split(" ")
+        .filter(Boolean)
+        .map((n) => n[0])
+        .slice(0, 2)
+        .join("")
+        .toUpperCase();
+      if (initials) setActualUserInitials(initials);
+    } else if (user && user.email) {
+      setActualUserName(user.email.split("@")[0]);
+      setActualUserInitials(user.email[0].toUpperCase());
+    }
+  }, [userName, userInitials]);
+
   const lastScrollY = useRef(0);
   const createMenuRef = useRef<HTMLDivElement | null>(null);
   const viewMenuRef = useRef<HTMLDivElement | null>(null);
@@ -225,7 +248,7 @@ export function ZelifyTopNavbar({
           >
             <BellIcon />
           </AppIconButton>
-          <ProfileMenu name={userName} initials={userInitials} />
+          <ProfileMenu name={actualUserName} initials={actualUserInitials} />
           <LanguageSwitcher />
         </div>
         {/* Fin Nivel Superior Actions */}

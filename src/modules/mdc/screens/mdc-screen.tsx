@@ -25,9 +25,14 @@ import {
   type RiskLevel,
 } from "@/modules/mdc/data/mdc-credit-mock";
 import { CREDIT_RULES_BY_MODE, type CreditRuleRow, type RuleDataType, type RuleOperator, type RuleProduct, type RuleSeverity } from "@/modules/mdc/data/mdc-rules-mock";
+import { fetchRules, createRule, updateRule, deleteRule } from "@/modules/mdc/services/mdc-rules.service";
+import { getStoredOrganization } from "@/lib/auth-api";
 import { MdcProductsTab } from "@/modules/mdc/components/mdc-products-tab";
-import { MORAL_CASES, NATURAL_CASES, MdcCollectionsTab } from "@/modules/mdc/components/mdc-collections-tab";
-import { MORAL_SESSIONS, NATURAL_SESSIONS, MdcPaymentsTab } from "@/modules/mdc/components/mdc-payments-tab";
+import { MdcRequestsTab } from "@/modules/mdc/components/mdc-requests-tab";
+
+
+import { MdcCollectionsTab } from "@/modules/mdc/components/mdc-collections-tab";
+import { MdcPaymentsTab } from "@/modules/mdc/components/mdc-payments-tab";
 import { MdcConfigurationTab } from "@/modules/mdc/components/mdc-configuration-tab";
 import { MdcReportsTab } from "@/modules/mdc/components/mdc-reports-tab";
 import {
@@ -97,12 +102,12 @@ const PERSONA_OPTIONS: { id: MdcApplicantMode; label: string }[] = [
 const MODE_STORAGE_KEYS: Record<MdcApplicantMode, { applications: string; rules: string; products: string }> = {
   natural: {
     applications: "mdc:natural:applications",
-    rules: "mdc:natural:rules",
+    rules: "mdc:natural:rules:v3",
     products: "mdc:natural:products",
   },
   moral: {
     applications: "mdc:moral:applications",
-    rules: "mdc:moral:rules",
+    rules: "mdc:moral:rules:v3",
     products: "mdc:moral:products",
   },
 };
@@ -561,7 +566,9 @@ function ratioLabel(v: number) {
 }
 
 function normalizedPercentages(values: number[]) {
-  const total = Math.max(values.reduce((sum, value) => sum + value, 0), 1);
+  const rawSum = values.reduce((sum, value) => sum + value, 0);
+  if (rawSum === 0) return values.map(() => 0);
+  const total = Math.max(rawSum, 1);
   const scaled = values.map((value) => (value / total) * 1000);
   const base = scaled.map((value) => Math.floor(value));
   const remainder = 1000 - base.reduce((sum, value) => sum + value, 0);
@@ -590,8 +597,9 @@ function pctDelta(current: number, previous: number) {
 }
 
 function rangeWindow(apps: Pick<Application, "submittedAt">[], days: number) {
-  if (apps.length === 0) return null;
-  const latestTs = apps.reduce((max, app) => Math.max(max, new Date(app.submittedAt).getTime()), 0);
+  const latestTs = apps.length === 0 
+    ? Date.now() 
+    : apps.reduce((max, app) => Math.max(max, new Date(app.submittedAt).getTime()), 0);
   const latestDate = new Date(latestTs);
   const endMs = Date.UTC(
     latestDate.getUTCFullYear(),
@@ -1108,15 +1116,15 @@ function mergeRulesWithDefaults(rows: CreditRuleRow[], availableProducts: readon
     const needsBandsMigration = !rule.decisionBands && Boolean(baseRule?.decisionBands) && baseRule?.field === rule.field;
     const normalizedRule = forceBaseRuleForNaics
       ? {
-          ...rule,
-          operator: baseRule?.operator ?? rule.operator,
-          value: baseRule?.value ?? rule.value,
-          description: baseRule?.description ?? rule.description,
-          severity: baseRule?.severity ?? rule.severity,
-          decisionBands: baseRule?.decisionBands,
-        }
+        ...rule,
+        operator: baseRule?.operator ?? rule.operator,
+        value: baseRule?.value ?? rule.value,
+        description: baseRule?.description ?? rule.description,
+        severity: baseRule?.severity ?? rule.severity,
+        decisionBands: baseRule?.decisionBands,
+      }
       : forceBaseBandsForTaxCompliance
-      ? {
+        ? {
           ...rule,
           operator: baseRule?.operator ?? rule.operator,
           value: baseRule?.value ?? rule.value,
@@ -1124,15 +1132,15 @@ function mergeRulesWithDefaults(rows: CreditRuleRow[], availableProducts: readon
           severity: baseRule?.severity ?? rule.severity,
           decisionBands: baseRule?.decisionBands,
         }
-      : needsBandsMigration
-      ? {
-          ...rule,
-          value: baseRule?.value ?? rule.value,
-          description: baseRule?.description ?? rule.description,
-          severity: baseRule?.severity ?? rule.severity,
-          decisionBands: baseRule?.decisionBands,
-        }
-      : rule;
+        : needsBandsMigration
+          ? {
+            ...rule,
+            value: baseRule?.value ?? rule.value,
+            description: baseRule?.description ?? rule.description,
+            severity: baseRule?.severity ?? rule.severity,
+            decisionBands: baseRule?.decisionBands,
+          }
+          : rule;
     const products =
       normalizedRule.products && normalizedRule.products.length > 0
         ? normalizedRule.products.filter((product) => availableProducts.includes(product))
@@ -1291,37 +1299,37 @@ function ApprovedCrossSellPanel({
 
   const quotedClient: CreditClientProfile = matchedClient
     ? {
-        ...matchedClient,
-        amount: app.requestedAmount,
-        termMonths: category === "automotriz" ? 48 : 24,
-      }
+      ...matchedClient,
+      amount: app.requestedAmount,
+      termMonths: category === "automotriz" ? 48 : 24,
+    }
     : {
-        id: `mdc-cross-sell-${app.id}`,
-        productId: product.id,
-        name: app.applicantName,
-        entityType: "PF",
-        amount: app.requestedAmount,
-        termMonths: category === "automotriz" ? 48 : 24,
-        creditScore: bureauScoreFromRiskIndex(app.riskScore),
-        aiApproved: true,
-        clientProducts: {
-          nomina: false,
-          tdc: false,
-          seguroAuto: false,
-          inversionPatrimonial: false,
-          cuentaAhorro: false,
-        },
-        kyc: {
-          rfc: "PENDIENTE",
-          nationality: "Mexicana",
-          address: "No disponible",
-          phone: "No disponible",
-          email: app.applicantEmail,
-          idVerified: true,
-          pep: false,
-          incomeMonthly: Math.max(20000, Math.round(app.requestedAmount / 12)),
-        },
-      };
+      id: `mdc-cross-sell-${app.id}`,
+      productId: product.id,
+      name: app.applicantName,
+      entityType: "PF",
+      amount: app.requestedAmount,
+      termMonths: category === "automotriz" ? 48 : 24,
+      creditScore: bureauScoreFromRiskIndex(app.riskScore),
+      aiApproved: true,
+      clientProducts: {
+        nomina: false,
+        tdc: false,
+        seguroAuto: false,
+        inversionPatrimonial: false,
+        cuentaAhorro: false,
+      },
+      kyc: {
+        rfc: "PENDIENTE",
+        nationality: "Mexicana",
+        address: "No disponible",
+        phone: "No disponible",
+        email: app.applicantEmail,
+        idVerified: true,
+        pep: false,
+        incomeMonthly: Math.max(20000, Math.round(app.requestedAmount / 12)),
+      },
+    };
 
   const quote = calculateCreditQuote({
     product,
@@ -1660,26 +1668,29 @@ function LineChart({ points }: { points: { label: string; value: number }[] }) {
 }
 
 function DonutChart({ data }: { data: { label: string; value: number; color: string }[] }) {
-  const total = Math.max(data.reduce((sum, d) => sum + d.value, 0), 1);
-  const percentages = normalizedPercentages(data.map((d) => d.value));
+  const rawTotal = data.reduce((sum, d) => sum + d.value, 0);
+  const total = Math.max(rawTotal, 1);
+  const percentages = rawTotal === 0 ? data.map(() => 0) : normalizedPercentages(data.map((d) => d.value));
   const r = 52;
   const c = 62;
   const circumference = 2 * Math.PI * r;
-  const slices = data.reduce<{ label: string; value: number; color: string; len: number; offset: number }[]>(
-    (acc, slice) => {
-      const used = acc.reduce((sum, item) => sum + item.len, 0);
-      const len = circumference * (slice.value / total);
-      acc.push({
-        label: slice.label,
-        value: slice.value,
-        color: slice.color,
-        len,
-        offset: used,
-      });
-      return acc;
-    },
-    [],
-  );
+  const slices = rawTotal === 0
+    ? []
+    : data.reduce<{ label: string; value: number; color: string; len: number; offset: number }[]>(
+        (acc, slice) => {
+          const used = acc.reduce((sum, item) => sum + item.len, 0);
+          const len = circumference * (slice.value / total);
+          acc.push({
+            label: slice.label,
+            value: slice.value,
+            color: slice.color,
+            len,
+            offset: used,
+          });
+          return acc;
+        },
+        [],
+      );
 
   return (
     <div className="mdc-donut-wrap">
@@ -1711,7 +1722,7 @@ function DonutChart({ data }: { data: { label: string; value: number; color: str
             })}
           </g>
           <circle cx={c} cy={c} r="35" fill="#ffffff" stroke="#e2e8f0" strokeWidth="1" />
-          <text x={c} y={58} textAnchor="middle" className="mdc-donut-total">{total}</text>
+          <text x={c} y={58} textAnchor="middle" className="mdc-donut-total">{rawTotal}</text>
           <text x={c} y={72} textAnchor="middle" className="mdc-donut-sub">Solicitudes</text>
           {slices.map((slice) => {
             const angle = ((slice.offset + slice.len / 2) / circumference) * 2 * Math.PI - Math.PI / 2;
@@ -1896,12 +1907,11 @@ function MoralApplicantDetailModal({
   };
 
   const decisionCardClass = (status: "approved" | "declined" | "manual") =>
-    `mdc-pm-decision-card${
-      (status === "approved" && app.status === "approved") ||
+    `mdc-pm-decision-card${(status === "approved" && app.status === "approved") ||
       (status === "declined" && app.status === "declined") ||
       (status === "manual" && (app.status === "manualReview" || app.status === "pending" || app.status === "overridden"))
-        ? " mdc-pm-decision-card--active"
-        : ""
+      ? " mdc-pm-decision-card--active"
+      : ""
     }`;
 
   return (
@@ -2201,7 +2211,7 @@ function buildApplicationFlow(app: Application, mode: MdcApplicantMode): Applica
       id: "capture",
       label: "Captura de solicitud",
       owner: "Originacion digital",
-      note: `Alta inicial de ${app.product} por ${money(app.requestedAmount)}.` ,
+      note: `Alta inicial de ${app.product} por ${money(app.requestedAmount)}.`,
     },
     {
       id: "docs",
@@ -2867,7 +2877,7 @@ function AppDetailModal({
         <div className="mdc-detail-layout">
           <div className="mdc-detail-main">
             <section className="mdc-detail-card">
-                <h4>{isMoralApplicant ? "Empresa solicitante" : "Solicitante"}</h4>
+              <h4>{isMoralApplicant ? "Empresa solicitante" : "Solicitante"}</h4>
               <dl className="mdc-detail-dl">
                 <div><dt>Nombre</dt><dd>{app.applicantName}</dd></div>
                 <div><dt>Email</dt><dd>{app.applicantEmail}</dd></div>
@@ -3234,18 +3244,18 @@ function RuleModal({
             </>
           ) : (
             <>
-          <label>
-            <span>Operador</span>
-            <select value={form.operator} onChange={(e) => setForm((s) => ({ ...s, operator: e.target.value as RuleOperator }))}>
-              {RULE_OPERATORS.map((operator) => (
-                <option key={operator} value={operator}>{RULE_OPERATOR_LABELS[operator]}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>Valor</span>
-            <input value={form.value} onChange={(e) => setForm((s) => ({ ...s, value: e.target.value }))} />
-          </label>
+              <label>
+                <span>Operador</span>
+                <select value={form.operator} onChange={(e) => setForm((s) => ({ ...s, operator: e.target.value as RuleOperator }))}>
+                  {RULE_OPERATORS.map((operator) => (
+                    <option key={operator} value={operator}>{RULE_OPERATOR_LABELS[operator]}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Valor</span>
+                <input value={form.value} onChange={(e) => setForm((s) => ({ ...s, value: e.target.value }))} />
+              </label>
             </>
           )}
           <label>
@@ -3313,25 +3323,14 @@ export function MdcScreen() {
   const activeProducts = useMemo(() => CREDIT_PRODUCTS_BY_MODE[applicantMode] as readonly RuleProduct[], [applicantMode]);
   const activeStorageKeys = MODE_STORAGE_KEYS[applicantMode];
   const defaultApplications = useMemo(() => APPLICATIONS_BY_MODE[applicantMode], [applicantMode]);
-  const defaultRules = useMemo(() => CREDIT_RULES_BY_MODE[applicantMode], [applicantMode]);
-  const [apps, setApps] = useState<Application[]>(() =>
-    hydrateApplications(
-      "natural",
-      mergeApplicationsWithDefaults(
-        reconcileMockTimeline(
-          "natural",
-          readStoredJson<Application[]>(MODE_STORAGE_KEYS.natural.applications, []),
-          APPLICATIONS_BY_MODE.natural,
-        ),
-        APPLICATIONS_BY_MODE.natural,
-      ),
-    ),
-  );
+  const defaultRules = useMemo(() => [] as CreditRuleRow[], []);
+  const [apps, setApps] = useState<Application[]>([]);
+  const [appsLoading, setAppsLoading] = useState(true);
   const [rules, setRules] = useState<CreditRuleRow[]>(() =>
     mergeRulesWithDefaults(
-      readStoredJson<CreditRuleRow[]>(MODE_STORAGE_KEYS.natural.rules, CREDIT_RULES_BY_MODE.natural),
+      readStoredJson<CreditRuleRow[]>(MODE_STORAGE_KEYS.natural.rules, []),
       CREDIT_PRODUCTS_BY_MODE.natural as readonly RuleProduct[],
-      CREDIT_RULES_BY_MODE.natural,
+      [],
     ),
   );
 
@@ -3362,24 +3361,58 @@ export function MdcScreen() {
   }, []);
 
   useEffect(() => {
-    const nextApps = hydrateApplications(
-      applicantMode,
-      mergeApplicationsWithDefaults(
-        reconcileMockTimeline(
-          applicantMode,
-          readStoredJson<Application[]>(activeStorageKeys.applications, []),
-          defaultApplications,
-        ),
-        defaultApplications,
-      ),
-    );
-    setApps(nextApps);
-    const nextRules = mergeRulesWithDefaults(
-      readStoredJson<CreditRuleRow[]>(activeStorageKeys.rules, defaultRules),
-      activeProducts,
-      defaultRules,
-    );
-    setRules(nextRules);
+    const fetchRequests = async () => {
+      setAppsLoading(true);
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_MDC_API_URL || "http://localhost:3000";
+        const currentOrg = getStoredOrganization();
+        const orgId = currentOrg?.id || "ORG-001";
+        const res = await fetch(`${baseUrl}/finance-requests?orgId=${orgId}&personType=${applicantMode}`);
+        if (res.ok) {
+          const data = await res.json();
+          const mapped: Application[] = data.map((item: any) => ({
+            id: item.id,
+            appNo: `APP-${item.id.split("-")[0].toUpperCase()}`,
+            applicantName: item.personType === "natural"
+              ? `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Desconocido'
+              : item.businessName || 'Desconocido',
+            applicantEmail: item.email || 'N/A',
+            product: item.product || 'N/A',
+            requestedAmount: Number(item.amount) || 0,
+            currency: 'MXN',
+            status: item.status === "Aprobada" ? "approved" :
+              item.status === "Rechazada" ? "declined" :
+                item.status === "Revision manual" ? "manualReview" :
+                  item.status === "Override" ? "overridden" : "pending",
+            risk: item.riskLevel === "Bajo" ? "low" :
+              item.riskLevel === "Alto" ? "high" : "medium",
+            riskScore: item.riskScore || 50,
+            submittedAt: item.createdAt || new Date().toISOString()
+          }));
+
+          setApps(mapped);
+        }
+      } catch (err) {
+        console.error("Failed to load applications from API", err);
+      } finally {
+        setAppsLoading(false);
+      }
+    };
+    fetchRequests();
+    const loadRules = async () => {
+      try {
+        const data = await fetchRules(applicantMode);
+        if (data && data.length > 0) {
+          setRules(data);
+        } else {
+          setRules(defaultRules);
+        }
+      } catch (err) {
+        console.error("Error fetching rules", err);
+        setRules(defaultRules);
+      }
+    };
+    loadRules();
     setProductFilter("all");
     setStatusFilter("all");
     setRiskFilter("all");
@@ -3568,9 +3601,13 @@ export function MdcScreen() {
   };
 
   const ruleFieldOptions = useMemo(() => getRuleFieldsForProduct(ruleProductFilter), [ruleProductFilter]);
+  const [traceabilityLocal, setTraceabilityLocal] = useState<MdcTraceabilityEntry[]>(() => {
+    return readStoredJson<MdcTraceabilityEntry[]>(`mdc:traceability:v3:${applicantMode}`, []);
+  });
+
   const activeTraceability = useMemo<MdcTraceabilityEntry[]>(
-    () => (applicantMode === "moral" ? MORAL_TRACEABILITY : (creditStore.state.auditLog as MdcTraceabilityEntry[])),
-    [applicantMode, creditStore.state.auditLog],
+    () => traceabilityLocal,
+    [traceabilityLocal],
   );
   const traceabilityPageCount = Math.max(1, Math.ceil(activeTraceability.length / TRACEABILITY_PAGE_SIZE));
   const paginatedTraceability = useMemo(() => {
@@ -3614,8 +3651,8 @@ export function MdcScreen() {
           <header className="mdc-header">
             <div className="mdc-header__row">
               <div>
-              <p className="mdc-header__eyebrow">Core Module</p>
-              <h1>{MODE_COPY[applicantMode].title}</h1>
+                <p className="mdc-header__eyebrow">Core Module</p>
+                <h1>{MODE_COPY[applicantMode].title}</h1>
                 <p className="mdc-header__sub">{MODE_COPY[applicantMode].subtitle}</p>
                 <div className="mdc-persona-switch" role="tablist" aria-label="Tipo de solicitante">
                   {PERSONA_OPTIONS.map((option) => (
@@ -3665,31 +3702,37 @@ export function MdcScreen() {
 
           {activeTab === "overview" && (
             <section className="mdc-section">
+              {appsLoading && (
+                <div style={{ padding: "0.5rem 1rem", background: "rgba(37,99,235,0.07)", borderRadius: "0.5rem", marginBottom: "0.75rem", color: "#2563eb", fontSize: "0.83rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "#2563eb", opacity: 0.7 }} />
+                  Sincronizando datos del motor...
+                </div>
+              )}
               <div className="mdc-kpis">
                 <MdcStatCard
                   title="Solicitudes totales"
-                  value={String(overview.total)}
+                  value={appsLoading ? "—" : String(overview.total)}
                   deltaPct={overview.deltas.total}
                   positive={overview.deltas.total >= 0}
                   comparisonLabel="vs periodo anterior"
                 />
                 <MdcStatCard
                   title="Porcentaje de aprobacion"
-                  value={ratioLabel(overview.approvedPct)}
+                  value={appsLoading ? "—" : ratioLabel(overview.approvedPct)}
                   deltaPct={overview.deltas.approvedPct}
                   positive={overview.deltas.approvedPct >= 0}
                   comparisonLabel="vs periodo anterior"
                 />
                 <MdcStatCard
                   title="Porcentaje de rechazo"
-                  value={ratioLabel(overview.declinedPct)}
+                  value={appsLoading ? "—" : ratioLabel(overview.declinedPct)}
                   deltaPct={overview.deltas.declinedPct}
                   positive={overview.deltas.declinedPct >= 0}
                   comparisonLabel="vs periodo anterior"
                 />
                 <MdcStatCard
                   title="Monto promedio solicitado / aprobado"
-                  value={money(overview.avgAmount)}
+                  value={appsLoading ? "—" : money(overview.avgAmount)}
                   deltaPct={overview.deltas.avgAmount}
                   positive={overview.deltas.avgAmount >= 0}
                   comparisonLabel="vs periodo anterior"
@@ -3877,9 +3920,13 @@ export function MdcScreen() {
                       </tr>
                     </thead>
                     <tbody>
-                      {paginatedApps.length === 0 ? (
+                      {appsLoading ? (
                         <tr>
-                          <td colSpan={9}>Sin resultados para los filtros seleccionados.</td>
+                          <td colSpan={9} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8" }}>Cargando solicitudes...</td>
+                        </tr>
+                      ) : paginatedApps.length === 0 ? (
+                        <tr>
+                          <td colSpan={9} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8" }}>Sin solicitudes. Crea la primera con el botón “Agregar solicitud”.</td>
                         </tr>
                       ) : (
                         paginatedApps.map((app) => (
@@ -3918,38 +3965,77 @@ export function MdcScreen() {
                                   <div className="mdc-row-menu__items">
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        setApps((current) =>
-                                          current.map((row) =>
-                                            row.id === app.id
-                                              ? {
+                                      onClick={async () => {
+                                        const newStatus = statusFromScore(app.riskScore);
+                                        const newRiskScore = normalizeRiskScoreForStatus(newStatus, app.riskScore);
+                                        const newRisk = riskFromApplicationStatus(newStatus, app.riskScore);
+
+                                        const backendStatus = newStatus === "approved" ? "Aprobada" :
+                                          newStatus === "declined" ? "Rechazada" :
+                                            newStatus === "manualReview" ? "Revision manual" :
+                                              newStatus === "overridden" ? "Override" : "Pendiente";
+                                        const backendRiskLevel = newRisk === "low" ? "Bajo" : newRisk === "high" ? "Alto" : "Medio";
+
+                                        try {
+                                          const baseUrl = process.env.NEXT_PUBLIC_MDC_API_URL || "http://localhost:3000";
+                                          await fetch(`${baseUrl}/finance-requests/${app.id}`, {
+                                            method: "PATCH",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({
+                                              status: backendStatus,
+                                              riskLevel: backendRiskLevel,
+                                              riskScore: newRiskScore
+                                            })
+                                          });
+                                          setApps((current) =>
+                                            current.map((row) =>
+                                              row.id === app.id
+                                                ? {
                                                   ...row,
-                                                  status: statusFromScore(row.riskScore),
-                                                  riskScore: normalizeRiskScoreForStatus(statusFromScore(row.riskScore), row.riskScore),
-                                                  risk: riskFromApplicationStatus(statusFromScore(row.riskScore), row.riskScore),
+                                                  status: newStatus,
+                                                  riskScore: newRiskScore,
+                                                  risk: newRisk,
                                                 }
-                                              : row,
-                                          ),
-                                        );
+                                                : row,
+                                            ),
+                                          );
+                                        } catch (err) { console.error("Failed to execute evaluation", err); }
                                       }}
                                     >
                                       Ejecutar evaluacion
                                     </button>
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        setApps((current) =>
-                                          current.map((row) =>
-                                            row.id === app.id
-                                              ? {
+                                      onClick={async () => {
+                                        const newStatus = "pending";
+                                        const newRiskScore = normalizeRiskScoreForStatus("pending", app.riskScore);
+                                        const newRisk = riskFromApplicationStatus("pending", app.riskScore);
+                                        const backendRiskLevel = newRisk === "low" ? "Bajo" : newRisk === "high" ? "Alto" : "Medio";
+
+                                        try {
+                                          const baseUrl = process.env.NEXT_PUBLIC_MDC_API_URL || "http://localhost:3000";
+                                          await fetch(`${baseUrl}/finance-requests/${app.id}`, {
+                                            method: "PATCH",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({
+                                              status: "Pendiente",
+                                              riskLevel: backendRiskLevel,
+                                              riskScore: newRiskScore
+                                            })
+                                          });
+                                          setApps((current) =>
+                                            current.map((row) =>
+                                              row.id === app.id
+                                                ? {
                                                   ...row,
-                                                  status: "pending",
-                                                  riskScore: normalizeRiskScoreForStatus("pending", row.riskScore),
-                                                  risk: riskFromApplicationStatus("pending", row.riskScore),
+                                                  status: newStatus,
+                                                  riskScore: newRiskScore,
+                                                  risk: newRisk,
                                                 }
-                                              : row,
-                                          ),
-                                        );
+                                                : row,
+                                            ),
+                                          );
+                                        } catch (err) { console.error("Failed to resend onboarding", err); }
                                       }}
                                     >
                                       Reenviar onboarding
@@ -3975,8 +4061,14 @@ export function MdcScreen() {
                                     <button
                                       type="button"
                                       className="mdc-row-menu__danger"
-                                      onClick={() => {
-                                        setApps((current) => current.filter((row) => row.id !== app.id));
+                                      onClick={async () => {
+                                        try {
+                                          const baseUrl = process.env.NEXT_PUBLIC_MDC_API_URL || "http://localhost:3000";
+                                          await fetch(`${baseUrl}/finance-requests/${app.id}`, {
+                                            method: "DELETE",
+                                          });
+                                          setApps((current) => current.filter((row) => row.id !== app.id));
+                                        } catch (err) { console.error("Failed to delete application", err); }
                                       }}
                                     >
                                       Eliminar
@@ -4069,7 +4161,11 @@ export function MdcScreen() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredRules.map((rule) => (
+                      {filteredRules.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8" }}>Sin reglas para el producto seleccionado. Haz clic en “Agregar regla” para comenzar.</td>
+                        </tr>
+                      ) : filteredRules.map((rule) => (
                         <tr key={rule.id}>
                           <td>{rule.name}</td>
                           <td>{rule.description}</td>
@@ -4091,26 +4187,33 @@ export function MdcScreen() {
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    setRules((current) =>
-                                      current.map((item) =>
-                                        item.id === rule.id ? { ...item, status: item.status === "active" ? "inactive" : "active" } : item,
-                                      ),
-                                    );
+                                  onClick={async () => {
+                                    const newStatus = rule.status === "active" ? "inactive" : "active";
+                                    const updated = await updateRule(rule.id, { status: newStatus });
+                                    if (updated) {
+                                      setRules((current) =>
+                                        current.map((item) => (item.id === rule.id ? { ...item, status: newStatus } : item)),
+                                      );
+                                    }
                                   }}
                                 >
                                   {rule.status === "active" ? "Desactivar" : "Activar"}
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    const duplicated: CreditRuleRow = {
+                                  onClick={async () => {
+                                    const duplicated: Partial<CreditRuleRow> = {
                                       ...rule,
-                                      id: `cr-local-${Date.now()}`,
                                       name: `${rule.name} (copia)`,
-                                      createdAt: new Date().toISOString(),
-                                    };
-                                    setRules((current) => [...current, duplicated]);
+                                      individualPerson: applicantMode === "natural",
+                                      legalEntity: applicantMode === "moral",
+                                    } as any;
+                                    delete duplicated.id;
+                                    delete duplicated.createdAt;
+                                    const created = await createRule(duplicated);
+                                    if (created) {
+                                      setRules((current) => [...current, created]);
+                                    }
                                   }}
                                 >
                                   Duplicar
@@ -4118,8 +4221,11 @@ export function MdcScreen() {
                                 <button
                                   type="button"
                                   className="mdc-row-menu__danger"
-                                  onClick={() => {
-                                    setRules((current) => current.filter((item) => item.id !== rule.id));
+                                  onClick={async () => {
+                                    const success = await deleteRule(rule.id);
+                                    if (success) {
+                                      setRules((current) => current.filter((item) => item.id !== rule.id));
+                                    }
                                   }}
                                 >
                                   Eliminar
@@ -4205,7 +4311,6 @@ export function MdcScreen() {
           {activeTab === "payments" && (
             <MdcPaymentsTab
               mode={applicantMode}
-              sessions={applicantMode === "moral" ? MORAL_SESSIONS : NATURAL_SESSIONS}
               range={rangeFilter}
               onRangeChange={(nextRange) => {
                 setRangeFilter(nextRange as RangePreset);
@@ -4214,7 +4319,7 @@ export function MdcScreen() {
             />
           )}
           {activeTab === "collections" && (
-            <MdcCollectionsTab mode={applicantMode} cases={applicantMode === "moral" ? MORAL_CASES : NATURAL_CASES} />
+            <MdcCollectionsTab mode={applicantMode} />
           )}
           {activeTab === "reports" && applicantMode === "moral" && <MdcReportsTab />}
           {activeTab === "configuration" && <MdcConfigurationTab />}
@@ -4226,49 +4331,47 @@ export function MdcScreen() {
         onClose={() => setShowAddApplication(false)}
         mode={applicantMode}
         products={activeProducts}
-        onCreate={({ firstName, lastName, email, product, amount }) => {
-          const riskScore = 50;
-          const name = applicantMode === "moral" ? firstName.trim() || email : `${firstName} ${lastName}`.trim() || email;
-          const appNo = nextAppNo(apps, applicantMode);
-          const appId = `local-${Date.now()}`;
-          const applicantBinding =
-            applicantMode === "moral"
-              ? {
-                  applicantName: name,
-                  applicantEmail: normalizeApplicantEmail(email),
-                }
-              : bindApplicantFromPool(
-            {
-              id: appId,
-              appNo,
-              product,
-              applicantName: name,
-              applicantEmail: normalizeApplicantEmail(email),
-            },
-            applicantMode,
-          );
-          const submittedAt = nextMockSubmittedAt(apps);
-          const next: Application = {
-            id: appId,
-            appNo,
-            applicantName: applicantBinding.applicantName,
-            applicantEmail: applicantBinding.applicantEmail,
+        onCreate={async ({ firstName, lastName, email, product, amount }) => {
+          const baseUrl = process.env.NEXT_PUBLIC_MDC_API_URL || "http://localhost:3000";
+          const orgId = getStoredOrganization()?.id || "ORG-001";
+          const payload = {
+            orgId,
+            personType: applicantMode,
+            email,
             product,
-            requestedAmount: normalizeRequestedAmount(product, amount),
-            currency: "MXN",
-            status: "pending",
-            risk: riskFromApplicationStatus("pending", riskScore),
-            riskScore: normalizeRiskScoreForStatus("pending", riskScore),
-            submittedAt,
+            amount: Number(amount) || 0,
+            ...(applicantMode === "natural" ? { firstName, lastName } : { businessName: firstName })
           };
-          setApps((current) => {
-            const nextApps = [next, ...current];
-            writeStoredJson(activeStorageKeys.applications, nextApps);
-            return nextApps;
-          });
-          setPage(0);
-          if (applicantMode === "moral") {
-            openKybForApplication(next, lastName);
+
+          try {
+            const res = await fetch(`${baseUrl}/finance-requests`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+              const item = await res.json();
+              const next: Application = {
+                id: item.id,
+                appNo: `APP-${item.id.split("-")[0].toUpperCase()}`,
+                applicantName: applicantMode === "moral" ? (firstName.trim() || email) : `${firstName} ${lastName}`.trim() || email,
+                applicantEmail: email,
+                product,
+                requestedAmount: Number(amount) || 0,
+                currency: "MXN",
+                status: "pending",
+                risk: "medium",
+                riskScore: 50,
+                submittedAt: item.createdAt || new Date().toISOString(),
+              };
+              setApps((current) => [next, ...current]);
+              setPage(0);
+              if (applicantMode === "moral") {
+                openKybForApplication(next, lastName);
+              }
+            }
+          } catch (e) {
+            console.error("Failed to create application", e);
           }
         }}
       />
@@ -4300,75 +4403,44 @@ export function MdcScreen() {
         availableFields={ruleFieldOptions}
         isEditing={Boolean(editingRuleId)}
         products={activeProducts}
-        onSave={(form, duplicateToProduct) => {
+        onSave={async (form, duplicateToProduct) => {
           const decisionBands = buildDecisionBands(form);
-          const updatedRule = {
-            name: form.name,
+          const updatedRule: any = {
+            name: form.name || "Nueva regla",
             products: [form.product] as RuleProduct[],
-            field: form.field,
+            field: form.field || "custom.field",
             operator: form.operator,
-            value: form.evaluationMode === "bands" ? "" : form.value,
+            value: form.evaluationMode === "bands" ? "" : form.value || "0",
             dataType: form.dataType,
             severity: form.evaluationMode === "bands" ? "warn" : form.severity,
             description: form.description,
             status: form.status,
             decisionBands,
+            individualPerson: applicantMode === "natural",
+            legalEntity: applicantMode === "moral",
           };
 
           if (editingRuleId) {
-            setRules((current) =>
-              {
-                const next = current.map((rule) =>
-                  rule.id === editingRuleId
-                    ? {
-                        ...rule,
-                        ...updatedRule,
-                      }
-                    : rule,
-                );
-
-                if (!duplicateToProduct || !PRODUCT_RULE_FIELDS[duplicateToProduct].includes(form.field)) {
-                  return next;
-                }
-
-                const existingTargetIndex = next.findIndex(
-                  (rule) => rule.id !== editingRuleId && rule.products.includes(duplicateToProduct) && rule.field === form.field,
-                );
-
-                if (existingTargetIndex >= 0) {
-                  const existingTarget = next[existingTargetIndex]!;
-                  next[existingTargetIndex] = {
-                    ...existingTarget,
-                    ...updatedRule,
-                    products: [duplicateToProduct],
-                  };
-                  return next;
-                }
-
-                return [
-                  ...next,
-                  {
-                    id: `cr-local-${Date.now()}-${duplicateToProduct.toLowerCase().replaceAll(" ", "-")}`,
-                    createdAt: new Date().toISOString(),
-                    ...updatedRule,
-                    products: [duplicateToProduct],
-                  },
-                ];
-              },
-            );
+            const saved = await updateRule(editingRuleId, updatedRule);
+            if (saved) {
+              setRules((current) =>
+                current.map((rule) => (rule.id === editingRuleId ? { ...rule, ...saved } : rule))
+              );
+            }
+            if (duplicateToProduct && PRODUCT_RULE_FIELDS[duplicateToProduct]?.includes(form.field)) {
+              const dupRule = { ...updatedRule, products: [duplicateToProduct] };
+              const createdDup = await createRule(dupRule);
+              if (createdDup) {
+                setRules((current) => [...current, createdDup]);
+              }
+            }
             return;
           }
 
-          const nextRule: CreditRuleRow = {
-            id: `cr-local-${Date.now()}`,
-            createdAt: new Date().toISOString(),
-            ...updatedRule,
-            name: form.name || "Nueva regla",
-            products: [form.product],
-            field: form.field || "custom.field",
-            value: form.evaluationMode === "bands" ? "" : form.value || "0",
-          };
-          setRules((current) => [...current, nextRule]);
+          const created = await createRule(updatedRule);
+          if (created) {
+            setRules((current) => [...current, created]);
+          }
         }}
       />
     </div>

@@ -20,37 +20,83 @@ export type MdcProduct = {
 
 export const NATURAL_MDC_PRODUCTS: MdcProduct[] = [
   {
-    id: "product_001",
-    name: "Credito automotriz",
-    description: "Financiamiento para compra de vehiculos.",
+    id: "prod_1",
+    name: "ADELANTO DE NOMINA",
+    description: "CREDITO SIMPLE - CONSUMO",
     status: "ACTIVO",
-    metrics: {
-      activeClients: 10,
-      totalPortfolio: 5_460_000,
-    },
+    metrics: { activeClients: 0, totalPortfolio: 0 },
     configuration: {
-      interestRate: { min: 13, max: 15 },
-      amount: { min: 100_000, max: 2_500_000 },
-      residualAmount: 20,
-      term: { min: 12, max: 60, frequency: "mensual" },
+      interestRate: { min: 0.0, max: 0.0 },
+      amount: { min: 5000, max: 10000 },
+      residualAmount: 0,
+      term: { min: 6, max: 6, frequency: "catorcenal" },
     },
   },
   {
-    id: "product_002",
-    name: "Credito personal",
-    description: "Financiamiento para consumo y necesidades personales.",
+    id: "prod_2",
+    name: "PD PEMEX 52 CAT",
+    description: "CREDITO SIMPLE - CONSUMO",
     status: "ACTIVO",
-    metrics: {
-      activeClients: 8,
-      totalPortfolio: 1_880_000,
-    },
+    metrics: { activeClients: 0, totalPortfolio: 0 },
     configuration: {
-      interestRate: { min: 19, max: 22 },
-      amount: { min: 25_000, max: 800_000 },
+      interestRate: { min: 54.5110, max: 54.5110 },
+      amount: { min: 2000, max: 300000 },
       residualAmount: 0,
-      term: { min: 6, max: 48, frequency: "mensual" },
+      term: { min: 52, max: 52, frequency: "catorcenal" },
     },
   },
+  {
+    id: "prod_3",
+    name: "PD PEMEX 78 CAT",
+    description: "CREDITO SIMPLE - CONSUMO",
+    status: "ACTIVO",
+    metrics: { activeClients: 0, totalPortfolio: 0 },
+    configuration: {
+      interestRate: { min: 51.7292, max: 51.7292 },
+      amount: { min: 5000, max: 300000 },
+      residualAmount: 0,
+      term: { min: 78, max: 78, frequency: "catorcenal" },
+    },
+  },
+  {
+    id: "prod_4",
+    name: "PEMEX 52 CAT SIND",
+    description: "CREDITO SIMPLE - CONSUMO",
+    status: "ACTIVO",
+    metrics: { activeClients: 0, totalPortfolio: 0 },
+    configuration: {
+      interestRate: { min: 54.5110, max: 54.5110 },
+      amount: { min: 2000, max: 300000 },
+      residualAmount: 0,
+      term: { min: 52, max: 52, frequency: "catorcenal" },
+    },
+  },
+  {
+    id: "prod_5",
+    name: "PEMEX 78 CAT TASA 33%",
+    description: "CREDITO SIMPLE - CONSUMO",
+    status: "ACTIVO",
+    metrics: { activeClients: 0, totalPortfolio: 0 },
+    configuration: {
+      interestRate: { min: 51.7292, max: 51.7292 },
+      amount: { min: 2000, max: 300000 },
+      residualAmount: 0,
+      term: { min: 78, max: 78, frequency: "catorcenal" },
+    },
+  },
+  {
+    id: "prod_6",
+    name: "REFI 78 CAT",
+    description: "CREDITO SIMPLE - CONSUMO",
+    status: "ACTIVO",
+    metrics: { activeClients: 0, totalPortfolio: 0 },
+    configuration: {
+      interestRate: { min: 51.7292, max: 51.7292 },
+      amount: { min: 2000, max: 300000 },
+      residualAmount: 0,
+      term: { min: 78, max: 78, frequency: "catorcenal" },
+    },
+  }
 ];
 
 export const MORAL_MDC_PRODUCTS: MdcProduct[] = [

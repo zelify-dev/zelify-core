@@ -100,6 +100,7 @@ export const AUTH_STORAGE_KEYS = {
   ORGANIZATION_SCOPES: "organization_scopes",
   IS_AUTHENTICATED: "isAuthenticated",
   USER_EMAIL: "userEmail",
+  DEMO_BYPASS: "zelify_demo_bypass",
 } as const;
 
 export type AuthUser = {
@@ -390,7 +391,7 @@ export async function login(
   });
   const data = await res.json().catch(() => ({}));
   if (res.status === 409) return data as Login409Response;
-  
+
   // Si devuelve 200/201 y tiene tokens, es un bypass de OTP
   const hasToken = "access_token" in data || "accessToken" in data;
   if (res.ok && hasToken) {
@@ -773,15 +774,15 @@ export async function syncMe(): Promise<void> {
   if (typeof window === "undefined") return;
   const me = await getMe();
   const k = AUTH_STORAGE_KEYS;
-  
+
   // Si me.user existe (versión vieja), lo usamos. 
   // Si no (versión nueva), el objeto 'me' es el usuario.
   const user = me.user || (me as unknown as AuthUser);
   const organization = me.organization;
-  
+
   if (user && user.id) sessionStorage.setItem(k.USER, JSON.stringify(user));
   if (organization) sessionStorage.setItem(k.ORGANIZATION, JSON.stringify(organization));
-  
+
   const topRoles = (me as { roles?: unknown }).roles;
   const userRoles = (user as { roles?: unknown })?.roles;
   const rolesInput: unknown[] = [
@@ -962,7 +963,7 @@ export async function uploadProfilePhoto(file: File): Promise<MeResponse> {
     }
     throw new AuthError(data.message || "Error al subir la foto de perfil", res.status, data);
   }
-  
+
   // Sincronizar localmente si la respuesta trae el usuario o la nueva url_photo
   if (typeof window !== "undefined") {
     const currentUser = getStoredUser();
@@ -1000,7 +1001,7 @@ export async function verifyEmailChange(otpCode: string): Promise<MeResponse> {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new AuthError(data.message || "Código OTP inválido o expirado", res.status, data);
-  
+
   if (data.user && typeof window !== "undefined") {
     sessionStorage.setItem(AUTH_STORAGE_KEYS.USER, JSON.stringify(data.user));
     sessionStorage.setItem(AUTH_STORAGE_KEYS.USER_EMAIL, data.user.email);
@@ -1032,7 +1033,7 @@ export async function verifyPhoneChange(otpCode: string): Promise<MeResponse> {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new AuthError(data.message || "Código OTP inválido o expirado", res.status, data);
-  
+
   if (data.user && typeof window !== "undefined") {
     sessionStorage.setItem(AUTH_STORAGE_KEYS.USER, JSON.stringify(data.user));
     window.dispatchEvent(new Event("storage"));
