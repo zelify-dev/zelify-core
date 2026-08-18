@@ -44,7 +44,7 @@ type ExportJob = {
 };
 
 const STORAGE_KEYS = {
-  general: "mdc:config:general:v5",
+  general: "mdc:config:general:v6",
   roles: "mdc:config:roles:v2",
   users: "mdc:config:users:v2",
   exports: "mdc:config:exports:v2",
@@ -55,12 +55,12 @@ const MDC_STORAGE_KEYS = {
 };
 
 const DEFAULT_GENERAL: GeneralSettings = {
-  companyName: "Kumaza",
-  legalName: "TuLana S.A.",
-  taxId: "12313142343",
-  supportEmail: "nzpf2502@outlook.com",
-  supportPhone: "",
-  address: "Paseo de Los Tamarindos 384, Bosques de las Lomas, Ciudad de México, CDMX, México",
+  companyName: "TESTAFIN",
+  legalName: "TESTAFIN",
+  taxId: "TES2306219P7",
+  supportEmail: "sarahi.970205@gmail.com",
+  supportPhone: "(55) 5296 2152",
+  address: "Calle San Francisco 712, Col. Del Valle Centro, Benito Juárez, Ciudad de México, C.P. 03100",
   timezone: "America/Mexico_City",
   currency: "MXN",
 };
