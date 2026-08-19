@@ -152,6 +152,7 @@ export type OrganizationDetails = {
   onboarding_verified?: boolean;
   onboarding_completed?: boolean;
   kyb_verified?: boolean;
+  users?: AuthUser[];
 };
 
 /**

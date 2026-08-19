@@ -602,8 +602,8 @@ function pctDelta(current: number, previous: number) {
 }
 
 function rangeWindow(apps: Pick<Application, "submittedAt">[], days: number) {
-  const latestTs = apps.length === 0 
-    ? Date.now() 
+  const latestTs = apps.length === 0
+    ? Date.now()
     : apps.reduce((max, app) => Math.max(max, new Date(app.submittedAt).getTime()), 0);
   const latestDate = new Date(latestTs);
   const endMs = Date.UTC(
@@ -1682,20 +1682,20 @@ function DonutChart({ data }: { data: { label: string; value: number; color: str
   const slices = rawTotal === 0
     ? []
     : data.reduce<{ label: string; value: number; color: string; len: number; offset: number }[]>(
-        (acc, slice) => {
-          const used = acc.reduce((sum, item) => sum + item.len, 0);
-          const len = circumference * (slice.value / total);
-          acc.push({
-            label: slice.label,
-            value: slice.value,
-            color: slice.color,
-            len,
-            offset: used,
-          });
-          return acc;
-        },
-        [],
-      );
+      (acc, slice) => {
+        const used = acc.reduce((sum, item) => sum + item.len, 0);
+        const len = circumference * (slice.value / total);
+        acc.push({
+          label: slice.label,
+          value: slice.value,
+          color: slice.color,
+          len,
+          offset: used,
+        });
+        return acc;
+      },
+      [],
+    );
 
   return (
     <div className="mdc-donut-wrap">
@@ -3049,26 +3049,51 @@ function AddApplicationModal({
   onClose: () => void;
   mode: MdcApplicantMode;
   products: readonly RuleProduct[];
-  onCreate: (values: { firstName: string; lastName: string; email: string; product: string; amount: number }) => void;
+  onCreate: (values: { identificationNumber: string; firstName: string; lastName: string; email: string; product: string; amount: number; bank: string; phone: string; birthPlace: string; maritalStatus: string; educationLevel: string; }) => void;
 }) {
+  const [identificationNumber, setIdentificationNumber] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [bank, setBank] = useState("");
+  const [birthPlace, setBirthPlace] = useState("");
+  const [maritalStatus, setMaritalStatus] = useState("");
+  const [educationLevel, setEducationLevel] = useState("");
   const [product, setProduct] = useState<string>(products[0] ?? NATURAL_CREDIT_PRODUCTS[0]);
   const [amount, setAmount] = useState("12000");
+  const [apiProducts, setApiProducts] = useState<any[]>([]);
   const isMoral = mode === "moral";
 
+  useEffect(() => {
+    fetch(process.env.NEXT_PUBLIC_MDC_API_URL ? `${process.env.NEXT_PUBLIC_MDC_API_URL}/finance-products` : "http://127.0.0.1:3000/finance-products")
+      .then(res => res.json())
+      .then(data => {
+        setApiProducts(data);
+        if (data.length > 0 && !product) setProduct(data[0].financialProduct);
+      })
+      .catch(err => console.error("Error fetching products", err));
+  }, []);
+
+  const displayProducts = apiProducts.length > 0 ? apiProducts.map(p => p.financialProduct) : products;
+
   const reset = () => {
+    setIdentificationNumber("");
     setFirstName("");
     setLastName("");
     setEmail("");
-    setProduct(products[0] ?? NATURAL_CREDIT_PRODUCTS[0]);
+    setPhone("");
+    setBank("");
+    setBirthPlace("");
+    setMaritalStatus("");
+    setEducationLevel("");
+    setProduct(displayProducts[0] ?? NATURAL_CREDIT_PRODUCTS[0]);
     setAmount("12000");
   };
 
   useEffect(() => {
-    setProduct(products[0] ?? NATURAL_CREDIT_PRODUCTS[0]);
-  }, [products]);
+    setProduct(displayProducts[0] ?? NATURAL_CREDIT_PRODUCTS[0]);
+  }, [products, apiProducts]);
 
   if (!open) return null;
 
@@ -3084,35 +3109,66 @@ function AddApplicationModal({
         </header>
         <div className="mdc-form-grid">
           <label>
-            <span>{isMoral ? "Razon social" : "Nombre"}</span>
-            <input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+            <span>ID (RFC/CURP) *</span>
+            <input value={identificationNumber} onChange={(e) => setIdentificationNumber(e.target.value.replace(/[^A-Za-z0-9]/g, ''))} required />
+          </label>
+          <label>
+            <span>{isMoral ? "Razon social *" : "Nombre *"}</span>
+            <input value={firstName} onChange={(e) => setFirstName(e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]/g, ''))} required />
           </label>
           {!isMoral ? (
             <label>
-              <span>Apellido</span>
-              <input value={lastName} onChange={(e) => setLastName(e.target.value)} />
+              <span>Apellido *</span>
+              <input value={lastName} onChange={(e) => setLastName(e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]/g, ''))} required />
             </label>
-          ) : (
-            <label>
-              <span>RFC empresa</span>
-              <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="AAA010101AAA" />
-            </label>
-          )}
+          ) : null}
           <label>
-            <span>{isMoral ? "Correo corporativo" : "Email"}</span>
-            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" />
+            <span>{isMoral ? "Correo corporativo *" : "Email *"}</span>
+            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required />
+          </label>
+          <label>
+            <span>Teléfono (Celular)</span>
+            <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" />
+          </label>
+          <label>
+            <span>Banco</span>
+            <input value={bank} onChange={(e) => setBank(e.target.value)} />
+          </label>
+          <label>
+            <span>Lugar de nacimiento</span>
+            <input value={birthPlace} onChange={(e) => setBirthPlace(e.target.value)} />
+          </label>
+          <label>
+            <span>Estado civil</span>
+            <input value={maritalStatus} onChange={(e) => setMaritalStatus(e.target.value)} />
+          </label>
+          <label>
+            <span>Escolaridad</span>
+            <input value={educationLevel} onChange={(e) => setEducationLevel(e.target.value)} />
           </label>
           <label>
             <span>Producto</span>
             <select value={product} onChange={(e) => setProduct(e.target.value)}>
-              {products.map((p) => (
-                <option key={p} value={p}>{p}</option>
+              {displayProducts.map((p, i) => (
+                <option key={`${p}-${i}`} value={p}>{p}</option>
               ))}
             </select>
           </label>
           <label>
-            <span>Monto</span>
-            <input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" min={0} />
+            <span>Monto (MXN) *</span>
+            <input
+              value={amount}
+              onChange={(e) => {
+                let val = e.target.value;
+                if (Number(val) > 9999999) val = "9999999";
+                setAmount(val);
+              }}
+              type="number"
+              min={0}
+              max={9999999}
+              step="0.01"
+              required
+            />
           </label>
         </div>
         <footer className="mdc-modal-actions">
@@ -3121,10 +3177,24 @@ function AddApplicationModal({
             type="button"
             className="mdc-btn mdc-btn--primary"
             onClick={() => {
+              if (!identificationNumber || !firstName || !email) {
+                alert("Por favor completa los campos obligatorios (*)");
+                return;
+              }
+              if (!email.includes("@")) {
+                alert("Correo inválido");
+                return;
+              }
               onCreate({
+                identificationNumber,
                 firstName,
                 lastName,
                 email,
+                phone,
+                bank,
+                birthPlace,
+                maritalStatus,
+                educationLevel,
                 product,
                 amount: Number(amount) || 0,
               });
@@ -3374,26 +3444,26 @@ export function MdcScreen() {
         const orgId = currentOrg?.id || "ORG-001";
         const data = await fetchFinanceRequests(orgId, applicantMode);
         const mapped: Application[] = data.map((item: any) => ({
-            id: item.id,
-            appNo: `APP-${item.id.split("-")[0].toUpperCase()}`,
-            applicantName: item.personType === "natural"
-              ? `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Desconocido'
-              : item.businessName || 'Desconocido',
-            applicantEmail: item.email || 'N/A',
-            product: item.product || 'N/A',
-            requestedAmount: Number(item.amount) || 0,
-            currency: 'MXN',
-            status: item.status === "Aprobada" ? "approved" :
-              item.status === "Rechazada" ? "declined" :
-                item.status === "Revision manual" ? "manualReview" :
-                  item.status === "Override" ? "overridden" : "pending",
-            risk: item.riskLevel === "Bajo" ? "low" :
-              item.riskLevel === "Alto" ? "high" : "medium",
-            riskScore: item.riskScore || 50,
-            submittedAt: item.updatedAt || item.createdAt || new Date().toISOString()
-          }));
+          id: item.id,
+          appNo: `APP-${item.id.split("-")[0].toUpperCase()}`,
+          applicantName: item.personType === "natural"
+            ? `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Desconocido'
+            : item.businessName || 'Desconocido',
+          applicantEmail: item.email || 'N/A',
+          product: item.product || 'N/A',
+          requestedAmount: Number(item.amount) || 0,
+          currency: 'MXN',
+          status: item.status === "Aprobada" ? "approved" :
+            item.status === "Rechazada" ? "declined" :
+              item.status === "Revision manual" ? "manualReview" :
+                item.status === "Override" ? "overridden" : "pending",
+          risk: item.riskLevel === "Bajo" ? "low" :
+            item.riskLevel === "Alto" ? "high" : "medium",
+          riskScore: item.riskScore || 50,
+          submittedAt: item.createdAt || new Date().toISOString()
+        }));
 
-          setApps(mapped);
+        setApps(mapped);
       } catch (err) {
         console.error("Failed to load applications from API", err);
       } finally {
@@ -3623,7 +3693,7 @@ export function MdcScreen() {
     const timestamp = new Date().toISOString();
     const correlationId = `trc-${Date.now().toString(36)}`;
     const user = getStoredOrganization()?.name || "Administrador";
-    
+
     const entry: MdcTraceabilityEntry = {
       id: correlationId,
       timestamp,
@@ -3635,7 +3705,7 @@ export function MdcScreen() {
       oldValue,
       newValue
     };
-    
+
     setTraceabilityLocal((prev) => {
       const updated = [entry, ...prev];
       writeStoredJson(`mdc:traceability:v3:${applicantMode}`, updated);
@@ -3677,7 +3747,7 @@ export function MdcScreen() {
         setTraceabilityLocal(mapped.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
       }
     }
-    
+
     if (activeTab === "traceability") {
       loadTraceability();
     }
@@ -4046,7 +4116,7 @@ export function MdcScreen() {
                                             riskLevel: backendRiskLevel,
                                             riskScore: newRiskScore
                                           });
-                                          
+
                                           if (getStoredOrganization()?.id !== "demo-bypass-org") {
                                             await createTraceabilityLog({
                                               orgId: getStoredOrganization()?.id || "ORG-001",
@@ -4291,7 +4361,7 @@ export function MdcScreen() {
                                     const success = await deleteRule(rule.id, getStoredOrganization()?.id || "demo-bypass-org");
                                     if (success) {
                                       setRules((current) => current.filter((item) => item.id !== rule.id));
-                                      logTraceabilityAction("ELIMINAR", `Eliminación de regla "${rule.name}"`, JSON.stringify({valor: rule.value, operador: rule.operator}), "Eliminado");
+                                      logTraceabilityAction("ELIMINAR", `Eliminación de regla "${rule.name}"`, JSON.stringify({ valor: rule.value, operador: rule.operator }), "Eliminado");
                                     }
                                   }}
                                 >
@@ -4398,12 +4468,18 @@ export function MdcScreen() {
         onClose={() => setShowAddApplication(false)}
         mode={applicantMode}
         products={activeProducts}
-        onCreate={async ({ firstName, lastName, email, product, amount }) => {
+        onCreate={async ({ identificationNumber, firstName, lastName, email, phone, bank, birthPlace, maritalStatus, educationLevel, product, amount }) => {
           const orgId = getStoredOrganization()?.id || "ORG-001";
           const payload = {
             orgId,
+            identificationNumber,
             personType: applicantMode,
             email,
+            phone,
+            bank,
+            birthPlace,
+            maritalStatus,
+            educationLevel,
             product,
             amount: Number(amount) || 0,
             status: "Pendiente",
@@ -4411,26 +4487,31 @@ export function MdcScreen() {
           };
 
           try {
-            const item = await createFinanceRequest(payload);
+            const response = await createFinanceRequest(payload);
+            const item = response.data || response;
+            if (response.notification) {
+              alert(response.notification);
+            }
             const next: Application = {
-                id: item.id,
-                appNo: `APP-${item.id.split("-")[0].toUpperCase()}`,
-                applicantName: applicantMode === "moral" ? (firstName.trim() || email) : `${firstName} ${lastName}`.trim() || email,
-                applicantEmail: email,
-                product,
-                requestedAmount: Number(amount) || 0,
-                currency: "MXN",
-                status: "pending",
-                risk: "medium",
-                riskScore: 50,
-                submittedAt: item.createdAt || new Date().toISOString(),
-              };
-              setApps((current) => [next, ...current]);
-              setPage(0);
-              if (applicantMode === "moral") {
-                openKybForApplication(next, lastName);
-              }
-          } catch (e) {
+              id: item.id,
+              appNo: `APP-${item.id.split("-")[0].toUpperCase()}`,
+              applicantName: applicantMode === "moral" ? (firstName.trim() || email) : `${firstName} ${lastName}`.trim() || email,
+              applicantEmail: email,
+              product,
+              requestedAmount: Number(amount) || 0,
+              currency: "MXN",
+              status: "pending",
+              risk: "medium",
+              riskScore: 50,
+              submittedAt: item.createdAt || new Date().toISOString(),
+            };
+            setApps((current) => [next, ...current]);
+            setPage(0);
+            if (applicantMode === "moral") {
+              openKybForApplication(next, lastName);
+            }
+          } catch (e: any) {
+            alert(e.message || "Error al crear la solicitud");
             console.error("Failed to create application", e);
           }
         }}

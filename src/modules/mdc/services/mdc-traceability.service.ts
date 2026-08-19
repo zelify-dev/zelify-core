@@ -11,6 +11,8 @@ export interface TraceabilityLogDTO {
   createdAt?: string;
 }
 
+import { getStoredUser } from "@/lib/auth-api";
+
 const getBaseUrl = (): string => {
   return process.env.NEXT_PUBLIC_MDC_API_URL || "http://127.0.0.1:3000";
 };
@@ -41,13 +43,22 @@ export const fetchTraceabilityLogs = async (orgId?: string): Promise<Traceabilit
 export const createTraceabilityLog = async (log: Omit<TraceabilityLogDTO, "id" | "createdAt">): Promise<TraceabilityLogDTO | null> => {
   const url = `${getBaseUrl()}/traceability-logs`;
   
+  const user = getStoredUser();
+  const fallbackUserName = user ? (user.full_name || user.email) : "Ejecutivo Zelify";
+  const finalUserName = (!log.userName || log.userName === "Ejecutivo Zelify") ? fallbackUserName : log.userName;
+  
+  const payload = {
+    ...log,
+    userName: finalUserName,
+  };
+
   try {
     const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(log),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {

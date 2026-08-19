@@ -172,7 +172,7 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
     const failed = filteredSessions.filter((session) => session.status === "FALLIDO" || session.status === "Rechazado").length;
     const revenue = filteredSessions
       .filter((session) => session.status === "CAPTURADO" || session.status === "Aprobado")
-      .reduce((acc, session) => acc + session.amount, 0);
+      .reduce((acc, session) => acc + (Number(session.amount) || 0), 0);
     const successRate = totalSessions ? (successful / totalSessions) * 100 : 0;
     const avgTicket = successful ? revenue / successful : 0;
     const failureReasons = filteredSessions.filter((session) => session.status === "FALLIDO" || session.status === "Rechazado").reduce(
@@ -205,7 +205,7 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
     for (const session of filteredSessions) {
       if (session.status !== "CAPTURADO" && session.status !== "Aprobado") continue;
       const dayMs = sessionDayStartMs(session.createdAt ?? "");
-      byDate.set(dayMs, (byDate.get(dayMs) ?? 0) + session.amount);
+      byDate.set(dayMs, (byDate.get(dayMs) ?? 0) + (Number(session.amount) || 0));
     }
 
     const targetPoints = rangeDays <= 7 ? 7 : rangeDays <= 30 ? 15 : 13;

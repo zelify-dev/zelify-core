@@ -10,9 +10,15 @@ export type CreateFinanceRequest = {
   firstName?: string;
   lastName?: string;
   businessName?: string;
+  identificationNumber: string;
   email: string;
   product: string;
   amount: number;
+  bank?: string;
+  phone?: string;
+  birthPlace?: string;
+  maritalStatus?: string;
+  educationLevel?: string;
   status?: string;
 };
 
@@ -41,29 +47,38 @@ export async function fetchFinanceRequests(orgId: string, personType?: string): 
   return res.json();
 }
 
-export async function createFinanceRequest(body: CreateFinanceRequest): Promise<FinanceRequest> {
-  const res = await customFetch(`${getBaseUrl()}/finance-requests`, {
+export async function createFinanceRequest(body: CreateFinanceRequest): Promise<{ data: FinanceRequest, notification?: string }> {
+  const res = await fetch(`${getBaseUrl()}/finance-requests`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Failed to create finance request (${res.status}): ${text.slice(0, 200)}`);
+    let errorMessage = `Failed to create finance request (${res.status})`;
+    try {
+      const errorJson = await res.json();
+      if (errorJson.message) errorMessage = errorJson.message;
+    } catch {
+      const text = await res.text();
+      errorMessage += `: ${text.slice(0, 200)}`;
+    }
+    throw new Error(errorMessage);
   }
-  const created = await res.json();
+  const responseJson = await res.json();
+  const created = responseJson.data || responseJson;
+
   const orgId = getStoredOrganization()?.id || "demo-bypass-org";
   if (orgId !== "demo-bypass-org") {
     await createTraceabilityLog({
       orgId,
       action: "REQUEST_CREATE",
-      detail: "Solicitud creada",
+      detail: `Solicitud creada. ${responseJson.notification || ''}`.trim(),
       channel: "Consola",
       userName: "Ejecutivo Zelify",
       correlationId: `corr-req-${created.id ? created.id.substring(0, 8) : Date.now()}`,
     });
   }
-  return created;
+  return responseJson;
 }
 
 export async function updateFinanceRequest(id: string, patch: Partial<CreateFinanceRequest> & { riskLevel?: string; riskScore?: number }): Promise<FinanceRequest | null> {

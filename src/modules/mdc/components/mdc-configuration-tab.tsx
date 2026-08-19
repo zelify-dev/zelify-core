@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { applicationsListMock, type Application } from "@/modules/mdc/data/mdc-credit-mock";
 import { SESSIONS } from "@/modules/mdc/components/mdc-payments-tab";
+import { getStoredOrganization, getOrganization } from "@/lib/auth-api";
 
 
 type ConfigSection = "general" | "roles" | "users" | "export";
@@ -403,6 +404,45 @@ export function MdcConfigurationTab() {
     { id: "users", label: "Usuarios" },
     { id: "export", label: "Export" },
   ];
+
+  useEffect(() => {
+    async function loadOrgUsers() {
+      const orgId = getStoredOrganization()?.id;
+      if (!orgId) return;
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_MDC_API_URL;
+        const response = await fetch(`${baseUrl}/configuration/users?orgId=${orgId}`);
+        if (response.ok) {
+          const data = await response.json();
+          const mappedUsers: UserRow[] = data.map((u: any) => {
+            const validRoles = u.roles && Array.isArray(u.roles) ? u.roles.filter(Boolean) : [];
+            const userRoles = validRoles.length > 0 
+              ? validRoles.map((r: any) => r?.name || r?.code || "Desconocido")
+              : (u.role ? [u.role?.name || "Desconocido"] : ["Viewer"]);
+              
+            return {
+              id: u.id,
+              fullName: u.fullName || "Usuario",
+              email: u.email || "",
+              roles: userRoles,
+              status: u.status === "active" || u.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
+              updatedAt: u.updatedAt ? new Date(u.updatedAt).toLocaleString("es-MX") : new Date().toLocaleString("es-MX"),
+              requiresPasswordChange: false,
+              otp: "DESACTIVADO",
+            };
+          });
+          setUsers(mappedUsers);
+          writeStored(STORAGE_KEYS.users, mappedUsers);
+        }
+      } catch (err) {
+        console.error("Error al cargar usuarios de la organización", err);
+      }
+    }
+
+    if (activeSection === "users") {
+      loadOrgUsers();
+    }
+  }, [activeSection]);
 
   const roleNames = useMemo(() => Array.from(new Set(roles.map((r) => r.name))), [roles]);
 
