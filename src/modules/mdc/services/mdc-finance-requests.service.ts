@@ -1,5 +1,6 @@
 import { getStoredOrganization } from "@/lib/auth-api";
 import { createTraceabilityLog } from "./mdc-traceability.service";
+import { customFetch } from "./mdc-api-client";
 const getBaseUrl = (): string =>
   process.env.NEXT_PUBLIC_MDC_API_URL || "http://127.0.0.1:3000";
 
@@ -35,13 +36,13 @@ export type FinanceRequest = {
 export async function fetchFinanceRequests(orgId: string, personType?: string): Promise<FinanceRequest[]> {
   const params = new URLSearchParams({ orgId });
   if (personType) params.set("personType", personType);
-  const res = await fetch(`${getBaseUrl()}/finance-requests?${params.toString()}`);
+  const res = await customFetch(`${getBaseUrl()}/finance-requests?${params.toString()}`);
   if (!res.ok) throw new Error(`Failed to fetch finance requests (${res.status})`);
   return res.json();
 }
 
 export async function createFinanceRequest(body: CreateFinanceRequest): Promise<FinanceRequest> {
-  const res = await fetch(`${getBaseUrl()}/finance-requests`, {
+  const res = await customFetch(`${getBaseUrl()}/finance-requests`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -66,7 +67,7 @@ export async function createFinanceRequest(body: CreateFinanceRequest): Promise<
 }
 
 export async function updateFinanceRequest(id: string, patch: Partial<CreateFinanceRequest> & { riskLevel?: string; riskScore?: number }): Promise<FinanceRequest | null> {
-  const res = await fetch(`${getBaseUrl()}/finance-requests/${id}`, {
+  const res = await customFetch(`${getBaseUrl()}/finance-requests/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch),
@@ -88,7 +89,7 @@ export async function updateFinanceRequest(id: string, patch: Partial<CreateFina
 }
 
 export async function deleteFinanceRequest(id: string): Promise<boolean> {
-  const res = await fetch(`${getBaseUrl()}/finance-requests/${id}`, {
+  const res = await customFetch(`${getBaseUrl()}/finance-requests/${id}`, {
     method: "DELETE",
   });
   const ok = res.ok;

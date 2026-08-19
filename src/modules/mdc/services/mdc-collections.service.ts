@@ -1,5 +1,6 @@
 import { getStoredOrganization } from "@/lib/auth-api";
 import { createTraceabilityLog } from "./mdc-traceability.service";
+import { customFetch } from "./mdc-api-client";
 const API_URL = process.env.NEXT_PUBLIC_MDC_API_URL || "http://localhost:3000";
 
 export type CollectionNote = {
@@ -33,7 +34,8 @@ export type CollectionCase = {
 
 export async function fetchCollections(mode: "natural" | "moral", orgId: string): Promise<CollectionCase[]> {
   try {
-    const res = await fetch(`${API_URL}/collections?mode=${mode}&orgId=${encodeURIComponent(orgId)}`);
+    const params = new URLSearchParams({ mode, orgId });
+    const res = await customFetch(`${API_URL}/collections?${params.toString()}`);
     if (!res.ok) throw new Error("Failed to fetch collections");
     return res.json();
   } catch (error) {
@@ -44,7 +46,7 @@ export async function fetchCollections(mode: "natural" | "moral", orgId: string)
 
 export async function createCollectionCase(data: CollectionCase, orgId: string): Promise<CollectionCase | null> {
   try {
-    const res = await fetch(`${API_URL}/collections`, {
+    const res = await customFetch(`${API_URL}/collections`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...data, orgId }),
@@ -59,7 +61,7 @@ export async function createCollectionCase(data: CollectionCase, orgId: string):
 
 export async function updateCollectionCase(id: string, data: Partial<CollectionCase>): Promise<CollectionCase | null> {
   try {
-    const res = await fetch(`${API_URL}/collections/${id}`, {
+    const res = await customFetch(`${API_URL}/collections/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -74,7 +76,7 @@ export async function updateCollectionCase(id: string, data: Partial<CollectionC
 
 export async function deleteCollectionCase(id: string): Promise<boolean> {
   try {
-    const res = await fetch(`${API_URL}/collections/${id}`, {
+    const res = await customFetch(`${API_URL}/collections/${id}`, {
       method: "DELETE",
     });
     return res.ok;
@@ -86,7 +88,7 @@ export async function deleteCollectionCase(id: string): Promise<boolean> {
 
 export async function addCollectionNote(id: string, text: string): Promise<CollectionNote | null> {
   try {
-    const res = await fetch(`${API_URL}/collections/${id}/notes`, {
+    const res = await customFetch(`${API_URL}/collections/${id}/notes`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),

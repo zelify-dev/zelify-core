@@ -1,5 +1,6 @@
 import { createTraceabilityLog } from "./mdc-traceability.service";
 import { type CreditRuleRow, CREDIT_RULES_BY_MODE } from "../data/mdc-rules-mock";
+import { customFetch } from "./mdc-api-client";
 
 const getBaseUrl = (): string => {
   return process.env.NEXT_PUBLIC_MDC_API_URL || "http://127.0.0.1:3000";
@@ -12,7 +13,7 @@ let demoRulesMoral = [...CREDIT_RULES_BY_MODE.moral];
 export const fetchRules = async (mode: "natural" | "moral", orgId: string): Promise<CreditRuleRow[]> => {
   const params = new URLSearchParams({ mode, orgId });
   const url = `${getBaseUrl()}/decision-rules?${params.toString()}`;
-  const response = await fetch(url, {
+  const response = await customFetch(url, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -28,7 +29,7 @@ export const fetchRules = async (mode: "natural" | "moral", orgId: string): Prom
 
 export const createRule = async (rule: Partial<CreditRuleRow>, orgId: string): Promise<CreditRuleRow | null> => {
   const url = `${getBaseUrl()}/decision-rules`;
-  const response = await fetch(url, {
+  const response = await customFetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -45,7 +46,7 @@ export const createRule = async (rule: Partial<CreditRuleRow>, orgId: string): P
 
 export const updateRule = async (id: string, rule: Partial<CreditRuleRow>, orgId?: string): Promise<CreditRuleRow | null> => {
   const url = `${getBaseUrl()}/decision-rules/${id}`;
-  const response = await fetch(url, {
+  const response = await customFetch(url, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -63,7 +64,7 @@ export const updateRule = async (id: string, rule: Partial<CreditRuleRow>, orgId
 export const deleteRule = async (id: string, orgId?: string): Promise<boolean> => {
   const url = `${getBaseUrl()}/decision-rules/${id}`;
   try {
-    const response = await fetch(url, {
+    const response = await customFetch(url, {
       method: "DELETE",
     });
     if (!response.ok) {

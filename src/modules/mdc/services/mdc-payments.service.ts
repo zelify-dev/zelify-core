@@ -1,5 +1,6 @@
 import { getStoredOrganization, getStoredUser } from "@/lib/auth-api";
 import { createTraceabilityLog } from "./mdc-traceability.service";
+import { customFetch } from "./mdc-api-client";
 const API_URL = process.env.NEXT_PUBLIC_MDC_API_URL || "http://localhost:3000";
 
 export type PaymentInstallment = {
@@ -39,7 +40,7 @@ export type BankTransactionDTO = {
 
 export async function fetchPayments(mode: "natural" | "moral"): Promise<PaymentSession[]> {
   try {
-    const res = await fetch(`${API_URL}/payments?mode=${mode}`);
+    const res = await customFetch(`${API_URL}/payments?mode=${mode}`);
     if (!res.ok) throw new Error("Failed to fetch payments");
     return res.json();
   } catch (error) {
@@ -50,7 +51,7 @@ export async function fetchPayments(mode: "natural" | "moral"): Promise<PaymentS
 
 export async function createPayment(data: PaymentSession): Promise<PaymentSession | null> {
   try {
-    const res = await fetch(`${API_URL}/payments`, {
+    const res = await customFetch(`${API_URL}/payments`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -78,7 +79,7 @@ export async function createPayment(data: PaymentSession): Promise<PaymentSessio
 
 export async function updatePayment(id: string, data: Partial<PaymentSession>): Promise<PaymentSession | null> {
   try {
-    const res = await fetch(`${API_URL}/payments/${id}`, {
+    const res = await customFetch(`${API_URL}/payments/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -105,7 +106,7 @@ export async function updatePayment(id: string, data: Partial<PaymentSession>): 
 
 export async function deletePayment(id: string): Promise<boolean> {
   try {
-    const res = await fetch(`${API_URL}/payments/${id}`, {
+    const res = await customFetch(`${API_URL}/payments/${id}`, {
       method: "DELETE",
     });
     const ok = res.ok;
@@ -141,7 +142,7 @@ export async function uploadPaymentsFile(file: File, orgId: string): Promise<{ s
     const formData = new FormData();
     formData.append("file", file);
     
-    const res = await fetch(`${API_URL}/payments/upload?orgId=${encodeURIComponent(orgId)}`, {
+    const res = await customFetch(`${API_URL}/payments/upload?orgId=${encodeURIComponent(orgId)}`, {
       method: "POST",
       body: formData,
     });
@@ -170,7 +171,7 @@ export async function uploadPaymentsFile(file: File, orgId: string): Promise<{ s
 
 export async function fetchBankTransactions(orgId: string): Promise<BankTransactionDTO[]> {
   try {
-    const res = await fetch(`${API_URL}/payments/transactions?orgId=${encodeURIComponent(orgId)}`);
+    const res = await customFetch(`${API_URL}/payments/transactions?orgId=${encodeURIComponent(orgId)}`);
     if (!res.ok) {
       console.warn("Backend retornó un error al buscar transacciones bancarias, devolviendo lista vacía");
       return [];
@@ -184,7 +185,7 @@ export async function fetchBankTransactions(orgId: string): Promise<BankTransact
 
 export async function matchBankTransaction(id: string, userId: string): Promise<boolean> {
   try {
-    const res = await fetch(`${API_URL}/payments/transactions/${id}/match`, {
+    const res = await customFetch(`${API_URL}/payments/transactions/${id}/match`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId }),

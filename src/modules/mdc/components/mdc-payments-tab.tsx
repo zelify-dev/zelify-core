@@ -4,7 +4,7 @@ import { ChevronRight, X, Upload, FileSpreadsheet, CheckCircle2, AlertCircle } f
 import { useMemo, useState, useEffect } from "react";
 import type { MdcApplicantMode } from "@/modules/mdc/data/mdc-credit-mock";
 import { getStoredOrganization } from "@/lib/auth-api";
-import { fetchPayments, createPayment, deletePayment, uploadPaymentsFile, fetchBankTransactions, matchBankTransaction, type BankTransactionDTO, type PaymentSession } from "@/modules/mdc/services/mdc-payments.service";
+import { fetchPayments, uploadPaymentsFile, type PaymentSession } from "@/modules/mdc/services/mdc-payments.service";
 
 export type Session = PaymentSession;
 
@@ -85,29 +85,26 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [uploadError, setUploadError] = useState(false);
-  const [importedTransactions, setImportedTransactions] = useState<BankTransactionDTO[]>([]);
-  const [activeTab, setActiveTab] = useState<'sessions' | 'imported'>('sessions');
   const [isDragging, setIsDragging] = useState(false);
 
-  useEffect(() => {
-    async function load() {
-      if (typeof window === "undefined") return;
+  const loadSessions = async () => {
+    if (typeof window === "undefined") return;
+    const orgId = getStoredOrganization()?.id || "ORG-001";
+    if (orgId !== "demo-bypass-org") {
+      const realSessions = await fetchPayments(mode);
+      setSessions(realSessions);
+    } else {
       const saved = localStorage.getItem(`mdc:payments:${mode}`);
       if (saved) {
         setSessions(JSON.parse(saved));
-      } else if (getStoredOrganization()?.id === "demo-bypass-org") {
-        setSessions(mode === "moral" ? MORAL_SESSIONS : NATURAL_SESSIONS);
       } else {
-        setSessions([]);
-      }
-      
-      const orgId = getStoredOrganization()?.id || "ORG-001";
-      if (orgId !== "demo-bypass-org") {
-        const txs = await fetchBankTransactions(orgId);
-        setImportedTransactions(txs);
+        setSessions(mode === "moral" ? MORAL_SESSIONS : NATURAL_SESSIONS);
       }
     }
-    load();
+  };
+
+  useEffect(() => {
+    loadSessions();
   }, [mode]);
 
   const handleCreateTestPayment = async () => {
@@ -124,7 +121,7 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
       legalEntity: isMoral,
       createdAt: new Date().toISOString().split("T")[0],
     };
-    
+
     setSessions((prev) => {
       const updated = [...prev, newPayment];
       if (typeof window !== "undefined") {
@@ -171,14 +168,14 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
 
   const kpis = useMemo(() => {
     const totalSessions = filteredSessions.length;
-    const successful = filteredSessions.filter((session) => session.status === "CAPTURADO").length;
-    const failed = filteredSessions.filter((session) => session.status === "FALLIDO").length;
+    const successful = filteredSessions.filter((session) => session.status === "CAPTURADO" || session.status === "Aprobado").length;
+    const failed = filteredSessions.filter((session) => session.status === "FALLIDO" || session.status === "Rechazado").length;
     const revenue = filteredSessions
-      .filter((session) => session.status === "CAPTURADO")
+      .filter((session) => session.status === "CAPTURADO" || session.status === "Aprobado")
       .reduce((acc, session) => acc + session.amount, 0);
     const successRate = totalSessions ? (successful / totalSessions) * 100 : 0;
     const avgTicket = successful ? revenue / successful : 0;
-    const failureReasons = filteredSessions.filter((session) => session.status === "FALLIDO").reduce(
+    const failureReasons = filteredSessions.filter((session) => session.status === "FALLIDO" || session.status === "Rechazado").reduce(
       (acc, session) => {
         if (session.errorCode === "insufficient_funds") {
           acc.funds += 1;
@@ -206,7 +203,7 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
   const trendPoints = useMemo(() => {
     const byDate = new Map<number, number>();
     for (const session of filteredSessions) {
-      if (session.status !== "CAPTURADO") continue;
+      if (session.status !== "CAPTURADO" && session.status !== "Aprobado") continue;
       const dayMs = sessionDayStartMs(session.createdAt ?? "");
       byDate.set(dayMs, (byDate.get(dayMs) ?? 0) + session.amount);
     }
@@ -273,28 +270,12 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
         </article>
 
 
-        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-          <button 
-            className={`mdc-btn ${activeTab === 'sessions' ? 'mdc-btn--primary' : 'mdc-btn--ghost'}`} 
-            onClick={() => setActiveTab('sessions')}
-          >
-            Sesiones de Pago
-          </button>
-          <button 
-            className={`mdc-btn ${activeTab === 'imported' ? 'mdc-btn--primary' : 'mdc-btn--ghost'}`} 
-            onClick={() => setActiveTab('imported')}
-          >
-            Pagos Importados (XLSX)
-          </button>
-        </div>
-
         <article className="mdc-card mdc-pay-table-wrap">
           <div className="mdc-table-wrap">
-            {activeTab === 'sessions' ? (
             <table className="mdc-table">
               <thead>
                 <tr>
-                  <th>Solicitud</th>
+                  <th>Ficha (Ref) / Solicitud</th>
                   <th>Usuario</th>
                   <th>Estado de pago</th>
                   <th>Metodo</th>
@@ -323,66 +304,6 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
                 )}
               </tbody>
             </table>
-            ) : (
-            <table className="mdc-table">
-              <thead>
-                <tr>
-                  <th>FICHA (Ref)</th>
-                  <th>Nombre Solicitante</th>
-                  <th>Monto (TESTAFIN)</th>
-                  <th>Estado</th>
-                  <th>Acción</th>
-                </tr>
-              </thead>
-              <tbody>
-                {importedTransactions.length === 0 ? (
-                  <tr>
-                    <td colSpan={5}>No hay transacciones importadas. Intenta subir un archivo .xlsx.</td>
-                  </tr>
-                ) : (
-                  importedTransactions.map((tx) => (
-                    <tr key={tx.id} className="mdc-pay-row">
-                      <td>{tx.bankReference}</td>
-                      <td>{tx.applicantNameRaw}</td>
-                      <td className="mdc-pay-num">${formatMoney(tx.amount)}</td>
-                      <td>
-                        {tx.isMatched ? (
-                          <span className="mdc-badge mdc-badge--ok">Conciliado</span>
-                        ) : (
-                          <span className="mdc-badge mdc-badge--warn">Pendiente</span>
-                        )}
-                      </td>
-                      <td>
-                        {!tx.isMatched && (
-                          <button 
-                            className="mdc-btn mdc-btn--ghost" 
-                            style={{ padding: '4px 8px', fontSize: '12px' }}
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              const user = prompt("Ingresa el ID del usuario interno para enlazar:");
-                              if (user) {
-                                const ok = await matchBankTransaction(tx.id, user);
-                                if (ok) {
-                                  alert("Conciliación exitosa.");
-                                  const orgId = getStoredOrganization()?.id || "ORG-001";
-                                  const txs = await fetchBankTransactions(orgId);
-                                  setImportedTransactions(txs);
-                                } else {
-                                  alert("Hubo un error al conciliar.");
-                                }
-                              }
-                            }}
-                          >
-                            Conciliar
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-            )}
           </div>
         </article>
       </section>
@@ -421,10 +342,11 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
                   justifyContent: "center",
                   gap: "0.75rem",
                   padding: "2.25rem 1.5rem",
-                  border: `2px dashed ${isDragging ? "#2563eb" : uploadFile ? "#10b981" : "#cbd5e1"}`,
+                  border: `2px dashed ${isDragging ? "#2563eb" : uploadSuccess ? "#10b981" : uploadFile ? "#cbd5e1" : "#cbd5e1"}`,
                   borderRadius: "12px",
-                  background: isDragging ? "rgba(37,99,235,0.05)" : uploadFile ? "rgba(16,185,129,0.04)" : "rgba(248,250,252,0.6)",
-                  cursor: "pointer",
+                  background: isDragging ? "rgba(37,99,235,0.05)" : uploadSuccess ? "rgba(16,185,129,0.04)" : "rgba(248,250,252,0.6)",
+                  cursor: (isUploading || uploadSuccess) ? "default" : "pointer",
+                  pointerEvents: (isUploading || uploadSuccess) ? "none" : "auto",
                   transition: "all 0.2s ease",
                   marginBottom: "1rem",
                 }}
@@ -441,12 +363,32 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
                   }}
                 />
 
-                {uploadFile ? (
+                {uploadSuccess ? (
                   <>
-                    <FileSpreadsheet style={{ width: 40, height: 40, color: "#10b981" }} />
+                    <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#ecfdf5", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <CheckCircle2 style={{ width: 32, height: 32, color: "#10b981" }} />
+                    </div>
                     <div style={{ textAlign: "center" }}>
-                      <p style={{ fontWeight: 600, color: "#0f172a", fontSize: "14px", margin: 0 }}>{uploadFile.name}</p>
-                      <p style={{ color: "#64748b", fontSize: "12px", margin: "2px 0 0" }}>
+                      <p style={{ fontWeight: 600, color: "#059669", fontSize: "16px", margin: 0 }}>¡Archivo conciliado con éxito!</p>
+                      <p style={{ color: "#64748b", fontSize: "13px", margin: "6px 0 0" }}>La información de pagos se ha creado y vinculado correctamente.</p>
+                    </div>
+                  </>
+                ) : isUploading ? (
+                  <>
+                    <div style={{ width: 64, height: 64, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                       <span style={{ width: 36, height: 36, border: "4px solid #e2e8f0", borderTopColor: "#3b82f6", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" }} />
+                    </div>
+                    <div style={{ textAlign: "center" }}>
+                      <p style={{ fontWeight: 600, color: "#1e293b", fontSize: "16px", margin: 0 }}>Procesando pagos...</p>
+                      <p style={{ color: "#64748b", fontSize: "13px", margin: "6px 0 0" }}>Leyendo fichas y conciliando con la base de datos.</p>
+                    </div>
+                  </>
+                ) : uploadFile ? (
+                  <>
+                    <FileSpreadsheet style={{ width: 44, height: 44, color: "#3b82f6" }} />
+                    <div style={{ textAlign: "center" }}>
+                      <p style={{ fontWeight: 600, color: "#0f172a", fontSize: "15px", margin: 0 }}>{uploadFile.name}</p>
+                      <p style={{ color: "#64748b", fontSize: "12px", margin: "4px 0 0" }}>
                         {(uploadFile.size / 1024).toFixed(1)} KB &mdash; haz clic para cambiar
                       </p>
                     </div>
@@ -454,18 +396,18 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
                 ) : (
                   <>
                     <div style={{
-                      width: 52, height: 52,
+                      width: 56, height: 56,
                       borderRadius: "50%",
                       background: "#eff6ff",
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}>
-                      <Upload style={{ width: 24, height: 24, color: "#2563eb" }} />
+                      <Upload style={{ width: 26, height: 26, color: "#3b82f6" }} />
                     </div>
                     <div style={{ textAlign: "center" }}>
-                      <p style={{ fontWeight: 600, color: "#1e293b", fontSize: "14px", margin: 0 }}>
+                      <p style={{ fontWeight: 600, color: "#1e293b", fontSize: "15px", margin: 0 }}>
                         Arrastra tu archivo aquí
                       </p>
-                      <p style={{ color: "#64748b", fontSize: "12px", margin: "4px 0 0" }}>
+                      <p style={{ color: "#64748b", fontSize: "13px", margin: "6px 0 0" }}>
                         o haz clic para seleccionar &mdash; solo <strong>.xlsx</strong>
                       </p>
                     </div>
@@ -474,12 +416,6 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
               </label>
 
               {/* Status messages */}
-              {uploadSuccess && (
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#059669", fontSize: "13px", marginBottom: "1rem", background: "#ecfdf5", padding: "0.625rem 0.875rem", borderRadius: "8px" }}>
-                  <CheckCircle2 style={{ width: 16, height: 16, flexShrink: 0 }} />
-                  Archivo subido exitosamente.
-                </div>
-              )}
               {uploadError && (
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#dc2626", fontSize: "13px", marginBottom: "1rem", background: "#fef2f2", padding: "0.625rem 0.875rem", borderRadius: "8px" }}>
                   <AlertCircle style={{ width: 16, height: 16, flexShrink: 0 }} />
@@ -508,6 +444,7 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
                         setIsUploadModalOpen(false);
                         setUploadSuccess(false);
                         setUploadFile(null);
+                        loadSessions(); // Recargar los pagos actualizados/conciliados
                       }, 2000);
                     } else {
                       setUploadError(true);
@@ -589,23 +526,10 @@ function PaymentTrendChart({ points }: { points: { label: string; value: number 
 }
 
 function PaymentScheduleDetail({ payment, onClose }: { payment: Session; onClose: () => void }) {
-  const installments: Installment[] = [
-    { installmentNumber: 1, status: "pagado", amount: payment.amount, dueDate: "8 ene 2026" },
-    { installmentNumber: 2, status: "pagado", amount: payment.amount, dueDate: "22 ene 2026" },
-    { installmentNumber: 3, status: "pagado", amount: payment.amount, dueDate: "5 feb 2026" },
-    { installmentNumber: 4, status: "pagado", amount: payment.amount, dueDate: "19 feb 2026" },
-    { installmentNumber: 5, status: "pagado", amount: payment.amount, dueDate: "5 mar 2026" },
-    { installmentNumber: 6, status: "pagado", amount: payment.amount, dueDate: "19 mar 2026" },
-    { installmentNumber: 7, status: "pagado", amount: payment.amount, dueDate: "2 abr 2026" },
-    { installmentNumber: 8, status: "pagado", amount: payment.amount, dueDate: "16 abr 2026" },
-    { installmentNumber: 9, status: "pendiente", amount: payment.amount, dueDate: "7 may 2026" },
-    { installmentNumber: 10, status: "pendiente", amount: payment.amount, dueDate: "21 may 2026" },
-    { installmentNumber: 11, status: "pendiente", amount: payment.amount, dueDate: "4 jun 2026" },
-    { installmentNumber: 12, status: "pendiente", amount: payment.amount, dueDate: "18 jun 2026" },
-  ];
+  const installments = payment.installments || [];
 
-  const totalAmount = installments.reduce((acc, item) => acc + item.amount, 0);
-  const paidAmount = installments.filter((item) => item.status === "pagado").reduce((acc, item) => acc + item.amount, 0);
+  const totalAmount = payment.amount || installments.reduce((acc, item) => acc + Number(item.amount), 0);
+  const paidAmount = installments.reduce((acc, item) => acc + (Number((item as any).amountPaid) || (item.status === "Aprobado" ? Number(item.amount) : 0)), 0);
 
   return (
     <div className="mdc-modal-backdrop mdc-pay-modal-backdrop">
@@ -651,14 +575,16 @@ function PaymentScheduleDetail({ payment, onClose }: { payment: Session; onClose
           </div>
 
           <div className="mdc-pay-installments">
+            {installments.length === 0 && <p style={{padding: '1rem', color: '#64748b'}}>No hay cuotas generadas para este pago.</p>}
             {installments.map((item) => (
               <button key={item.installmentNumber} type="button" className="mdc-pay-installment-card">
                 <div className="mdc-pay-installment-card__head">
                   <p>Pago {item.installmentNumber}</p>
                   <InstallmentBadge status={item.status} />
                 </div>
-                <strong>${formatMoney(item.amount)}</strong>
-                <span>Vencido: {item.dueDate}</span>
+                <strong>${formatMoney(Number(item.amount))}</strong>
+                {(item as any).amountPaid !== undefined && <span style={{fontSize: '0.8rem', color: '#64748b'}}>${formatMoney(Number((item as any).amountPaid))} pagado</span>}
+                <span>Vencido: {new Date(item.dueDate).toLocaleDateString("es-MX", { year: "numeric", month: "short", day: "numeric" })}</span>
               </button>
             ))}
           </div>
@@ -683,8 +609,13 @@ function MetaItem({ label, value }: { label: string; value: string }) {
   );
 }
 
-function InstallmentBadge({ status }: { status: Installment["status"] }) {
-  const styles: Record<Installment["status"], string> = {
+function InstallmentBadge({ status }: { status: string }) {
+  const norm = status.toLowerCase();
+  let mapped = "pendiente";
+  if (norm === "aprobado" || norm === "pagado") mapped = "pagado";
+  if (norm === "en mora" || norm === "vencido") mapped = "vencido";
+
+  const styles: Record<string, string> = {
     pendiente: "mdc-badge mdc-badge--warn",
     pagado: "mdc-badge mdc-badge--ok",
     vencido: "mdc-badge mdc-badge--bad",
@@ -693,7 +624,16 @@ function InstallmentBadge({ status }: { status: Installment["status"] }) {
     cancelado: "mdc-badge mdc-badge--neutral",
   };
 
-  return <span className={styles[status]}>{status}</span>;
+  const labels: Record<string, string> = {
+    pagado: "Pagado",
+    pendiente: "Pendiente",
+    vencido: "Vencido",
+    parcial: "Parcial",
+    fallido: "Fallido",
+    cancelado: "Cancelado",
+  };
+
+  return <span className={styles[mapped] || "mdc-badge mdc-badge--neutral"}>{labels[mapped] || status}</span>;
 }
 
 function KpiCard({ title, value, delta }: { title: string; value: string; delta: string }) {
@@ -707,22 +647,24 @@ function KpiCard({ title, value, delta }: { title: string; value: string; delta:
   );
 }
 
-function StatusBadge({ status }: { status: Session["status"] }) {
-  const styles: Record<Session["status"], string> = {
+function StatusBadge({ status }: { status: string }) {
+  const normStatus = status === "Aprobado" ? "CAPTURADO" : status;
+  
+  const styles: Record<string, string> = {
     PENDIENTE: "mdc-badge mdc-badge--warn",
     PROCESANDO: "mdc-badge mdc-badge--info",
     CAPTURADO: "mdc-badge mdc-badge--ok",
     FALLIDO: "mdc-badge mdc-badge--bad",
   };
 
-  const labels: Record<Session["status"], string> = {
+  const labels: Record<string, string> = {
     PENDIENTE: "Pendiente",
     PROCESANDO: "En proceso",
     CAPTURADO: "Pagado",
     FALLIDO: "No pagado",
   };
 
-  return <span className={styles[status]}>{labels[status]}</span>;
+  return <span className={styles[normStatus] || "mdc-badge mdc-badge--neutral"}>{labels[normStatus] || status}</span>;
 }
 
 function formatMoney(value: number) {
@@ -734,8 +676,14 @@ function formatMoneyNoDecimals(value: number) {
 }
 
 function sessionDayStartMs(value: string) {
-  const [year, month, day] = value.split("-").map((part) => Number(part));
-  return Date.UTC(year, month - 1, day);
+  if (!value) return 0;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    return Date.UTC(year, month - 1, day);
+  }
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return 0;
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 
 function formatChartDate(dayMs: number) {

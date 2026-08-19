@@ -1,5 +1,6 @@
 import { getStoredOrganization } from "@/lib/auth-api";
 import { createTraceabilityLog } from "./mdc-traceability.service";
+import { customFetch } from "./mdc-api-client";
 const API_URL = process.env.NEXT_PUBLIC_MDC_API_URL || "http://localhost:3000";
 
 export type GeneralSettings = {
@@ -38,13 +39,13 @@ export type ExportJob = {
 
 // General Settings
 export async function getGeneralSettings(): Promise<GeneralSettings> {
-  const res = await fetch(`${API_URL}/configuration/general`);
+  const res = await customFetch(`${API_URL}/configuration/general`);
   if (!res.ok) throw new Error("Failed to fetch general settings");
   return res.json();
 }
 
 export async function updateGeneralSettings(data: GeneralSettings): Promise<GeneralSettings> {
-  const res = await fetch(`${API_URL}/configuration/general`, {
+  const res = await customFetch(`${API_URL}/configuration/general`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -67,13 +68,13 @@ export async function updateGeneralSettings(data: GeneralSettings): Promise<Gene
 
 // Roles
 export async function getRoles(): Promise<RoleRow[]> {
-  const res = await fetch(`${API_URL}/configuration/roles`);
+  const res = await customFetch(`${API_URL}/configuration/roles`);
   if (!res.ok) throw new Error("Failed to fetch roles");
   return res.json();
 }
 
 export async function createRole(data: Partial<RoleRow>): Promise<RoleRow> {
-  const res = await fetch(`${API_URL}/configuration/roles`, {
+  const res = await customFetch(`${API_URL}/configuration/roles`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -95,7 +96,7 @@ export async function createRole(data: Partial<RoleRow>): Promise<RoleRow> {
 }
 
 export async function deleteRole(id: string): Promise<boolean> {
-  const res = await fetch(`${API_URL}/configuration/roles/${id}`, { method: "DELETE" });
+  const res = await customFetch(`${API_URL}/configuration/roles/${id}`, { method: "DELETE" });
   const ok = res.ok;
   if (ok) {
     const orgId = getStoredOrganization()?.id || "demo-bypass-org";
@@ -115,13 +116,13 @@ export async function deleteRole(id: string): Promise<boolean> {
 
 // Users
 export async function getUsers(): Promise<UserRow[]> {
-  const res = await fetch(`${API_URL}/configuration/users`);
+  const res = await customFetch(`${API_URL}/configuration/users`);
   if (!res.ok) throw new Error("Failed to fetch users");
   return res.json();
 }
 
 export async function createUser(data: Partial<UserRow>): Promise<UserRow> {
-  const res = await fetch(`${API_URL}/configuration/users`, {
+  const res = await customFetch(`${API_URL}/configuration/users`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -131,19 +132,19 @@ export async function createUser(data: Partial<UserRow>): Promise<UserRow> {
 }
 
 export async function deleteUser(id: string): Promise<boolean> {
-  const res = await fetch(`${API_URL}/configuration/users/${id}`, { method: "DELETE" });
+  const res = await customFetch(`${API_URL}/configuration/users/${id}`, { method: "DELETE" });
   return res.ok;
 }
 
 // Exports
 export async function getExportJobs(): Promise<ExportJob[]> {
-  const res = await fetch(`${API_URL}/configuration/exports`);
+  const res = await customFetch(`${API_URL}/configuration/exports`);
   if (!res.ok) throw new Error("Failed to fetch exports");
   return res.json();
 }
 
 export async function createExportJob(data: Partial<ExportJob>): Promise<ExportJob> {
-  const res = await fetch(`${API_URL}/configuration/exports`, {
+  const res = await customFetch(`${API_URL}/configuration/exports`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -153,7 +154,7 @@ export async function createExportJob(data: Partial<ExportJob>): Promise<ExportJ
 }
 
 export async function updateExportJobStatus(id: string, status: ExportJob["status"]): Promise<ExportJob> {
-  const res = await fetch(`${API_URL}/configuration/exports/${id}`, {
+  const res = await customFetch(`${API_URL}/configuration/exports/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ status }),

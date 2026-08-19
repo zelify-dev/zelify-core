@@ -3390,7 +3390,7 @@ export function MdcScreen() {
             risk: item.riskLevel === "Bajo" ? "low" :
               item.riskLevel === "Alto" ? "high" : "medium",
             riskScore: item.riskScore || 50,
-            submittedAt: item.createdAt || new Date().toISOString()
+            submittedAt: item.updatedAt || item.createdAt || new Date().toISOString()
           }));
 
           setApps(mapped);
