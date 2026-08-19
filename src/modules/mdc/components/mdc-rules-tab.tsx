@@ -1,8 +1,10 @@
 "use client";
 
-import { Plus, MoreHorizontal, X, Search, ChevronDown } from "lucide-react";
+import { Plus, MoreHorizontal, X, Search, ChevronDown, Pencil } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { naturalCreditRulesMock, type CreditRuleRow, type RuleOperator, type RuleDataType, type RuleSeverity } from "@/modules/mdc/data/mdc-rules-mock";
+import { fetchRules, createRule, updateRule, deleteRule } from "@/modules/mdc/services/mdc-rules.service";
+import { getStoredOrganization } from "@/lib/auth-api";
 
 // Helper functions for formatting
 function formatOperator(op: RuleOperator) {
@@ -29,25 +31,35 @@ function formatDataType(type: RuleDataType) {
   }
 }
 
-export function MdcRulesTab() {
-  const [rules, setRules] = useState<CreditRuleRow[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("mdc:rules:v2");
-      if (saved) return JSON.parse(saved);
-    }
-    return [];
-  });
-
-  // Sync to local storage
+export function MdcRulesTab({ mode }: { mode: "natural" | "moral" }) {
+  const [rules, setRules] = useState<CreditRuleRow[]>([]);
+  
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("mdc:rules:v2", JSON.stringify(rules));
+    async function load() {
+      const orgId = getStoredOrganization()?.id || "demo-bypass-org";
+      const data = await fetchRules(mode, orgId);
+      setRules(data);
     }
-  }, [rules]);
+    load();
+  }, [mode]);
+
+  const [newRule, setNewRule] = useState<Partial<CreditRuleRow>>({
+    name: "",
+    products: ["Credito automotriz"],
+    field: "Edad del solicitante",
+    evaluationMode: "single",
+    operator: "gte",
+    value: "",
+    dataType: "number",
+    severity: "warn",
+    description: "",
+    status: "active",
+  });
 
   const [searchTerm, setSearchTerm] = useState("");
   const [activeProduct, setActiveProduct] = useState("Credito automotriz");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
 
   const filteredRules = useMemo(() => {
     return rules.filter((r) => {
@@ -67,7 +79,22 @@ export function MdcRulesTab() {
             <h3>Reglas y thresholds</h3>
             <p className="text-slate-500">Configuracion operativa del motor MDC</p>
           </div>
-          <button type="button" className="mdc-btn mdc-btn--primary bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium shadow-sm transition-colors" onClick={() => setIsModalOpen(true)}>
+          <button type="button" className="mdc-btn mdc-btn--primary bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium shadow-sm transition-colors" onClick={() => {
+            setEditingRuleId(null);
+            setNewRule({
+              name: "",
+              products: ["Credito automotriz"],
+              field: "Edad del solicitante",
+              evaluationMode: "single",
+              operator: "gte",
+              value: "",
+              dataType: "number",
+              severity: "warn",
+              description: "",
+              status: "active",
+            });
+            setIsModalOpen(true);
+          }}>
             Agregar regla
           </button>
         </div>
@@ -163,9 +190,41 @@ export function MdcRulesTab() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <button className="p-1.5 text-slate-400 hover:text-slate-600 border border-slate-200 rounded shadow-sm hover:bg-slate-50 transition-colors">
-                      <MoreHorizontal className="w-4 h-4" />
-                    </button>
+                    <div className="flex gap-2 justify-center">
+                      <button 
+                        className="p-1.5 text-blue-400 hover:text-blue-600 border border-blue-200 rounded shadow-sm hover:bg-blue-50 transition-colors"
+                        onClick={() => {
+                          setEditingRuleId(rule.id);
+                          setNewRule({
+                            name: rule.name,
+                            products: rule.products,
+                            field: rule.field,
+                            evaluationMode: rule.evaluationMode,
+                            operator: rule.operator,
+                            value: rule.value,
+                            dataType: rule.dataType,
+                            severity: rule.severity,
+                            description: rule.description,
+                            status: rule.status,
+                          });
+                          setIsModalOpen(true);
+                        }}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button 
+                        className="p-1.5 text-rose-400 hover:text-rose-600 border border-rose-200 rounded shadow-sm hover:bg-rose-50 transition-colors"
+                        onClick={async () => {
+                          if (rule.id) {
+                            const orgId = getStoredOrganization()?.id || "demo-bypass-org";
+                            await deleteRule(rule.id, orgId);
+                            setRules(rules.filter(r => r.id !== rule.id));
+                          }
+                        }}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -188,7 +247,7 @@ export function MdcRulesTab() {
             <div className="p-5 border-b border-slate-100 flex items-start justify-between">
               <div>
                 <p className="text-xs font-semibold text-slate-500 tracking-wider mb-1 uppercase">Regla de credito</p>
-                <h2 className="text-xl font-bold text-slate-900">Nueva regla</h2>
+                <h2 className="text-xl font-bold text-slate-900">{editingRuleId ? "Editar regla" : "Nueva regla"}</h2>
               </div>
               <button 
                 onClick={() => setIsModalOpen(false)}
@@ -202,14 +261,14 @@ export function MdcRulesTab() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-600 mb-1.5">Nombre</label>
-                  <input type="text" className="w-full h-10 px-3 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input type="text" value={newRule.name} onChange={e => setNewRule({...newRule, name: e.target.value})} className="w-full h-10 px-3 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-600 mb-1.5">Producto</label>
                   <div className="relative">
-                    <select className="w-full h-10 px-3 border border-slate-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <option>Credito automotriz</option>
-                      <option>Credito personal</option>
+                    <select value={newRule.products?.[0]} onChange={e => setNewRule({...newRule, products: [e.target.value as any]})} className="w-full h-10 px-3 border border-slate-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="Credito automotriz">Credito automotriz</option>
+                      <option value="Credito personal">Credito personal</option>
                     </select>
                     <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
                   </div>
@@ -220,10 +279,10 @@ export function MdcRulesTab() {
                 <div>
                   <label className="block text-sm font-medium text-slate-600 mb-1.5">Campo</label>
                   <div className="relative">
-                    <select className="w-full h-10 px-3 border border-slate-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <option>Edad del solicitante</option>
-                      <option>Score crediticio</option>
-                      <option>Relacion deuda / ingreso (DTI)</option>
+                    <select value={newRule.field} onChange={e => setNewRule({...newRule, field: e.target.value})} className="w-full h-10 px-3 border border-slate-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="Edad del solicitante">Edad del solicitante</option>
+                      <option value="Score crediticio">Score crediticio</option>
+                      <option value="Relacion deuda / ingreso (DTI)">Relacion deuda / ingreso (DTI)</option>
                     </select>
                     <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
                   </div>
@@ -231,9 +290,9 @@ export function MdcRulesTab() {
                 <div>
                   <label className="block text-sm font-medium text-slate-600 mb-1.5">Modo de evaluacion</label>
                   <div className="relative">
-                    <select className="w-full h-10 px-3 border border-slate-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <option>Umbral unico</option>
-                      <option>Por bandas</option>
+                    <select value={newRule.evaluationMode} onChange={e => setNewRule({...newRule, evaluationMode: e.target.value as any})} className="w-full h-10 px-3 border border-slate-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="single">Umbral unico</option>
+                      <option value="bands">Por bandas</option>
                     </select>
                     <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
                   </div>
@@ -244,17 +303,18 @@ export function MdcRulesTab() {
                 <div>
                   <label className="block text-sm font-medium text-slate-600 mb-1.5">Operador</label>
                   <div className="relative">
-                    <select className="w-full h-10 px-3 border border-slate-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <option>Mayor o igual (&gt;=)</option>
-                      <option>Menor o igual (&lt;=)</option>
-                      <option>Igual (=)</option>
+                    <select value={newRule.operator} onChange={e => setNewRule({...newRule, operator: e.target.value as any})} className="w-full h-10 px-3 border border-slate-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="gte">Mayor o igual (&gt;=)</option>
+                      <option value="lte">Menor o igual (&lt;=)</option>
+                      <option value="equals">Igual (=)</option>
+                      <option value="between">Por bandas</option>
                     </select>
                     <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
                   </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-600 mb-1.5">Valor</label>
-                  <input type="text" className="w-full h-10 px-3 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input type="text" value={newRule.value} onChange={e => setNewRule({...newRule, value: e.target.value})} className="w-full h-10 px-3 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
               </div>
 
@@ -262,10 +322,10 @@ export function MdcRulesTab() {
                 <div>
                   <label className="block text-sm font-medium text-slate-600 mb-1.5">Tipo</label>
                   <div className="relative">
-                    <select className="w-full h-10 px-3 border border-slate-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <option>Numero</option>
-                      <option>Porcentaje</option>
-                      <option>Texto</option>
+                    <select value={newRule.dataType} onChange={e => setNewRule({...newRule, dataType: e.target.value as any})} className="w-full h-10 px-3 border border-slate-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="number">Numero</option>
+                      <option value="percentage">Porcentaje</option>
+                      <option value="string">Texto</option>
                     </select>
                     <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
                   </div>
@@ -273,10 +333,10 @@ export function MdcRulesTab() {
                 <div>
                   <label className="block text-sm font-medium text-slate-600 mb-1.5">Severidad</label>
                   <div className="relative">
-                    <select className="w-full h-10 px-3 border border-slate-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <option>Revision</option>
-                      <option>Rechazo</option>
-                      <option>Aprobacion</option>
+                    <select value={newRule.severity} onChange={e => setNewRule({...newRule, severity: e.target.value as any})} className="w-full h-10 px-3 border border-slate-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="warn">Revision</option>
+                      <option value="fail">Rechazo</option>
+                      <option value="pass">Aprobacion</option>
                     </select>
                     <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
                   </div>
@@ -286,6 +346,7 @@ export function MdcRulesTab() {
               <div>
                 <label className="block text-sm font-medium text-slate-600 mb-1.5">Descripcion</label>
                 <textarea 
+                  value={newRule.description} onChange={e => setNewRule({...newRule, description: e.target.value})}
                   className="w-full p-3 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px] resize-y"
                 ></textarea>
               </div>
@@ -293,9 +354,9 @@ export function MdcRulesTab() {
               <div>
                 <label className="block text-sm font-medium text-slate-600 mb-1.5">Estado</label>
                 <div className="relative">
-                  <select className="w-full h-10 px-3 border border-slate-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option>active</option>
-                    <option>inactive</option>
+                  <select value={newRule.status} onChange={e => setNewRule({...newRule, status: e.target.value as any})} className="w-full h-10 px-3 border border-slate-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="active">active</option>
+                    <option value="inactive">inactive</option>
                   </select>
                   <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
                 </div>
@@ -311,7 +372,28 @@ export function MdcRulesTab() {
               </button>
               <button 
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm transition-colors"
-                onClick={() => setIsModalOpen(false)}
+                onClick={async () => {
+                  const payload = {
+                    ...newRule, 
+                    products: newRule.products || ["Credito automotriz"], 
+                    individualPerson: mode === "natural",
+                    legalEntity: mode === "moral"
+                  } as any;
+                  
+                  const orgId = getStoredOrganization()?.id || "demo-bypass-org";
+                  if (editingRuleId) {
+                    const updated = await updateRule(editingRuleId, payload, orgId);
+                    if (updated) {
+                      setRules(rules.map(r => r.id === editingRuleId ? updated : r));
+                    }
+                  } else {
+                    const created = await createRule(payload, orgId);
+                    if (created) {
+                       setRules([created, ...rules]);
+                    }
+                  }
+                  setIsModalOpen(false);
+                }}
               >
                 Guardar
               </button>

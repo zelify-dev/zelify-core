@@ -1,3 +1,5 @@
+import { getStoredOrganization } from "@/lib/auth-api";
+import { createTraceabilityLog } from "./mdc-traceability.service";
 const API_URL = process.env.NEXT_PUBLIC_MDC_API_URL || "http://localhost:3000";
 
 export type CollectionNote = {
@@ -29,9 +31,9 @@ export type CollectionCase = {
   createdAt?: string;
 };
 
-export async function fetchCollections(mode: "natural" | "moral"): Promise<CollectionCase[]> {
+export async function fetchCollections(mode: "natural" | "moral", orgId: string): Promise<CollectionCase[]> {
   try {
-    const res = await fetch(`${API_URL}/collections?mode=${mode}`);
+    const res = await fetch(`${API_URL}/collections?mode=${mode}&orgId=${encodeURIComponent(orgId)}`);
     if (!res.ok) throw new Error("Failed to fetch collections");
     return res.json();
   } catch (error) {
@@ -40,12 +42,12 @@ export async function fetchCollections(mode: "natural" | "moral"): Promise<Colle
   }
 }
 
-export async function createCollectionCase(data: CollectionCase): Promise<CollectionCase | null> {
+export async function createCollectionCase(data: CollectionCase, orgId: string): Promise<CollectionCase | null> {
   try {
     const res = await fetch(`${API_URL}/collections`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      body: JSON.stringify({ ...data, orgId }),
     });
     if (!res.ok) throw new Error("Failed to create collection case");
     return res.json();

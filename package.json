@@ -12,7 +12,8 @@
     "lint": "eslint",
     "tamagui:css": "tamagui generate-css --output public/tamagui.generated.css",
     "tamagui:build": "npm run tamagui:css",
-    "generate:brief-pm": "tsx scripts/generate-moral-analysis-brief-pdf.mts"
+    "generate:brief-pm": "tsx scripts/generate-moral-analysis-brief-pdf.mts",
+    "seed:mdc-demo": "tsx scripts/seed-mdc-demo.mts"
   },
   "dependencies": {
     "@fontsource/nata-sans": "^5.2.2",

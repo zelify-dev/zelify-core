@@ -1919,6 +1919,14 @@
   font-size: 12px;
 }
 
+.mdc-col-table th:nth-child(5),
+.mdc-col-table td:nth-child(5) {
+  width: 76px;
+  min-width: 76px;
+  max-width: 76px;
+  white-space: nowrap;
+}
+
 .mdc-col-row {
   cursor: pointer;
 }
@@ -2041,6 +2049,7 @@
   padding: 4px 8px;
   font-size: 10px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .mdc-col-pill--ok {

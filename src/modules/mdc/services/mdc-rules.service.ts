@@ -1,11 +1,17 @@
-import { type CreditRuleRow } from "../data/mdc-rules-mock";
+import { createTraceabilityLog } from "./mdc-traceability.service";
+import { type CreditRuleRow, CREDIT_RULES_BY_MODE } from "../data/mdc-rules-mock";
 
 const getBaseUrl = (): string => {
   return process.env.NEXT_PUBLIC_MDC_API_URL || "http://127.0.0.1:3000";
 };
 
-export const fetchRules = async (mode: "natural" | "moral"): Promise<CreditRuleRow[]> => {
-  const url = `${getBaseUrl()}/decision-rules?mode=${mode}`;
+// In-memory store for demo bypass org
+let demoRulesNatural = [...CREDIT_RULES_BY_MODE.natural];
+let demoRulesMoral = [...CREDIT_RULES_BY_MODE.moral];
+
+export const fetchRules = async (mode: "natural" | "moral", orgId: string): Promise<CreditRuleRow[]> => {
+  const params = new URLSearchParams({ mode, orgId });
+  const url = `${getBaseUrl()}/decision-rules?${params.toString()}`;
   const response = await fetch(url, {
     method: "GET",
     headers: {
@@ -14,20 +20,20 @@ export const fetchRules = async (mode: "natural" | "moral"): Promise<CreditRuleR
   });
 
   if (!response.ok) {
-    console.error("Failed to fetch rules", response.statusText);
+    console.warn("Failed to fetch rules", response.statusText);
     return [];
   }
   return response.json();
 };
 
-export const createRule = async (rule: Partial<CreditRuleRow>): Promise<CreditRuleRow | null> => {
+export const createRule = async (rule: Partial<CreditRuleRow>, orgId: string): Promise<CreditRuleRow | null> => {
   const url = `${getBaseUrl()}/decision-rules`;
   const response = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(rule),
+    body: JSON.stringify({ ...rule, orgId }),
   });
 
   if (!response.ok) {
@@ -37,7 +43,7 @@ export const createRule = async (rule: Partial<CreditRuleRow>): Promise<CreditRu
   return response.json();
 };
 
-export const updateRule = async (id: string, rule: Partial<CreditRuleRow>): Promise<CreditRuleRow | null> => {
+export const updateRule = async (id: string, rule: Partial<CreditRuleRow>, orgId?: string): Promise<CreditRuleRow | null> => {
   const url = `${getBaseUrl()}/decision-rules/${id}`;
   const response = await fetch(url, {
     method: "PATCH",
@@ -54,7 +60,7 @@ export const updateRule = async (id: string, rule: Partial<CreditRuleRow>): Prom
   return response.json();
 };
 
-export const deleteRule = async (id: string): Promise<boolean> => {
+export const deleteRule = async (id: string, orgId?: string): Promise<boolean> => {
   const url = `${getBaseUrl()}/decision-rules/${id}`;
   try {
     const response = await fetch(url, {

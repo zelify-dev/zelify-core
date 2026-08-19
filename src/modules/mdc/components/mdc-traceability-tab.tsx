@@ -1,11 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { MDC_TRACEABILITY_LOGS, type TraceabilityLog } from "@/modules/mdc/data/mdc-traceability-mock";
+import { fetchTraceabilityLogs, type TraceabilityLogDTO } from "@/modules/mdc/services/mdc-traceability.service";
+import { getStoredOrganization } from "@/lib/auth-api";
 
-function ActionBadge({ action }: { action: TraceabilityLog["action"] }) {
+function ActionBadge({ action }: { action: string }) {
   const styles: Record<string, string> = {
     "LCC_SYNC": "text-blue-600 bg-blue-50 border border-blue-100",
+    "RULE_UPDATE": "text-emerald-600 bg-emerald-50 border border-emerald-100",
+    "RISK_UPDATE": "text-orange-600 bg-orange-50 border border-orange-100",
+    "STATUS_UPDATE": "text-purple-600 bg-purple-50 border border-purple-100",
     "CROSS_SELL": "text-indigo-600 bg-indigo-50 border border-indigo-100",
     "AI_VERIFY": "text-cyan-600 bg-cyan-50 border border-cyan-100",
   };
@@ -14,19 +18,24 @@ function ActionBadge({ action }: { action: TraceabilityLog["action"] }) {
 
 export function MdcTraceabilityTab() {
   const [page, setPage] = useState(0);
-  const [logs, setLogs] = useState<TraceabilityLog[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("mdc:traceability:v2");
-      if (saved) return JSON.parse(saved);
-    }
-    return [];
-  });
+  const [logs, setLogs] = useState<TraceabilityLogDTO[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("mdc:traceability:v2", JSON.stringify(logs));
-    }
-  }, [logs]);
+    const loadLogs = async () => {
+      setLoading(true);
+      try {
+        const orgId = getStoredOrganization()?.id || "ORG-001";
+        const data = await fetchTraceabilityLogs(orgId);
+        setLogs(data);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadLogs();
+  }, []);
 
   const itemsPerPage = 8;
   const totalItems = logs.length;
@@ -52,12 +61,14 @@ export function MdcTraceabilityTab() {
                 <th className="px-6 py-4 font-bold">CANAL</th>
                 <th className="px-6 py-4 font-bold">USUARIO</th>
                 <th className="px-6 py-4 font-bold">CORRELACIÓN</th>
-                <th className="px-4 py-4 font-bold text-center">TASA ANTES</th>
-                <th className="px-4 py-4 font-bold text-center">TASA DESPUÉS</th>
+                <th className="px-4 py-4 font-bold text-center">VALORES ANTERIORES</th>
+                <th className="px-4 py-4 font-bold text-center">VALORES POSTERIORES</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 bg-white">
-              {currentLogs.length === 0 ? (
+              {loading ? (
+                <tr><td colSpan={8} className="text-center py-10 text-gray-400 font-medium">Cargando trazabilidad...</td></tr>
+              ) : currentLogs.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="text-center py-10 text-gray-400 font-medium">
                     No hay registros de trazabilidad.
@@ -65,18 +76,27 @@ export function MdcTraceabilityTab() {
                 </tr>
               ) : currentLogs.map((log) => (
                 <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-6 py-4 text-gray-500 font-medium">{log.date}</td>
+                  <td className="px-6 py-4 text-gray-500 font-medium">
+                    {log.createdAt ? new Date(log.createdAt).toLocaleString('es-MX', {
+                      day: 'numeric', month: 'numeric', year: 'numeric', 
+                      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true 
+                    }).replace(',', '') : "—"}
+                  </td>
                   <td className="px-6 py-4">
                     <ActionBadge action={log.action} />
                   </td>
                   <td className="px-6 py-4 text-gray-600 whitespace-normal min-w-[300px] text-[13px]">{log.detail}</td>
                   <td className="px-6 py-4 text-gray-700 font-medium">{log.channel}</td>
-                  <td className="px-6 py-4 text-gray-700 font-medium">{log.user}</td>
+                  <td className="px-6 py-4 text-gray-700 font-medium">{log.userName}</td>
                   <td className="px-6 py-4">
-                    <span className="text-[#8b9fc0] font-mono text-[11px]">{log.correlation}</span>
+                    <span className="text-[#8b9fc0] font-mono text-[11px]">{log.correlationId || "—"}</span>
                   </td>
-                  <td className="px-4 py-4 text-center font-semibold text-gray-800">{log.rateBefore || "—"}</td>
-                  <td className="px-4 py-4 text-center font-semibold text-gray-800">{log.rateAfter || "—"}</td>
+                  <td className="px-4 py-4 text-center font-semibold text-gray-800">
+                    {log.rateBefore !== null && log.rateBefore !== undefined ? `${Number(log.rateBefore).toFixed(2)}%` : "—"}
+                  </td>
+                  <td className="px-4 py-4 text-center font-semibold text-gray-800">
+                    {log.rateAfter !== null && log.rateAfter !== undefined ? `${Number(log.rateAfter).toFixed(2)}%` : "—"}
+                  </td>
                 </tr>
               ))}
             </tbody>

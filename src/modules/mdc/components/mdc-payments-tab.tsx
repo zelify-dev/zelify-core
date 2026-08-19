@@ -1,9 +1,10 @@
 "use client";
 
-import { ChevronRight, X } from "lucide-react";
+import { ChevronRight, X, Upload, FileSpreadsheet, CheckCircle2, AlertCircle } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 import type { MdcApplicantMode } from "@/modules/mdc/data/mdc-credit-mock";
-import { fetchPayments, createPayment, deletePayment, type PaymentSession } from "@/modules/mdc/services/mdc-payments.service";
+import { getStoredOrganization } from "@/lib/auth-api";
+import { fetchPayments, createPayment, deletePayment, uploadPaymentsFile, fetchBankTransactions, matchBankTransaction, type BankTransactionDTO, type PaymentSession } from "@/modules/mdc/services/mdc-payments.service";
 
 export type Session = PaymentSession;
 
@@ -79,16 +80,34 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
   const [sessions, setSessions] = useState<PaymentSession[]>([]);
   const [selectedPayment, setSelectedPayment] = useState<Session | null>(null);
   const [internalRange, setInternalRange] = useState<RangePreset>("30d");
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [uploadError, setUploadError] = useState(false);
+  const [importedTransactions, setImportedTransactions] = useState<BankTransactionDTO[]>([]);
+  const [activeTab, setActiveTab] = useState<'sessions' | 'imported'>('sessions');
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    async function load() {
+      if (typeof window === "undefined") return;
       const saved = localStorage.getItem(`mdc:payments:${mode}`);
       if (saved) {
         setSessions(JSON.parse(saved));
+      } else if (getStoredOrganization()?.id === "demo-bypass-org") {
+        setSessions(mode === "moral" ? MORAL_SESSIONS : NATURAL_SESSIONS);
       } else {
         setSessions([]);
       }
+      
+      const orgId = getStoredOrganization()?.id || "ORG-001";
+      if (orgId !== "demo-bypass-org") {
+        const txs = await fetchBankTransactions(orgId);
+        setImportedTransactions(txs);
+      }
     }
+    load();
   }, [mode]);
 
   const handleCreateTestPayment = async () => {
@@ -232,6 +251,9 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
             <h3>Pagos</h3>
             <p>{mode === "moral" ? "Gestione cobros empresariales y sesiones de pago corporativas." : "Gestione y supervise todas las sesiones de pago."}</p>
           </div>
+          <button className="mdc-btn mdc-btn--primary" onClick={() => setIsUploadModalOpen(true)}>
+            Subir información
+          </button>
         </article>
 
         <div className="mdc-pay-kpis">
@@ -250,8 +272,25 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
           <PaymentTrendChart points={trendPoints} />
         </article>
 
+
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+          <button 
+            className={`mdc-btn ${activeTab === 'sessions' ? 'mdc-btn--primary' : 'mdc-btn--ghost'}`} 
+            onClick={() => setActiveTab('sessions')}
+          >
+            Sesiones de Pago
+          </button>
+          <button 
+            className={`mdc-btn ${activeTab === 'imported' ? 'mdc-btn--primary' : 'mdc-btn--ghost'}`} 
+            onClick={() => setActiveTab('imported')}
+          >
+            Pagos Importados (XLSX)
+          </button>
+        </div>
+
         <article className="mdc-card mdc-pay-table-wrap">
           <div className="mdc-table-wrap">
+            {activeTab === 'sessions' ? (
             <table className="mdc-table">
               <thead>
                 <tr>
@@ -284,11 +323,211 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
                 )}
               </tbody>
             </table>
+            ) : (
+            <table className="mdc-table">
+              <thead>
+                <tr>
+                  <th>FICHA (Ref)</th>
+                  <th>Nombre Solicitante</th>
+                  <th>Monto (TESTAFIN)</th>
+                  <th>Estado</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {importedTransactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={5}>No hay transacciones importadas. Intenta subir un archivo .xlsx.</td>
+                  </tr>
+                ) : (
+                  importedTransactions.map((tx) => (
+                    <tr key={tx.id} className="mdc-pay-row">
+                      <td>{tx.bankReference}</td>
+                      <td>{tx.applicantNameRaw}</td>
+                      <td className="mdc-pay-num">${formatMoney(tx.amount)}</td>
+                      <td>
+                        {tx.isMatched ? (
+                          <span className="mdc-badge mdc-badge--ok">Conciliado</span>
+                        ) : (
+                          <span className="mdc-badge mdc-badge--warn">Pendiente</span>
+                        )}
+                      </td>
+                      <td>
+                        {!tx.isMatched && (
+                          <button 
+                            className="mdc-btn mdc-btn--ghost" 
+                            style={{ padding: '4px 8px', fontSize: '12px' }}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              const user = prompt("Ingresa el ID del usuario interno para enlazar:");
+                              if (user) {
+                                const ok = await matchBankTransaction(tx.id, user);
+                                if (ok) {
+                                  alert("Conciliación exitosa.");
+                                  const orgId = getStoredOrganization()?.id || "ORG-001";
+                                  const txs = await fetchBankTransactions(orgId);
+                                  setImportedTransactions(txs);
+                                } else {
+                                  alert("Hubo un error al conciliar.");
+                                }
+                              }
+                            }}
+                          >
+                            Conciliar
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+            )}
           </div>
         </article>
       </section>
 
       {selectedPayment ? <PaymentScheduleDetail payment={selectedPayment} onClose={() => setSelectedPayment(null)} /> : null}
+
+      {isUploadModalOpen && (
+        <div className="mdc-modal-backdrop mdc-pay-modal-backdrop" style={{ zIndex: 1000 }}>
+          <div className="mdc-modal mdc-pay-modal" style={{ maxWidth: '460px', width: '100%' }}>
+            <div className="mdc-modal-head">
+              <div>
+                <h3>Subir información de pagos</h3>
+                <p>Importa tu archivo con las fichas y montos</p>
+              </div>
+              <button type="button" className="mdc-icon-btn" onClick={() => { setIsUploadModalOpen(false); setUploadFile(null); setUploadSuccess(false); setUploadError(false); }}>
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div style={{ padding: "1.25rem 1.5rem 1.5rem" }}>
+
+              {/* Drop zone */}
+              <label
+                htmlFor="payments-xlsx-input"
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) { setUploadFile(file); setUploadSuccess(false); setUploadError(false); }
+                }}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.75rem",
+                  padding: "2.25rem 1.5rem",
+                  border: `2px dashed ${isDragging ? "#2563eb" : uploadFile ? "#10b981" : "#cbd5e1"}`,
+                  borderRadius: "12px",
+                  background: isDragging ? "rgba(37,99,235,0.05)" : uploadFile ? "rgba(16,185,129,0.04)" : "rgba(248,250,252,0.6)",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                  marginBottom: "1rem",
+                }}
+              >
+                <input
+                  id="payments-xlsx-input"
+                  type="file"
+                  accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    setUploadFile(e.target.files?.[0] || null);
+                    setUploadSuccess(false);
+                    setUploadError(false);
+                  }}
+                />
+
+                {uploadFile ? (
+                  <>
+                    <FileSpreadsheet style={{ width: 40, height: 40, color: "#10b981" }} />
+                    <div style={{ textAlign: "center" }}>
+                      <p style={{ fontWeight: 600, color: "#0f172a", fontSize: "14px", margin: 0 }}>{uploadFile.name}</p>
+                      <p style={{ color: "#64748b", fontSize: "12px", margin: "2px 0 0" }}>
+                        {(uploadFile.size / 1024).toFixed(1)} KB &mdash; haz clic para cambiar
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{
+                      width: 52, height: 52,
+                      borderRadius: "50%",
+                      background: "#eff6ff",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <Upload style={{ width: 24, height: 24, color: "#2563eb" }} />
+                    </div>
+                    <div style={{ textAlign: "center" }}>
+                      <p style={{ fontWeight: 600, color: "#1e293b", fontSize: "14px", margin: 0 }}>
+                        Arrastra tu archivo aquí
+                      </p>
+                      <p style={{ color: "#64748b", fontSize: "12px", margin: "4px 0 0" }}>
+                        o haz clic para seleccionar &mdash; solo <strong>.xlsx</strong>
+                      </p>
+                    </div>
+                  </>
+                )}
+              </label>
+
+              {/* Status messages */}
+              {uploadSuccess && (
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#059669", fontSize: "13px", marginBottom: "1rem", background: "#ecfdf5", padding: "0.625rem 0.875rem", borderRadius: "8px" }}>
+                  <CheckCircle2 style={{ width: 16, height: 16, flexShrink: 0 }} />
+                  Archivo subido exitosamente.
+                </div>
+              )}
+              {uploadError && (
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#dc2626", fontSize: "13px", marginBottom: "1rem", background: "#fef2f2", padding: "0.625rem 0.875rem", borderRadius: "8px" }}>
+                  <AlertCircle style={{ width: 16, height: 16, flexShrink: 0 }} />
+                  Hubo un error al subir el archivo. Intenta de nuevo.
+                </div>
+              )}
+
+              {/* Actions */}
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.625rem" }}>
+                <button className="mdc-btn mdc-btn--ghost" onClick={() => { setIsUploadModalOpen(false); setUploadFile(null); setUploadSuccess(false); setUploadError(false); }}>Cancelar</button>
+                <button
+                  className="mdc-btn mdc-btn--primary"
+                  disabled={!uploadFile || isUploading}
+                  style={{ minWidth: 130, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}
+                  onClick={async () => {
+                    if (!uploadFile) return;
+                    setIsUploading(true);
+                    setUploadSuccess(false);
+                    setUploadError(false);
+                    const orgId = getStoredOrganization()?.id || "ORG-001";
+                    const result = await uploadPaymentsFile(uploadFile, orgId);
+                    setIsUploading(false);
+                    if (result.success) {
+                      setUploadSuccess(true);
+                      setTimeout(() => {
+                        setIsUploadModalOpen(false);
+                        setUploadSuccess(false);
+                        setUploadFile(null);
+                      }, 2000);
+                    } else {
+                      setUploadError(true);
+                    }
+                  }}
+                >
+                  {isUploading ? (
+                    <>
+                      <span style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />
+                      Subiendo...
+                    </>
+                  ) : (
+                    <><Upload style={{ width: 15, height: 15 }} /> Subir archivo</>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

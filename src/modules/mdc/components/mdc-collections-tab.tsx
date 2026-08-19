@@ -3,6 +3,7 @@
 import { ChevronRight, NotebookPen, X } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 import type { MdcApplicantMode } from "@/modules/mdc/data/mdc-credit-mock";
+import { getStoredOrganization } from "@/lib/auth-api";
 import { fetchCollections, createCollectionCase, deleteCollectionCase, addCollectionNote, type CollectionCase, type CollectionNote } from "@/modules/mdc/services/mdc-collections.service";
 
 export type { CollectionCase, CollectionNote };
@@ -24,7 +25,8 @@ export function MdcCollectionsTab({
 
   useEffect(() => {
     async function load() {
-      const data = await fetchCollections(mode);
+      const orgId = getStoredOrganization()?.id || "demo-bypass-org";
+      const data = await fetchCollections(mode, orgId);
       setCases(data);
     }
     load();
@@ -32,6 +34,7 @@ export function MdcCollectionsTab({
 
   const handleCreateTest = async () => {
     const isMoral = mode === "moral";
+    const orgId = getStoredOrganization()?.id || "demo-bypass-org";
     const newCase = await createCollectionCase({
       applicationNo: `APP-${Date.now().toString().slice(-4)}`,
       customerName: isMoral ? "Empresa Deudora SA" : "Carlos Deudor",
@@ -50,7 +53,7 @@ export function MdcCollectionsTab({
       lastActivity: new Date().toISOString().split('T')[0],
       individualPerson: !isMoral,
       legalEntity: isMoral,
-    } as any);
+    } as any, orgId);
     if (newCase) {
       setCases(prev => [...prev, newCase]);
     }

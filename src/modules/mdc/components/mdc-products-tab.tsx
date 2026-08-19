@@ -1,4 +1,5 @@
 "use client";
+import { createTraceabilityLog } from "@/modules/mdc/services/mdc-traceability.service";
 
 import { BarChart3, Plus, Settings2, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -562,6 +563,18 @@ function CreateProductModal({
 
       if (response.ok) {
         const data = await response.json();
+        
+        if (payload.orgId && payload.orgId !== "demo-bypass-org") {
+          await createTraceabilityLog({
+            orgId: payload.orgId,
+            action: "PRODUCT_CREATE",
+            detail: `Producto creado: ${payload.financialProduct}`,
+            channel: "Consola",
+            userName: "Ejecutivo Zelify",
+            correlationId: `corr-prod-${data.id ? data.id.substring(0, 8) : Date.now()}`,
+          });
+        }
+        
         onCreate({
           id: data.id || `product_${Date.now()}`,
           name: financialProduct.trim(),

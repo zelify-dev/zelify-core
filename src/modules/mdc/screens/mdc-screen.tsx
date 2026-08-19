@@ -26,6 +26,9 @@ import {
 } from "@/modules/mdc/data/mdc-credit-mock";
 import { CREDIT_RULES_BY_MODE, type CreditRuleRow, type RuleDataType, type RuleOperator, type RuleProduct, type RuleSeverity } from "@/modules/mdc/data/mdc-rules-mock";
 import { fetchRules, createRule, updateRule, deleteRule } from "@/modules/mdc/services/mdc-rules.service";
+import { createTraceabilityLog, fetchTraceabilityLogs } from "@/modules/mdc/services/mdc-traceability.service";
+
+import { createFinanceRequest, deleteFinanceRequest, fetchFinanceRequests, updateFinanceRequest } from "@/modules/mdc/services/mdc-finance-requests.service";
 import { getStoredOrganization } from "@/lib/auth-api";
 import { MdcProductsTab } from "@/modules/mdc/components/mdc-products-tab";
 import { MdcRequestsTab } from "@/modules/mdc/components/mdc-requests-tab";
@@ -81,6 +84,8 @@ type MdcTraceabilityEntry = {
   correlationId: string;
   rateBefore?: number;
   rateAfter?: number;
+  oldValue?: string;
+  newValue?: string;
 };
 
 const APP_STORAGE_KEY = "mdc:applications";
@@ -3367,10 +3372,8 @@ export function MdcScreen() {
         const baseUrl = process.env.NEXT_PUBLIC_MDC_API_URL || "http://localhost:3000";
         const currentOrg = getStoredOrganization();
         const orgId = currentOrg?.id || "ORG-001";
-        const res = await fetch(`${baseUrl}/finance-requests?orgId=${orgId}&personType=${applicantMode}`);
-        if (res.ok) {
-          const data = await res.json();
-          const mapped: Application[] = data.map((item: any) => ({
+        const data = await fetchFinanceRequests(orgId, applicantMode);
+        const mapped: Application[] = data.map((item: any) => ({
             id: item.id,
             appNo: `APP-${item.id.split("-")[0].toUpperCase()}`,
             applicantName: item.personType === "natural"
@@ -3391,7 +3394,6 @@ export function MdcScreen() {
           }));
 
           setApps(mapped);
-        }
       } catch (err) {
         console.error("Failed to load applications from API", err);
       } finally {
@@ -3401,15 +3403,17 @@ export function MdcScreen() {
     fetchRequests();
     const loadRules = async () => {
       try {
-        const data = await fetchRules(applicantMode);
-        if (data && data.length > 0) {
+        const orgId = getStoredOrganization()?.id || "demo-bypass-org";
+        const data = await fetchRules(applicantMode, orgId);
+        if (Array.isArray(data)) {
           setRules(data);
         } else {
-          setRules(defaultRules);
+          setRules(orgId === "demo-bypass-org" ? defaultRules : []);
         }
       } catch (err) {
         console.error("Error fetching rules", err);
-        setRules(defaultRules);
+        const orgId = getStoredOrganization()?.id || "demo-bypass-org";
+        setRules(orgId === "demo-bypass-org" ? defaultRules : []);
       }
     };
     loadRules();
@@ -3602,8 +3606,42 @@ export function MdcScreen() {
 
   const ruleFieldOptions = useMemo(() => getRuleFieldsForProduct(ruleProductFilter), [ruleProductFilter]);
   const [traceabilityLocal, setTraceabilityLocal] = useState<MdcTraceabilityEntry[]>(() => {
-    return readStoredJson<MdcTraceabilityEntry[]>(`mdc:traceability:v3:${applicantMode}`, []);
+    const stored = readStoredJson<MdcTraceabilityEntry[] | null>(`mdc:traceability:v3:${applicantMode}`, null);
+    if (stored) return stored;
+    if (getStoredOrganization()?.id !== "demo-bypass-org") return [];
+    return applicantMode === "moral"
+      ? MORAL_TRACEABILITY
+      : (creditStore.state.auditLog as MdcTraceabilityEntry[]);
   });
+
+  const logTraceabilityAction = (
+    action: string,
+    details: string,
+    oldValue?: string,
+    newValue?: string
+  ) => {
+    const timestamp = new Date().toISOString();
+    const correlationId = `trc-${Date.now().toString(36)}`;
+    const user = getStoredOrganization()?.name || "Administrador";
+    
+    const entry: MdcTraceabilityEntry = {
+      id: correlationId,
+      timestamp,
+      action,
+      details,
+      channel: "Consola Web",
+      user,
+      correlationId,
+      oldValue,
+      newValue
+    };
+    
+    setTraceabilityLocal((prev) => {
+      const updated = [entry, ...prev];
+      writeStoredJson(`mdc:traceability:v3:${applicantMode}`, updated);
+      return updated;
+    });
+  };
 
   const activeTraceability = useMemo<MdcTraceabilityEntry[]>(
     () => traceabilityLocal,
@@ -3618,6 +3656,32 @@ export function MdcScreen() {
     () => TABS.filter((tab) => !tab.moralOnly || applicantMode === "moral"),
     [applicantMode],
   );
+
+  useEffect(() => {
+    async function loadTraceability() {
+      const orgId = getStoredOrganization()?.id;
+      if (orgId && orgId !== "demo-bypass-org") {
+        const logs = await fetchTraceabilityLogs(orgId);
+        const mapped: MdcTraceabilityEntry[] = logs.map((log) => ({
+          id: log.id || `trc-${Date.now()}-${Math.random()}`,
+          timestamp: log.createdAt || new Date().toISOString(),
+          action: log.action,
+          details: log.detail,
+          channel: log.channel,
+          user: log.userName,
+          correlationId: log.correlationId || "-",
+          rateBefore: log.rateBefore ?? undefined,
+          rateAfter: log.rateAfter ?? undefined,
+        }));
+        // Update local state with fetched logs (sorted descending by timestamp if not already)
+        setTraceabilityLocal(mapped.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+      }
+    }
+    
+    if (activeTab === "traceability") {
+      loadTraceability();
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     if (applicantMode !== "moral" && activeTab === "reports") {
@@ -3977,16 +4041,24 @@ export function MdcScreen() {
                                         const backendRiskLevel = newRisk === "low" ? "Bajo" : newRisk === "high" ? "Alto" : "Medio";
 
                                         try {
-                                          const baseUrl = process.env.NEXT_PUBLIC_MDC_API_URL || "http://localhost:3000";
-                                          await fetch(`${baseUrl}/finance-requests/${app.id}`, {
-                                            method: "PATCH",
-                                            headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify({
-                                              status: backendStatus,
-                                              riskLevel: backendRiskLevel,
-                                              riskScore: newRiskScore
-                                            })
+                                          await updateFinanceRequest(app.id, {
+                                            status: backendStatus,
+                                            riskLevel: backendRiskLevel,
+                                            riskScore: newRiskScore
                                           });
+                                          
+                                          if (getStoredOrganization()?.id !== "demo-bypass-org") {
+                                            await createTraceabilityLog({
+                                              orgId: getStoredOrganization()?.id || "ORG-001",
+                                              action: "RISK_UPDATE",
+                                              detail: `Riesgo actualizado a ${newRiskScore} para solicitud ${app.appNo}`,
+                                              channel: "Sucursal",
+                                              userName: "Ejecutivo Frontline",
+                                              correlationId: `corr-risk-${app.id.substring(0, 8)}`,
+                                              rateBefore: Number(app.riskScore),
+                                              rateAfter: Number(newRiskScore)
+                                            });
+                                          }
                                           setApps((current) =>
                                             current.map((row) =>
                                               row.id === app.id
@@ -4013,15 +4085,10 @@ export function MdcScreen() {
                                         const backendRiskLevel = newRisk === "low" ? "Bajo" : newRisk === "high" ? "Alto" : "Medio";
 
                                         try {
-                                          const baseUrl = process.env.NEXT_PUBLIC_MDC_API_URL || "http://localhost:3000";
-                                          await fetch(`${baseUrl}/finance-requests/${app.id}`, {
-                                            method: "PATCH",
-                                            headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify({
-                                              status: "Pendiente",
-                                              riskLevel: backendRiskLevel,
-                                              riskScore: newRiskScore
-                                            })
+                                          await updateFinanceRequest(app.id, {
+                                            status: "Pendiente",
+                                            riskLevel: backendRiskLevel,
+                                            riskScore: newRiskScore
                                           });
                                           setApps((current) =>
                                             current.map((row) =>
@@ -4063,10 +4130,7 @@ export function MdcScreen() {
                                       className="mdc-row-menu__danger"
                                       onClick={async () => {
                                         try {
-                                          const baseUrl = process.env.NEXT_PUBLIC_MDC_API_URL || "http://localhost:3000";
-                                          await fetch(`${baseUrl}/finance-requests/${app.id}`, {
-                                            method: "DELETE",
-                                          });
+                                          await deleteFinanceRequest(app.id);
                                           setApps((current) => current.filter((row) => row.id !== app.id));
                                         } catch (err) { console.error("Failed to delete application", err); }
                                       }}
@@ -4189,11 +4253,12 @@ export function MdcScreen() {
                                   type="button"
                                   onClick={async () => {
                                     const newStatus = rule.status === "active" ? "inactive" : "active";
-                                    const updated = await updateRule(rule.id, { status: newStatus });
+                                    const updated = await updateRule(rule.id, { status: newStatus }, getStoredOrganization()?.id || "demo-bypass-org");
                                     if (updated) {
                                       setRules((current) =>
                                         current.map((item) => (item.id === rule.id ? { ...item, status: newStatus } : item)),
                                       );
+                                      logTraceabilityAction("ACTUALIZAR", `Cambio de estado en regla "${rule.name}"`, rule.status, newStatus);
                                     }
                                   }}
                                 >
@@ -4210,9 +4275,10 @@ export function MdcScreen() {
                                     } as any;
                                     delete duplicated.id;
                                     delete duplicated.createdAt;
-                                    const created = await createRule(duplicated);
+                                    const created = await createRule(duplicated, getStoredOrganization()?.id || "demo-bypass-org");
                                     if (created) {
                                       setRules((current) => [...current, created]);
+                                      logTraceabilityAction("DUPLICAR", `Duplicación de regla "${rule.name}"`, "N/A", `Nueva regla: ${duplicated.name}`);
                                     }
                                   }}
                                 >
@@ -4222,9 +4288,10 @@ export function MdcScreen() {
                                   type="button"
                                   className="mdc-row-menu__danger"
                                   onClick={async () => {
-                                    const success = await deleteRule(rule.id);
+                                    const success = await deleteRule(rule.id, getStoredOrganization()?.id || "demo-bypass-org");
                                     if (success) {
                                       setRules((current) => current.filter((item) => item.id !== rule.id));
+                                      logTraceabilityAction("ELIMINAR", `Eliminación de regla "${rule.name}"`, JSON.stringify({valor: rule.value, operador: rule.operator}), "Eliminado");
                                     }
                                   }}
                                 >
@@ -4259,14 +4326,14 @@ export function MdcScreen() {
                         <th>Canal</th>
                         <th>Usuario</th>
                         <th>Correlación</th>
-                        <th>Tasa antes</th>
-                        <th>Tasa después</th>
+                        <th>Valores Anteriores</th>
+                        <th>Valores Posteriores</th>
                       </tr>
                     </thead>
                     <tbody>
                       {paginatedTraceability.map((entry) => (
                         <tr key={entry.id}>
-                          <td className="mdc-traceability__date">{shortDate(entry.timestamp)}</td>
+                          <td className="mdc-traceability__date">{new Date(entry.timestamp).toLocaleString("es-MX")}</td>
                           <td>
                             <span className="mdc-badge mdc-badge--info">{entry.action}</span>
                           </td>
@@ -4274,8 +4341,8 @@ export function MdcScreen() {
                           <td>{entry.channel}</td>
                           <td>{entry.user}</td>
                           <td className="mdc-traceability__correlation">{entry.correlationId}</td>
-                          <td>{entry.rateBefore !== undefined ? formatPctCredit(entry.rateBefore) : "—"}</td>
-                          <td>{entry.rateAfter !== undefined ? formatPctCredit(entry.rateAfter) : "—"}</td>
+                          <td>{entry.rateBefore !== undefined ? formatPctCredit(entry.rateBefore) : (entry.oldValue || "—")}</td>
+                          <td>{entry.rateAfter !== undefined ? formatPctCredit(entry.rateAfter) : (entry.newValue || "—")}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -4332,7 +4399,6 @@ export function MdcScreen() {
         mode={applicantMode}
         products={activeProducts}
         onCreate={async ({ firstName, lastName, email, product, amount }) => {
-          const baseUrl = process.env.NEXT_PUBLIC_MDC_API_URL || "http://localhost:3000";
           const orgId = getStoredOrganization()?.id || "ORG-001";
           const payload = {
             orgId,
@@ -4340,18 +4406,13 @@ export function MdcScreen() {
             email,
             product,
             amount: Number(amount) || 0,
+            status: "Pendiente",
             ...(applicantMode === "natural" ? { firstName, lastName } : { businessName: firstName })
           };
 
           try {
-            const res = await fetch(`${baseUrl}/finance-requests`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload)
-            });
-            if (res.ok) {
-              const item = await res.json();
-              const next: Application = {
+            const item = await createFinanceRequest(payload);
+            const next: Application = {
                 id: item.id,
                 appNo: `APP-${item.id.split("-")[0].toUpperCase()}`,
                 applicantName: applicantMode === "moral" ? (firstName.trim() || email) : `${firstName} ${lastName}`.trim() || email,
@@ -4369,7 +4430,6 @@ export function MdcScreen() {
               if (applicantMode === "moral") {
                 openKybForApplication(next, lastName);
               }
-            }
           } catch (e) {
             console.error("Failed to create application", e);
           }
@@ -4421,15 +4481,17 @@ export function MdcScreen() {
           };
 
           if (editingRuleId) {
-            const saved = await updateRule(editingRuleId, updatedRule);
+            const ruleBefore = normalizedRules.find(r => r.id === editingRuleId);
+            const saved = await updateRule(editingRuleId, updatedRule, getStoredOrganization()?.id || "demo-bypass-org");
             if (saved) {
               setRules((current) =>
                 current.map((rule) => (rule.id === editingRuleId ? { ...rule, ...saved } : rule))
               );
+              logTraceabilityAction("ACTUALIZAR", `Modificación de regla "${updatedRule.name}"`, ruleBefore ? `Valor: ${ruleBefore.value}, Operador: ${ruleBefore.operator}` : "Desconocido", `Valor: ${updatedRule.value}, Operador: ${updatedRule.operator}`);
             }
             if (duplicateToProduct && PRODUCT_RULE_FIELDS[duplicateToProduct]?.includes(form.field)) {
               const dupRule = { ...updatedRule, products: [duplicateToProduct] };
-              const createdDup = await createRule(dupRule);
+              const createdDup = await createRule(dupRule, getStoredOrganization()?.id || "demo-bypass-org");
               if (createdDup) {
                 setRules((current) => [...current, createdDup]);
               }
@@ -4437,9 +4499,10 @@ export function MdcScreen() {
             return;
           }
 
-          const created = await createRule(updatedRule);
+          const created = await createRule(updatedRule, getStoredOrganization()?.id || "demo-bypass-org");
           if (created) {
             setRules((current) => [...current, created]);
+            logTraceabilityAction("CREAR", `Creación de regla "${updatedRule.name}"`, "N/A", `Valor: ${updatedRule.value}, Operador: ${updatedRule.operator}`);
           }
         }}
       />

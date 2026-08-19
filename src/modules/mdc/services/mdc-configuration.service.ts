@@ -1,3 +1,5 @@
+import { getStoredOrganization } from "@/lib/auth-api";
+import { createTraceabilityLog } from "./mdc-traceability.service";
 const API_URL = process.env.NEXT_PUBLIC_MDC_API_URL || "http://localhost:3000";
 
 export type GeneralSettings = {
@@ -48,7 +50,19 @@ export async function updateGeneralSettings(data: GeneralSettings): Promise<Gene
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error("Failed to update general settings");
-  return res.json();
+  const updated = await res.json();
+  const orgId = getStoredOrganization()?.id || "demo-bypass-org";
+  if (orgId !== "demo-bypass-org") {
+    await createTraceabilityLog({
+      orgId,
+      action: "CONFIG_UPDATE",
+      detail: "Configuración actualizada",
+      channel: "Consola",
+      userName: "Ejecutivo Zelify",
+      correlationId: `corr-cfg-gen-${Date.now()}`,
+    });
+  }
+  return updated;
 }
 
 // Roles
@@ -65,12 +79,38 @@ export async function createRole(data: Partial<RoleRow>): Promise<RoleRow> {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error("Failed to create role");
-  return res.json();
+  const created = await res.json();
+  const orgId = getStoredOrganization()?.id || "demo-bypass-org";
+  if (orgId !== "demo-bypass-org") {
+    await createTraceabilityLog({
+      orgId,
+      action: "CONFIG_CREATE",
+      detail: "Configuración creada",
+      channel: "Consola",
+      userName: "Ejecutivo Zelify",
+      correlationId: `corr-cfg-${created.id ? created.id.substring(0, 8) : Date.now()}`,
+    });
+  }
+  return created;
 }
 
 export async function deleteRole(id: string): Promise<boolean> {
   const res = await fetch(`${API_URL}/configuration/roles/${id}`, { method: "DELETE" });
-  return res.ok;
+  const ok = res.ok;
+  if (ok) {
+    const orgId = getStoredOrganization()?.id || "demo-bypass-org";
+    if (orgId !== "demo-bypass-org") {
+      await createTraceabilityLog({
+        orgId,
+        action: "CONFIG_DELETE",
+        detail: "Configuración eliminada",
+        channel: "Consola",
+        userName: "Ejecutivo Zelify",
+        correlationId: `corr-cfg-del-${Date.now()}`,
+      });
+    }
+  }
+  return ok;
 }
 
 // Users
