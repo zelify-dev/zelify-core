@@ -123,3 +123,21 @@ export async function deleteFinanceRequest(id: string): Promise<boolean> {
   }
   return ok;
 }
+
+export async function uploadFinancialDocument(applicationId: string, applicantId: string, file: File): Promise<any> {
+  const formData = new FormData();
+  formData.append("applicationId", applicationId);
+  formData.append("applicantId", applicantId);
+  formData.append("document", file);
+
+  const res = await fetch(`${getBaseUrl()}/financial-documents/analyze`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.message || `Failed to upload document (${res.status})`);
+  }
+  return res.json();
+}

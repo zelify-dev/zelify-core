@@ -16,6 +16,7 @@ export type Application = {
   risk: RiskLevel;
   riskScore: number;
   submittedAt: string;
+  applicantId?: string;
 };
 
 export const NATURAL_CREDIT_PRODUCTS = ["Credito automotriz", "Credito personal"] as const;

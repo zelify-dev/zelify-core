@@ -225,8 +225,10 @@ export function formatMxnCredit(value: number): string {
   return formatMxnFull(value);
 }
 
-export function formatPctCredit(value: number): string {
-  return `${value.toFixed(2)}%`;
+export function formatPctCredit(value: number | string): string {
+  const num = Number(value);
+  if (isNaN(num)) return `${value}%`;
+  return `${num.toFixed(2)}%`;
 }
 
 export function rateBeforeCrossSell(
