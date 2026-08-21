@@ -5,6 +5,7 @@ import { useMemo, useState, useEffect } from "react";
 import type { MdcApplicantMode } from "@/modules/mdc/data/mdc-credit-mock";
 import { getStoredOrganization } from "@/lib/auth-api";
 import { fetchCollections, createCollectionCase, deleteCollectionCase, addCollectionNote, type CollectionCase, type CollectionNote } from "@/modules/mdc/services/mdc-collections.service";
+import { NATURAL_COLLECTION_CASES, MORAL_COLLECTION_CASES } from "@/modules/mdc/data/mdc-collections-mock";
 
 export type { CollectionCase, CollectionNote };
 
@@ -25,7 +26,14 @@ export function MdcCollectionsTab({
 
   useEffect(() => {
     async function load() {
-      const orgId = getStoredOrganization()?.id || "demo-bypass-org";
+      const currentOrg = getStoredOrganization();
+      const orgId = currentOrg?.id || "ORG-001";
+      
+      if (orgId === "demo-bypass-org") {
+        setCases(mode === "natural" ? NATURAL_COLLECTION_CASES : MORAL_COLLECTION_CASES);
+        return;
+      }
+      
       const data = await fetchCollections(mode, orgId);
       setCases(data);
     }

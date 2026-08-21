@@ -1,11 +1,9 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { applicationsListMock, type Application } from "@/modules/mdc/data/mdc-credit-mock";
 import { SESSIONS } from "@/modules/mdc/components/mdc-payments-tab";
-import { getStoredOrganization, getOrganization } from "@/lib/auth-api";
-import { getRoles } from "@/modules/mdc/services/mdc-configuration.service";
-
+import { CASES } from "@/modules/mdc/components/mdc-collections-tab";
 
 type ConfigSection = "general" | "roles" | "users" | "export";
 
@@ -43,36 +41,23 @@ type ExportJob = {
 };
 
 const STORAGE_KEYS = {
-  general: "mdc:config:general:v6",
-  roles: "mdc:config:roles:v3",
-  users: "mdc:config:users:v3",
-  exports: "mdc:config:exports:v2",
+  general: "mdc:config:general",
+  roles: "mdc:config:roles",
+  users: "mdc:config:users",
+  exports: "mdc:config:exports",
 };
 
 const MDC_STORAGE_KEYS = {
   applications: "mdc:applications",
 };
 
-// Datos generales para la organizacion demo (demo-bypass-org) — solo para pruebas
-const DEMO_GENERAL: GeneralSettings = {
-  companyName: "Zelify Demo SA",
-  legalName: "Zelify Demo Financial Technologies SA de CV",
-  taxId: "ZDF240101TST",
-  supportEmail: "demo@zwippe.com",
-  supportPhone: "+52 55 5296 2152",
-  address: "Av. 621, Col. Roma, Ciudad de Mexico, C.P. 06700",
-  timezone: "America/Mexico_City",
-  currency: "MXN",
-};
-
-// Datos generales para organizaciones reales (NO demo-bypass-org)
 const DEFAULT_GENERAL: GeneralSettings = {
-  companyName: "TESTAFIN",
-  legalName: "TESTAFIN",
-  taxId: "TES2306219P7",
-  supportEmail: "sarahi.970205@gmail.com",
-  supportPhone: "(55) 5296 2152",
-  address: "Calle San Francisco 712, Col. Del Valle Centro, Benito Juárez, Ciudad de México, C.P. 03100",
+  companyName: "Zelify MX",
+  legalName: "Zelify Financial Technologies SA de CV",
+  taxId: "ZFT190101ABC",
+  supportEmail: "soporte@zelify.com",
+  supportPhone: "+52 55 9999 2000",
+  address: "Av. Reforma 220, Ciudad de Mexico",
   timezone: "America/Mexico_City",
   currency: "MXN",
 };
@@ -90,13 +75,10 @@ const DEFAULT_USERS: UserRow[] = [
   { id: "USR-003", fullName: "Paula Torres", email: "paula@zelify.com", role: "Operations", status: "inactive" },
 ];
 
-const DEFAULT_EXPORTS: ExportJob[] = [];
-
-const DEMO_EXPORTS: ExportJob[] = [
-  { id: "EXP-001", name: "export_solicitudes_20260820_1000.csv", date: "20 Ago 2026, 10:00", status: "completed", type: "applications" },
-  { id: "EXP-002", name: "export_pagos_20260819_1530.csv", date: "19 Ago 2026, 15:30", status: "completed", type: "payments" },
-  { id: "EXP-003", name: "export_cobranza_20260818_0915.csv", date: "18 Ago 2026, 09:15", status: "failed", type: "collections" },
-  { id: "EXP-004", name: "export_resultados_suscripcion_20260820_1145.csv", date: "20 Ago 2026, 11:45", status: "running", type: "underwritingResults" },
+const DEFAULT_EXPORTS: ExportJob[] = [
+  { id: "EXP-001", name: "export_solicitudes_2026_05_07.csv", date: "2026-05-07 10:30", status: "completed", type: "applications" },
+  { id: "EXP-002", name: "export_clientes_2026_05_07.csv", date: "2026-05-07 11:15", status: "running", type: "clients" },
+  { id: "EXP-003", name: "export_pagos_2026_05_06.csv", date: "2026-05-06 18:00", status: "failed", type: "payments" },
 ];
 
 const EXPORT_OPTIONS: { value: ExportJob["type"]; label: string }[] = [
@@ -140,7 +122,7 @@ function normalizeProductName(name: string) {
   return name;
 }
 
-function riskFromScore(score: number): "low" | "medium" | "high" {
+function riskFromScore(score: number) {
   const bureauScore = Math.round(850 - (Math.max(0, Math.min(100, score)) / 100) * 450);
   if (bureauScore <= 549) return "high";
   if (bureauScore <= 649) return "medium";
@@ -301,13 +283,7 @@ function buildKycRows(applications: Application[]): CsvRow[] {
 }
 
 function buildCollectionsRows() {
-  const mockCollections = [
-    { caseId: "COL-1001", applicationNo: "APP-A1B2", customerName: "Carlos Ramirez", amountDue: 15400, dpd: 15, status: "Activo", assignedAgent: "agente_01", lastActivity: "2026-08-15T10:00:00Z" },
-    { caseId: "COL-1002", applicationNo: "APP-C3D4", customerName: "Maria Fernandez", amountDue: 8200, dpd: 45, status: "En promesa de pago", assignedAgent: "agente_02", lastActivity: "2026-08-18T14:30:00Z" },
-    { caseId: "COL-1003", applicationNo: "APP-E5F6", customerName: "Empresa XYZ SA", amountDue: 125000, dpd: 90, status: "Legal", assignedAgent: "externo_01", lastActivity: "2026-08-01T09:00:00Z" }
-  ];
-
-  return mockCollections.map((item) => ({
+  return CASES.map((item) => ({
     caso_id: item.caseId,
     solicitud: item.applicationNo,
     cliente: item.customerName,
@@ -364,7 +340,7 @@ function buildExportRows(type: ExportJob["type"], applications: Application[]) {
     ...clientsRows.map((row) => ({ seccion: "clientes", ...row })),
     ...applicationsRows.map((row) => ({ seccion: "solicitudes", ...row })),
     ...paymentsRows.map((row) => ({ seccion: "pagos", ...row })),
-    ...collectionsRows.map((row: any) => ({ seccion: "cobranza", ...row })),
+    ...collectionsRows.map((row) => ({ seccion: "cobranza", ...row })),
     ...lostPaymentsRows.map((row) => ({ seccion: "pagos_perdidos", ...row })),
     ...underwritingRows.map((row) => ({ seccion: "resultados_suscripcion", ...row })),
     ...kycRows.map((row) => ({ seccion: "resultados_kyc", ...row })),
@@ -375,20 +351,10 @@ function buildExportRows(type: ExportJob["type"], applications: Application[]) {
 export function MdcConfigurationTab() {
   const [activeSection, setActiveSection] = useState<ConfigSection>("general");
 
-  const orgId = getStoredOrganization()?.id;
-  const isDemo = orgId === "demo-bypass-org";
-
-  const [general, setGeneral] = useState<GeneralSettings>(() => {
-    // demo-bypass-org siempre arranca con DEMO_GENERAL, ignorando el localStorage
-    if (isDemo) return DEMO_GENERAL;
-    return readStored(STORAGE_KEYS.general, DEFAULT_GENERAL);
-  });
+  const [general, setGeneral] = useState<GeneralSettings>(() => readStored(STORAGE_KEYS.general, DEFAULT_GENERAL));
   const [roles, setRoles] = useState<RoleRow[]>(() => readStored(STORAGE_KEYS.roles, DEFAULT_ROLES));
   const [users, setUsers] = useState<UserRow[]>(() => readStored(STORAGE_KEYS.users, DEFAULT_USERS));
-  const [exportJobs, setExportJobs] = useState<ExportJob[]>(() => {
-    if (isDemo) return DEMO_EXPORTS;
-    return readStored(STORAGE_KEYS.exports, DEFAULT_EXPORTS);
-  });
+  const [exportJobs, setExportJobs] = useState<ExportJob[]>(() => readStored(STORAGE_KEYS.exports, DEFAULT_EXPORTS));
   const [selectedExportType, setSelectedExportType] = useState<ExportJob["type"]>("applications");
   const sectionTabs: { id: ConfigSection; label: string }[] = [
     { id: "general", label: "General" },
@@ -396,84 +362,6 @@ export function MdcConfigurationTab() {
     { id: "users", label: "Usuarios" },
     { id: "export", label: "Export" },
   ];
-
-  useEffect(() => {
-    async function loadOrgRoles() {
-      const orgId = getStoredOrganization()?.id;
-      if (!orgId) return;
-
-      if (orgId === "demo-bypass-org") {
-        setRoles(DEFAULT_ROLES);
-        writeStored(STORAGE_KEYS.roles, DEFAULT_ROLES);
-        return;
-      }
-
-      try {
-        const mappedRoles = await getRoles(orgId);
-        if (mappedRoles.length > 0) {
-          setRoles(mappedRoles);
-          writeStored(STORAGE_KEYS.roles, mappedRoles);
-        }
-      } catch (err) {
-        console.error("Error al cargar roles de la organización", err);
-      }
-    }
-
-    async function loadOrgUsers() {
-      const orgId = getStoredOrganization()?.id;
-      if (!orgId) return;
-
-      if (orgId === "demo-bypass-org") {
-        setUsers(DEFAULT_USERS);
-        writeStored(STORAGE_KEYS.users, DEFAULT_USERS);
-        return;
-      }
-
-      try {
-        // Endpoint: GET /configuration/users?orgId=:orgId
-        const mdcBase = process.env.NEXT_PUBLIC_MDC_API_URL?.replace(/\/$/, "");
-        const response = await fetch(`${mdcBase}/configuration/users?orgId=${orgId}`, {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-        if (response.ok) {
-          const data = await response.json();
-          // El backend puede devolver directamente un array o { users: [...] }
-          const list: any[] = Array.isArray(data) ? data : (data.users ?? data.members ?? []);
-          const mappedUsers: UserRow[] = list.map((u: any) => {
-            // Roles pueden venir como array de strings, array de objetos { name/code }, o un solo string
-            const rawRoles = u.roles ?? u.role ?? [];
-            const roleArr: string[] = Array.isArray(rawRoles)
-              ? rawRoles.map((r: any) => (typeof r === "string" ? r : r?.name || r?.code || "Viewer"))
-              : typeof rawRoles === "string"
-                ? [rawRoles]
-                : ["Viewer"];
-
-            return {
-              id: u.id,
-              // El esquema public usa full_name (snake_case)
-              fullName: u.full_name || u.fullName || u.name || "Usuario",
-              email: u.email || "",
-              role: roleArr[0] || "Viewer",
-              status: u.status === "active" || u.status === "ACTIVE" ? "active" : "inactive",
-            };
-          });
-          setUsers(mappedUsers);
-          writeStored(STORAGE_KEYS.users, mappedUsers);
-        }
-      } catch (err) {
-        console.error("Error al cargar usuarios de la organización", err);
-      }
-    }
-
-    if (activeSection === "users") {
-      loadOrgUsers();
-      loadOrgRoles(); // Needed for the dropdown options
-    } else if (activeSection === "roles") {
-      loadOrgRoles();
-    }
-  }, [activeSection]);
 
   const roleNames = useMemo(() => Array.from(new Set(roles.map((r) => r.name))), [roles]);
 
@@ -488,17 +376,14 @@ export function MdcConfigurationTab() {
           type="button"
           className="mdc-btn mdc-btn--ghost"
           onClick={() => {
-            const defaultGen = isDemo ? DEMO_GENERAL : DEFAULT_GENERAL;
-            const defaultExp = isDemo ? DEMO_EXPORTS : DEFAULT_EXPORTS;
-            
-            setGeneral(defaultGen);
+            setGeneral(DEFAULT_GENERAL);
             setRoles(DEFAULT_ROLES);
             setUsers(DEFAULT_USERS);
-            setExportJobs(defaultExp);
-            writeStored(STORAGE_KEYS.general, defaultGen);
+            setExportJobs(DEFAULT_EXPORTS);
+            writeStored(STORAGE_KEYS.general, DEFAULT_GENERAL);
             writeStored(STORAGE_KEYS.roles, DEFAULT_ROLES);
             writeStored(STORAGE_KEYS.users, DEFAULT_USERS);
-            writeStored(STORAGE_KEYS.exports, defaultExp);
+            writeStored(STORAGE_KEYS.exports, DEFAULT_EXPORTS);
           }}
         >
           Restaurar defaults
@@ -531,17 +416,7 @@ export function MdcConfigurationTab() {
             <Field label="Correo soporte"><input value={general.supportEmail} onChange={(e) => setGeneral((v) => ({ ...v, supportEmail: e.target.value }))} /></Field>
             <Field label="Telefono soporte"><input value={general.supportPhone} onChange={(e) => setGeneral((v) => ({ ...v, supportPhone: e.target.value }))} /></Field>
             <Field label="Moneda base"><input value={general.currency} onChange={(e) => setGeneral((v) => ({ ...v, currency: e.target.value }))} /></Field>
-            <Field label="Zona horaria">
-              <select value={general.timezone} onChange={(e) => setGeneral((v) => ({ ...v, timezone: e.target.value }))}>
-                <option value="America/Mexico_City">America/Mexico_City (CDMX)</option>
-                <option value="America/Bogota">America/Bogota</option>
-                <option value="America/Lima">America/Lima</option>
-                <option value="America/Santiago">America/Santiago</option>
-                <option value="America/Buenos_Aires">America/Buenos_Aires</option>
-                <option value="America/New_York">America/New_York (EST)</option>
-                <option value="UTC">UTC</option>
-              </select>
-            </Field>
+            <Field label="Zona horaria"><input value={general.timezone} onChange={(e) => setGeneral((v) => ({ ...v, timezone: e.target.value }))} /></Field>
             <Field label="Direccion" className="mdc-cfg-form-grid__full"><textarea rows={3} value={general.address} onChange={(e) => setGeneral((v) => ({ ...v, address: e.target.value }))} /></Field>
           </div>
           <div className="mdc-cfg-actions"><button type="button" className="mdc-btn mdc-btn--primary" onClick={() => writeStored(STORAGE_KEYS.general, general)}>Guardar cambios</button></div>
@@ -572,29 +447,11 @@ export function MdcConfigurationTab() {
             <table className="mdc-table mdc-cfg-table">
               <thead><tr><th>Nombre</th><th>Descripcion</th><th>Permisos</th><th>Acciones</th></tr></thead>
               <tbody>
-                {roles.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8" }}>Sin roles configurados. Haz clic en &quot;Agregar rol&quot; para comenzar.</td>
-                  </tr>
-                ) : roles.map((role, index) => (
+                {roles.map((role, index) => (
                   <tr key={`${role.name}-${index}`}>
                     <td>{role.name}</td>
                     <td>{role.description}</td>
-                    <td>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                        {Array.isArray(role.permissions) ? (
-                          role.permissions.map((p, i) => (
-                            <span key={i} className="mdc-badge mdc-badge--neutral" style={{ fontSize: "11px", fontWeight: 500, padding: "2px 6px", textTransform: "capitalize" }}>{p}</span>
-                          ))
-                        ) : typeof role.permissions === "string" ? (
-                          role.permissions.split(",").map((p, i) => (
-                            <span key={i} className="mdc-badge mdc-badge--neutral" style={{ fontSize: "11px", fontWeight: 500, padding: "2px 6px", textTransform: "capitalize" }}>{p.trim()}</span>
-                          ))
-                        ) : (
-                          String(role.permissions)
-                        )}
-                      </div>
-                    </td>
+                    <td>{role.permissions}</td>
                     <td>
                       <div className="mdc-actions">
                         <button
@@ -689,7 +546,7 @@ export function MdcConfigurationTab() {
                           className="mdc-btn mdc-btn--xs"
                           onClick={() => {
                             const updated = users.map((row) =>
-                              row.id === user.id ? { ...row, status: (row.status === "active" ? "inactive" : "active") as "active" | "inactive" } : row,
+                              row.id === user.id ? { ...row, status: row.status === "active" ? "inactive" : "active" } : row,
                             );
                             setUsers(updated);
                             writeStored(STORAGE_KEYS.users, updated);
@@ -741,7 +598,7 @@ export function MdcConfigurationTab() {
               <button
                 type="button"
                 className="mdc-btn mdc-btn--primary"
-                onClick={async () => {
+                onClick={() => {
                   const now = nowForExport();
                   const jobId = `EXP-${String(exportJobs.length + 1).padStart(3, "0")}`;
                   const runningJob: ExportJob = {
@@ -757,54 +614,20 @@ export function MdcConfigurationTab() {
                   writeStored(STORAGE_KEYS.exports, runningJobs);
 
                   try {
-                    let applications = readApplications();
-                    const currentOrgId = getStoredOrganization()?.id;
-                    if (currentOrgId && currentOrgId !== "demo-bypass-org") {
-                      // Solo orgs reales consultan la API
-                      try {
-                        const baseUrl = process.env.NEXT_PUBLIC_MDC_API_URL || "http://localhost:3000";
-                        const res = await fetch(`${baseUrl}/finance-requests?orgId=${currentOrgId}`);
-                        if (res.ok) {
-                          const data = await res.json();
-                          applications = data.map((item: any) => ({
-                            id: item.id,
-                            appNo: `APP-${item.id.split("-")[0].toUpperCase()}`,
-                            applicantName: item.personType === "natural"
-                              ? `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Desconocido'
-                              : item.businessName || 'Desconocido',
-                            applicantEmail: item.email || 'N/A',
-                            product: item.product || 'N/A',
-                            requestedAmount: Number(item.amount) || 0,
-                            currency: 'MXN',
-                            status: item.status === "Aprobada" ? "approved" :
-                              item.status === "Rechazada" ? "declined" :
-                                item.status === "Revision manual" ? "manualReview" :
-                                  item.status === "Override" ? "overridden" : "pending",
-                            risk: item.riskLevel === "Bajo" ? "low" :
-                              item.riskLevel === "Alto" ? "high" : "medium",
-                            riskScore: item.riskScore || 50,
-                            submittedAt: item.createdAt || new Date().toISOString()
-                          })) as Application[];
-                        }
-                      } catch (e) {
-                        // Fallback to local mock if API fails
-                      }
-                    }
-                    // demo-bypass-org usa únicamente readApplications() (datos quemados)
-
+                    const applications = readApplications();
                     const { rows, fileBase } = buildExportRows(selectedExportType, applications);
                     const csv = rowsToCsv(rows);
                     const filename = `${fileBase}_${now.stamp}.csv`;
                     downloadCsv(filename, csv);
 
                     const completedJobs = runningJobs.map((job) =>
-                      job.id === jobId ? { ...job, name: filename, status: "completed" as const } : job,
+                      job.id === jobId ? { ...job, name: filename, status: "completed" } : job,
                     );
                     setExportJobs(completedJobs);
                     writeStored(STORAGE_KEYS.exports, completedJobs);
                   } catch {
                     const failedJobs = runningJobs.map((job) =>
-                      job.id === jobId ? { ...job, status: "failed" as const } : job,
+                      job.id === jobId ? { ...job, status: "failed" } : job,
                     );
                     setExportJobs(failedJobs);
                     writeStored(STORAGE_KEYS.exports, failedJobs);
@@ -819,13 +642,7 @@ export function MdcConfigurationTab() {
             <table className="mdc-table mdc-cfg-table">
               <thead><tr><th>ID</th><th>Nombre</th><th>Fecha</th><th>Tipo</th><th>Estado</th><th>Acciones</th></tr></thead>
               <tbody>
-                {exportJobs.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8" }}>
-                      No hay exportaciones recientes.
-                    </td>
-                  </tr>
-                ) : exportJobs.map((job) => (
+                {exportJobs.map((job) => (
                   <tr key={job.id}>
                     <td>{job.id}</td>
                     <td>{job.name}</td>
@@ -843,7 +660,7 @@ export function MdcConfigurationTab() {
                         onClick={() => {
                           const updated = exportJobs.map((item) =>
                             item.id === job.id
-                              ? { ...item, status: (item.status === "running" ? "completed" : item.status === "completed" ? "failed" : "completed") as ExportJob["status"] }
+                              ? { ...item, status: item.status === "running" ? "completed" : item.status === "completed" ? "failed" : "completed" }
                               : item,
                           );
                           setExportJobs(updated);

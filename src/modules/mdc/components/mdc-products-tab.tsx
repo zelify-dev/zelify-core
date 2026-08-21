@@ -12,14 +12,14 @@ import {
 } from "@/modules/mdc/data/mdc-products-mock";
 import { getStoredOrganization } from "@/lib/auth-api";
 
-const PRODUCTS_STORAGE_KEY = "mdc:products:v3";
+const PRODUCTS_STORAGE_KEY = "mdc:products:v4";
 
 type ModalMode = "metrics" | "config";
 type ModalState = { mode: ModalMode; product: MdcProduct } | null;
 
 function normalizeProductName(name: string) {
-  if (name === "BNPL") return "Credito personal";
-  if (name === "Prestamo personal") return "Credito automotriz";
+  // Solo renombrar nombres legacy que venian del backend anterior
+  if (name === "BNPL" || name === "BNPL_2JUL") return "Credito personal";
   if (name.toLowerCase().includes("plazo fijo")) return "Credito personal";
   return name;
 }
@@ -61,13 +61,13 @@ function normalizeProductFinancials(product: MdcProduct): MdcProduct {
     };
   }
 
-  return { 
-    ...product, 
+  return {
+    ...product,
     name,
     metrics: {
       activeClients: 0,
       totalPortfolio: 0,
-    } 
+    }
   };
 }
 
@@ -139,11 +139,18 @@ export function MdcProductsTab({
     setIsMounted(true);
     setProducts(readStoredProducts(effectiveStorageKey, defaultProducts));
 
+    const currentOrg = getStoredOrganization();
+    const orgId = currentOrg?.id;
+
+    // Para demo-bypass-org, usar los productos quemados del mock sin importar localStorage
+    if (orgId === "demo-bypass-org") {
+      setProducts(defaultProducts);
+      return;
+    }
+
     const fetchProducts = async () => {
       try {
         const baseUrl = process.env.NEXT_PUBLIC_MDC_API_URL || "http://127.0.0.1:3000";
-        const currentOrg = getStoredOrganization();
-        const orgId = currentOrg?.id || "ORG-001";
         console.log("=== MDC DEBUG GET ===", { baseUrl, orgId, currentOrg });
         const res = await fetch(`${baseUrl}/finance-products?orgId=${orgId}`);
         if (res.ok) {
@@ -155,9 +162,9 @@ export function MdcProductsTab({
               name: item.financialProduct || "Producto financiero",
               description: `${item.contractType || ""} - ${item.contractDestination || ""}`,
               status: item.status === "ACTIVE" ? "ACTIVO" : "INACTIVO",
-              metrics: { 
-                activeClients: 0, 
-                totalPortfolio: 0 
+              metrics: {
+                activeClients: 0,
+                totalPortfolio: 0
               },
               configuration: {
                 interestRate: { min: item.creditRate || 0, max: item.creditRate || 0 },
@@ -185,13 +192,13 @@ export function MdcProductsTab({
     const val = Number(product.metrics?.activeClients);
     return acc + (isNaN(val) ? 0 : val);
   }, 0);
-  
+
   const totalPortfolio = products.reduce((acc, product) => {
     const val = Number(product.metrics?.totalPortfolio);
     return acc + (isNaN(val) ? 0 : val);
   }, 0);
 
-  const avgMorosidad = products.length > 0 
+  const avgMorosidad = products.length > 0
     ? (products.reduce((acc, p) => acc + (p.status === "ACTIVO" ? 6.8 : p.status === "SUSPENDIDO" ? 11.2 : 4.5), 0) / products.length).toFixed(1)
     : "0.0";
   const avgAprobacion = products.length > 0 ? "25.0" : "0.0";
@@ -563,7 +570,7 @@ function CreateProductModal({
 
       if (response.ok) {
         const data = await response.json();
-        
+
         if (payload.orgId && payload.orgId !== "demo-bypass-org") {
           await createTraceabilityLog({
             orgId: payload.orgId,
@@ -574,7 +581,7 @@ function CreateProductModal({
             correlationId: `corr-prod-${data.id ? data.id.substring(0, 8) : Date.now()}`,
           });
         }
-        
+
         onCreate({
           id: data.id || `product_${Date.now()}`,
           name: financialProduct.trim(),

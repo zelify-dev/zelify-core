@@ -11,6 +11,10 @@ let demoRulesNatural = [...CREDIT_RULES_BY_MODE.natural];
 let demoRulesMoral = [...CREDIT_RULES_BY_MODE.moral];
 
 export const fetchRules = async (mode: "natural" | "moral", orgId: string): Promise<CreditRuleRow[]> => {
+  if (orgId === "demo-bypass-org") {
+    return mode === "natural" ? [...demoRulesNatural] : [...demoRulesMoral];
+  }
+
   const params = new URLSearchParams({ mode, orgId });
   const url = `${getBaseUrl()}/decision-rules?${params.toString()}`;
   const response = await customFetch(url, {
@@ -28,6 +32,13 @@ export const fetchRules = async (mode: "natural" | "moral", orgId: string): Prom
 };
 
 export const createRule = async (rule: Partial<CreditRuleRow>, orgId: string): Promise<CreditRuleRow | null> => {
+  if (orgId === "demo-bypass-org") {
+    const newRule = { ...rule, id: `cr-mock-${Date.now()}` } as CreditRuleRow;
+    demoRulesNatural = [...demoRulesNatural, newRule];
+    demoRulesMoral = [...demoRulesMoral, newRule];
+    return newRule;
+  }
+
   const url = `${getBaseUrl()}/decision-rules`;
   const response = await customFetch(url, {
     method: "POST",
@@ -45,6 +56,14 @@ export const createRule = async (rule: Partial<CreditRuleRow>, orgId: string): P
 };
 
 export const updateRule = async (id: string, rule: Partial<CreditRuleRow>, orgId?: string): Promise<CreditRuleRow | null> => {
+  if (orgId === "demo-bypass-org") {
+    const updateInArray = (arr: CreditRuleRow[]) =>
+      arr.map((r) => (r.id === id ? { ...r, ...rule } : r));
+    demoRulesNatural = updateInArray(demoRulesNatural);
+    demoRulesMoral = updateInArray(demoRulesMoral);
+    return { ...demoRulesNatural.find((r) => r.id === id)!, ...rule } as CreditRuleRow;
+  }
+
   const url = `${getBaseUrl()}/decision-rules/${id}`;
   const response = await customFetch(url, {
     method: "PATCH",
@@ -62,6 +81,12 @@ export const updateRule = async (id: string, rule: Partial<CreditRuleRow>, orgId
 };
 
 export const deleteRule = async (id: string, orgId?: string): Promise<boolean> => {
+  if (orgId === "demo-bypass-org") {
+    demoRulesNatural = demoRulesNatural.filter((r) => r.id !== id);
+    demoRulesMoral = demoRulesMoral.filter((r) => r.id !== id);
+    return true;
+  }
+
   const url = `${getBaseUrl()}/decision-rules/${id}`;
   try {
     const response = await customFetch(url, {

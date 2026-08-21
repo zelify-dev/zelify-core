@@ -559,10 +559,25 @@ function money(v: number) {
   }).format(v);
 }
 
+function getConfiguredTimezone() {
+  if (typeof window === "undefined") return undefined;
+  try {
+    const raw = window.localStorage.getItem("mdc:config:general:v6");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed.timezone) return parsed.timezone;
+    }
+  } catch {
+    // ignore
+  }
+  return undefined;
+}
+
 function shortDate(v: string) {
   return new Intl.DateTimeFormat("es-MX", {
     dateStyle: "short",
     timeStyle: "short",
+    timeZone: getConfiguredTimezone(),
   }).format(new Date(v));
 }
 
@@ -1900,7 +1915,7 @@ function MoralApplicantDetailModal({
           : `Caso enviado a zona gris para revision manual. Alertas principales: ${warnedRuleRows.map(pmRuleReason).slice(0, 2).join(" ") || "validaciones complementarias de riesgo y cumplimiento."}`;
 
   const runAction = (label: string) => {
-    setFeedback(`${label} ejecutado · ${new Intl.DateTimeFormat("es-MX", { timeStyle: "short" }).format(new Date())}`);
+    setFeedback(`${label} ejecutado · ${new Intl.DateTimeFormat("es-MX", { timeStyle: "short", timeZone: getConfiguredTimezone() }).format(new Date())}`);
   };
 
   const applyOverride = () => {
@@ -2838,7 +2853,7 @@ function AppDetailModal({
           : "";
 
   const runAction = (label: string) => {
-    setFeedback(`${label} ejecutado · ${new Intl.DateTimeFormat("es-MX", { timeStyle: "short" }).format(new Date())}`);
+    setFeedback(`${label} ejecutado · ${new Intl.DateTimeFormat("es-MX", { timeStyle: "short", timeZone: getConfiguredTimezone() }).format(new Date())}`);
   };
 
   const applyOverride = () => {
@@ -3442,6 +3457,13 @@ export function MdcScreen() {
         const baseUrl = process.env.NEXT_PUBLIC_MDC_API_URL || "http://localhost:3000";
         const currentOrg = getStoredOrganization();
         const orgId = currentOrg?.id || "ORG-001";
+
+        if (orgId === "demo-bypass-org") {
+          setApps(APPLICATIONS_BY_MODE[applicantMode]);
+          setAppsLoading(false);
+          return;
+        }
+
         const data = await fetchFinanceRequests(orgId, applicantMode);
         const mapped: Application[] = data.map((item: any) => ({
           id: item.id,
@@ -3460,7 +3482,8 @@ export function MdcScreen() {
           risk: item.riskLevel === "Bajo" ? "low" :
             item.riskLevel === "Alto" ? "high" : "medium",
           riskScore: item.riskScore || 50,
-          submittedAt: item.createdAt || new Date().toISOString()
+          submittedAt: item.createdAt || new Date().toISOString(),
+          updatedAt: item.updatedAt || item.createdAt || new Date().toISOString()
         }));
 
         setApps(mapped);
@@ -3548,16 +3571,21 @@ export function MdcScreen() {
       };
     }
 
-    const currentRows = apps.filter((app) =>
-      isWithinRange(app.submittedAt, currentWindow.startMs, currentWindow.endMs),
-    );
+    const currentRows = apps.filter((app) => {
+      const dateToUse = app.updatedAt ?? app.submittedAt;
+      return isWithinRange(dateToUse, currentWindow.startMs, currentWindow.endMs);
+    });
     const previousStart = currentWindow.startMs - rangeDays * DAY_MS;
     const previousEnd = currentWindow.startMs - 1;
-    const previousRows = apps.filter((app) => isWithinRange(app.submittedAt, previousStart, previousEnd));
+    const previousRows = apps.filter((app) => {
+      const dateToUse = app.updatedAt ?? app.submittedAt;
+      return isWithinRange(dateToUse, previousStart, previousEnd);
+    });
 
     const pointsByDay = new Map<number, number>();
     for (const app of currentRows) {
-      const dayMs = utcDayStartMs(app.submittedAt);
+      const dateToUse = app.updatedAt ?? app.submittedAt;
+      const dayMs = utcDayStartMs(dateToUse);
       pointsByDay.set(dayMs, (pointsByDay.get(dayMs) ?? 0) + 1);
     }
 
@@ -4403,7 +4431,7 @@ export function MdcScreen() {
                     <tbody>
                       {paginatedTraceability.map((entry) => (
                         <tr key={entry.id}>
-                          <td className="mdc-traceability__date">{new Date(entry.timestamp).toLocaleString("es-MX")}</td>
+                          <td className="mdc-traceability__date">{new Date(entry.timestamp).toLocaleString("es-MX", { timeZone: getConfiguredTimezone() })}</td>
                           <td>
                             <span className="mdc-badge mdc-badge--info">{entry.action}</span>
                           </td>

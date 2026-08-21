@@ -22,10 +22,16 @@ export function MdcTraceabilityTab() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadLogs = async () => {
+    async function load() {
       setLoading(true);
       try {
-        const orgId = getStoredOrganization()?.id || "ORG-001";
+        const currentOrg = getStoredOrganization();
+        const orgId = currentOrg?.id || "ORG-001";
+
+        if (orgId === "demo-bypass-org") {
+          return;
+        }
+
         const data = await fetchTraceabilityLogs(orgId);
         setLogs(data);
       } catch (e) {

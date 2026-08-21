@@ -18,7 +18,7 @@ export type RoleRow = {
   id?: string;
   name: string;
   description: string;
-  permissions: string;
+  permissions: string | string[];
 };
 
 export type UserRow = {
@@ -67,8 +67,9 @@ export async function updateGeneralSettings(data: GeneralSettings): Promise<Gene
 }
 
 // Roles
-export async function getRoles(): Promise<RoleRow[]> {
-  const res = await customFetch(`${API_URL}/configuration/roles`);
+export async function getRoles(orgId?: string): Promise<RoleRow[]> {
+  const queryParam = orgId ? `?orgId=${orgId}` : '';
+  const res = await customFetch(`${API_URL}/configuration/roles${queryParam}`);
   if (!res.ok) throw new Error("Failed to fetch roles");
   return res.json();
 }

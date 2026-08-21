@@ -37,6 +37,10 @@ export function MdcRulesTab({ mode }: { mode: "natural" | "moral" }) {
   useEffect(() => {
     async function load() {
       const orgId = getStoredOrganization()?.id || "demo-bypass-org";
+      if (orgId === "demo-bypass-org") {
+        setRules(mode === "natural" ? naturalCreditRulesMock : moralCreditRulesMock);
+        return;
+      }
       const data = await fetchRules(mode, orgId);
       setRules(data);
     }

@@ -134,6 +134,12 @@ export function MdcRequestsTab() {
         const baseUrl = process.env.NEXT_PUBLIC_MDC_API_URL || "http://localhost:3000";
         const currentOrg = getStoredOrganization();
         const orgId = currentOrg?.id || "ORG-001";
+        
+        if (orgId === "demo-bypass-org") {
+          setRequests(MDC_REQUESTS);
+          return;
+        }
+
         const res = await fetch(`${baseUrl}/finance-requests?orgId=${orgId}`);
         if (res.ok) {
           const data = await res.json();

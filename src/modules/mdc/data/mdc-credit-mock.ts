@@ -16,6 +16,7 @@ export type Application = {
   risk: RiskLevel;
   riskScore: number;
   submittedAt: string;
+  updatedAt?: string;
 };
 
 export const NATURAL_CREDIT_PRODUCTS = ["Credito automotriz", "Credito personal"] as const;
@@ -91,7 +92,7 @@ export const PM_MDC_CLIENTS: MdcClientPoolItem[] = [
   },
   {
     id: "PM-CU-500205",
-    name: "GRUPO DELTA INDUSTRIAL SA DE CV",
+    name: "Logistica Maya Integral SA de CV",
     email: "control@logisticamaya.mx",
     amount: 9_400_000,
     creditScore: 721,
@@ -112,6 +113,14 @@ export const PM_MDC_CLIENTS: MdcClientPoolItem[] = [
     amount: 8_900_000,
     creditScore: 705,
     product: "Credito simple empresarial",
+  },
+  {
+    id: "PM-CU-500208",
+    name: "Manufacturas Orion SA de CV",
+    email: "planeacion@orionmanufactura.mx",
+    amount: 11_100_000,
+    creditScore: 752,
+    product: "Arrendamiento financiero",
   },
   {
     id: "PM-CU-500209",
@@ -298,7 +307,7 @@ const recentMoralApplicationsSeed: Application[] = [
   {
     id: "pm-uuid-005",
     appNo: "APP-PM-100280",
-    applicantName: "GRUPO DELTA INDUSTRIAL SA DE CV",
+    applicantName: "Logistica Maya Integral SA de CV",
     applicantEmail: "control@logisticamaya.mx",
     product: "Credito simple empresarial",
     requestedAmount: 6_900_000,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AppBadge } from "@/components/ui/atoms/badge/app-badge";
 import { AppButton } from "@/components/ui/atoms/button/app-button";
@@ -10,6 +10,12 @@ import { AppSelect } from "@/components/ui/atoms/select/app-select";
 import { SandboxBanner } from "@/modules/customers/components/sandbox-banner";
 import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
 import { SettingsDataTable } from "@/components/ui/organisms/settings-data-table/settings-data-table";
+import {
+  DEMO_BYPASS_ORG_ID,
+  fetchConfigurationUsers,
+  getConfigOrgId,
+  type ConfigurationUserDTO,
+} from "@/modules/settings/services/configuration-users.service";
 
 import "@/components/ui/templates/workspace-page.css";
 import "./settings-workspace-shared.css";
@@ -170,10 +176,88 @@ function statusLabel(s: UserRow["status"]) {
   return "Bloqueado";
 }
 
+/** Maps an API DTO to the internal UserProfile shape used by this screen. */
+function dtoToUserProfile(dto: ConfigurationUserDTO): UserProfile {
+  const userType = (dto.userType as UserRow["userType"]) ?? "Oficial de crédito";
+  const status = (dto.status as UserRow["status"]) ?? "active";
+  return {
+    row: {
+      id: dto.id,
+      name: dto.name,
+      email: dto.email,
+      username: dto.username,
+      role: dto.role,
+      userType,
+      accessType: dto.accessType,
+      branches: dto.branches,
+      mfa: dto.mfa,
+      status,
+    },
+    firstName: dto.name.split(" ")[0] ?? dto.name,
+    lastName: dto.name.split(" ").slice(1).join(" "),
+    title: "",
+    roleAssigned: dto.role,
+    username: dto.username,
+    email: dto.email,
+    hasMambuAccess: dto.accessType?.toLowerCase().includes("mambu") ?? false,
+    hasApiAccess: dto.accessType?.toLowerCase().includes("api") ?? false,
+    twoFactorEnabled: dto.mfa,
+    mobilePhone: "",
+    homePhone: "",
+    assignedBranch: dto.branches?.split(",")[0]?.trim() ?? "",
+    allBranchesAccess: dto.branches?.toLowerCase() === "todas",
+    branchAccess: dto.branches?.toLowerCase() === "todas"
+      ? AVAILABLE_BRANCHES
+      : dto.branches?.split(",").map((b) => b.trim()) ?? [],
+    canAccessOtherCreditOfficerClients: false,
+    permissions: ["VIEW_USER_DETAILS"],
+    limits: [],
+  };
+}
+
 export function AccessSettingsScreen() {
   const [q, setQ] = useState("");
-  const [users, setUsers] = useState<UserProfile[]>(INITIAL_USERS);
+  const [users, setUsers] = useState<UserProfile[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const orgId = getConfigOrgId();
+
+    if (orgId === DEMO_BYPASS_ORG_ID) {
+      // Organización demo → usar datos quemados, sin llamada al API
+      setUsers(INITIAL_USERS);
+      setIsLoading(false);
+      return;
+    }
+
+    // Organización real → consumir GET /configuration/users?orgId=...
+    let cancelled = false;
+    setIsLoading(true);
+    setFetchError(null);
+
+    fetchConfigurationUsers(orgId)
+      .then((dtos) => {
+        if (!cancelled) {
+          setUsers(dtos.map(dtoToUserProfile));
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setFetchError(
+            err instanceof Error ? err.message : "Error al cargar usuarios."
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -212,6 +296,12 @@ export function AccessSettingsScreen() {
             <AppInput value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nombre o correo…" />
           </div>
 
+          {fetchError ? (
+            <p style={{ color: "var(--color-error, #e53e3e)", padding: "12px 0" }}>
+              {fetchError}
+            </p>
+          ) : null}
+
           <SettingsDataTable variant="clients">
             <thead>
               <tr>
@@ -228,39 +318,53 @@ export function AccessSettingsScreen() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((row) => (
-                <tr key={row.id}>
-                  <td>{row.name}</td>
-                  <td>{row.email}</td>
-                  <td className="zelify-mono">{row.username}</td>
-                  <td>{row.role}</td>
-                  <td>
-                    {row.userType === "Oficial de crédito" ? (
-                      <Link href="/settings/access/credit-officers" className="zelify-access-settings__link">
-                        {row.userType}
-                      </Link>
-                    ) : (
-                      row.userType
-                    )}
-                  </td>
-                  <td>{row.accessType}</td>
-                  <td>{row.branches}</td>
-                  <td>{row.mfa ? "Sí" : "No"}</td>
-                  <td>
-                    <AppBadge tone={statusTone(row.status)} size="sm">
-                      {statusLabel(row.status)}
-                    </AppBadge>
-                  </td>
-                  <td className="is-actions">
-                    <button type="button" className="zelify-access-settings__link">
-                      Editar
-                    </button>
-                    <button type="button" className="zelify-access-settings__link">
-                      Permisos
-                    </button>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={10} style={{ textAlign: "center", padding: "24px", opacity: 0.6 }}>
+                    Cargando usuarios…
                   </td>
                 </tr>
-              ))}
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={10} style={{ textAlign: "center", padding: "24px", opacity: 0.6 }}>
+                    No se encontraron usuarios.
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((row) => (
+                  <tr key={row.id}>
+                    <td>{row.name}</td>
+                    <td>{row.email}</td>
+                    <td className="zelify-mono">{row.username}</td>
+                    <td>{row.role}</td>
+                    <td>
+                      {row.userType === "Oficial de crédito" ? (
+                        <Link href="/settings/access/credit-officers" className="zelify-access-settings__link">
+                          {row.userType}
+                        </Link>
+                      ) : (
+                        row.userType
+                      )}
+                    </td>
+                    <td>{row.accessType}</td>
+                    <td>{row.branches}</td>
+                    <td>{row.mfa ? "Sí" : "No"}</td>
+                    <td>
+                      <AppBadge tone={statusTone(row.status)} size="sm">
+                        {statusLabel(row.status)}
+                      </AppBadge>
+                    </td>
+                    <td className="is-actions">
+                      <button type="button" className="zelify-access-settings__link">
+                        Editar
+                      </button>
+                      <button type="button" className="zelify-access-settings__link">
+                        Permisos
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </SettingsDataTable>
         </div>

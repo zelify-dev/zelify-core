@@ -87,24 +87,23 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
   const [uploadError, setUploadError] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  const loadSessions = async () => {
-    if (typeof window === "undefined") return;
-    const orgId = getStoredOrganization()?.id || "ORG-001";
-    if (orgId !== "demo-bypass-org") {
+  useEffect(() => {
+    async function load() {
+      const currentOrg = getStoredOrganization();
+      const orgId = currentOrg?.id || "ORG-001";
+      if (orgId === "demo-bypass-org") {
+        const saved = localStorage.getItem(`mdc:payments:${mode}`);
+        if (saved) {
+          setSessions(JSON.parse(saved));
+        } else {
+          setSessions(mode === "moral" ? MORAL_SESSIONS : NATURAL_SESSIONS);
+        }
+        return;
+      }
       const realSessions = await fetchPayments(mode);
       setSessions(realSessions);
-    } else {
-      const saved = localStorage.getItem(`mdc:payments:${mode}`);
-      if (saved) {
-        setSessions(JSON.parse(saved));
-      } else {
-        setSessions(mode === "moral" ? MORAL_SESSIONS : NATURAL_SESSIONS);
-      }
     }
-  };
-
-  useEffect(() => {
-    loadSessions();
+    load();
   }, [mode]);
 
   const handleCreateTestPayment = async () => {
