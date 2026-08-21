@@ -28,7 +28,7 @@ import { CREDIT_RULES_BY_MODE, type CreditRuleRow, type RuleDataType, type RuleO
 import { fetchRules, createRule, updateRule, deleteRule } from "@/modules/mdc/services/mdc-rules.service";
 import { createTraceabilityLog, fetchTraceabilityLogs } from "@/modules/mdc/services/mdc-traceability.service";
 
-import { createFinanceRequest, deleteFinanceRequest, fetchFinanceRequests, updateFinanceRequest } from "@/modules/mdc/services/mdc-finance-requests.service";
+import { createFinanceRequest, deleteFinanceRequest, fetchFinanceRequests, updateFinanceRequest, uploadFinancialDocument } from "@/modules/mdc/services/mdc-finance-requests.service";
 import { getStoredOrganization } from "@/lib/auth-api";
 import { MdcProductsTab } from "@/modules/mdc/components/mdc-products-tab";
 import { MdcRequestsTab } from "@/modules/mdc/components/mdc-requests-tab";
@@ -3053,6 +3053,26 @@ function AppDetailModal({
   );
 }
 
+function AlertModal({ message, type, onClose }: { message: string, type: "error" | "success", onClose: () => void }) {
+  if (!message) return null;
+  return (
+    <div className="mdc-modal-backdrop" style={{ zIndex: 9999 }}>
+      <div className="mdc-modal" style={{ maxWidth: 400 }}>
+        <header className="mdc-modal-head">
+          <h3>{type === "error" ? "Aviso" : "Notificación"}</h3>
+          <button className="mdc-icon-btn" onClick={onClose}>×</button>
+        </header>
+        <div style={{ padding: "20px", fontSize: "15px", color: type === "error" ? "#d32f2f" : "#2e7d32", textAlign: "center" }}>
+          {message}
+        </div>
+        <footer className="mdc-modal-actions" style={{ justifyContent: "center" }}>
+          <button className="mdc-btn mdc-btn--primary" onClick={onClose}>Aceptar</button>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
 function AddApplicationModal({
   open,
   onClose,
@@ -3078,6 +3098,7 @@ function AddApplicationModal({
   const [product, setProduct] = useState<string>(products[0] ?? NATURAL_CREDIT_PRODUCTS[0]);
   const [amount, setAmount] = useState("12000");
   const [apiProducts, setApiProducts] = useState<any[]>([]);
+  const [alertMsg, setAlertMsg] = useState<{message: string, type: "error" | "success"} | null>(null);
   const isMoral = mode === "moral";
 
   useEffect(() => {
@@ -3113,6 +3134,7 @@ function AddApplicationModal({
   if (!open) return null;
 
   return (
+    <>
     <div className="mdc-modal-backdrop" onClick={() => { reset(); onClose(); }}>
       <div className="mdc-modal" onClick={(e) => e.stopPropagation()}>
         <header className="mdc-modal-head">
@@ -3175,12 +3197,14 @@ function AddApplicationModal({
               value={amount}
               onChange={(e) => {
                 let val = e.target.value;
-                if (Number(val) > 9999999) val = "9999999";
+                const maxAmt = apiProducts.find(p => p.financialProduct === product)?.maximumAmount;
+                const maxLimit = maxAmt ? Number(maxAmt) : 9999999;
+                if (Number(val) > maxLimit) val = maxLimit.toString();
                 setAmount(val);
               }}
               type="number"
-              min={0}
-              max={9999999}
+              min={apiProducts.find(p => p.financialProduct === product)?.minimumAmount ? Number(apiProducts.find(p => p.financialProduct === product)?.minimumAmount) : 0}
+              max={apiProducts.find(p => p.financialProduct === product)?.maximumAmount ? Number(apiProducts.find(p => p.financialProduct === product)?.maximumAmount) : 9999999}
               step="0.01"
               required
             />
@@ -3193,11 +3217,17 @@ function AddApplicationModal({
             className="mdc-btn mdc-btn--primary"
             onClick={() => {
               if (!identificationNumber || !firstName || !email) {
-                alert("Por favor completa los campos obligatorios (*)");
+                setAlertMsg({ message: "Por favor completa los campos obligatorios (*)", type: "error" });
                 return;
               }
               if (!email.includes("@")) {
-                alert("Correo inválido");
+                setAlertMsg({ message: "Correo inválido", type: "error" });
+                return;
+              }
+              const minAmt = apiProducts.find(p => p.financialProduct === product)?.minimumAmount;
+              const minLimit = minAmt ? Number(minAmt) : 0;
+              if (Number(amount) < minLimit) {
+                setAlertMsg({ message: `El monto mínimo para este producto es de ${minLimit} MXN`, type: "error" });
                 return;
               }
               onCreate({
@@ -3218,6 +3248,70 @@ function AddApplicationModal({
             }}
           >
             Crear solicitud
+          </button>
+        </footer>
+      </div>
+    </div>
+    {alertMsg && <AlertModal message={alertMsg.message} type={alertMsg.type} onClose={() => setAlertMsg(null)} />}
+    </>
+  );
+}
+
+function UploadModal({ app, onClose, onSuccess, onError }: { app: Application, onClose: () => void, onSuccess: (msg: string) => void, onError: (msg: string) => void }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  return (
+    <div className="mdc-modal-backdrop" onClick={onClose}>
+      <div className="mdc-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 500 }}>
+        <header className="mdc-modal-head">
+          <h3>Subir Documentos</h3>
+          <button className="mdc-icon-btn" onClick={onClose} disabled={loading}>×</button>
+        </header>
+        <div style={{ padding: "20px" }}>
+          <p style={{ marginBottom: "16px" }}>Selecciona el documento (PDF, JPEG, PNG) para la solicitud <strong>{app.appNo}</strong>.</p>
+          <input
+            type="file"
+            accept="application/pdf,image/jpeg,image/png"
+            onChange={(e) => {
+              if (e.target.files && e.target.files.length > 0) {
+                setFile(e.target.files[0]);
+              }
+            }}
+            style={{ width: "100%", padding: "8px", border: "1px solid var(--border-subtle)", borderRadius: "6px" }}
+            disabled={loading}
+          />
+          {file && (
+            <p style={{ marginTop: "12px", fontSize: "14px", color: "var(--color-text-secondary)" }}>
+              Archivo seleccionado: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+            </p>
+          )}
+        </div>
+        <footer className="mdc-modal-actions">
+          <button className="mdc-btn mdc-btn--ghost" onClick={onClose} disabled={loading}>Cancelar</button>
+          <button
+            className="mdc-btn mdc-btn--primary"
+            disabled={!file || loading}
+            onClick={async () => {
+              if (!file) return;
+              if (file.size > 10 * 1024 * 1024) {
+                onError("El archivo excede el tamaño máximo permitido (10MB)");
+                return;
+              }
+              setLoading(true);
+              try {
+                // Ensure applicantId exists. The backend expects it to map to userId.
+                const applicantId = app.applicantId && app.applicantId !== "N/A" ? app.applicantId : "unknown-user";
+                const res = await uploadFinancialDocument(app.id, applicantId, file);
+                onSuccess(res.notification || "Documento subido y enviado a análisis exitosamente.");
+              } catch (e: any) {
+                onError(e.message || "Error al subir el documento.");
+              } finally {
+                setLoading(false);
+              }
+            }}
+          >
+            {loading ? "Subiendo..." : "Subir y Analizar"}
           </button>
         </footer>
       </div>
@@ -3406,6 +3500,7 @@ function RuleModal({
 }
 
 export function MdcScreen() {
+  const [globalAlert, setGlobalAlert] = useState<{message: string, type: "error" | "success"} | null>(null);
   const router = useRouter();
   const creditStore = useCreditDemoStore();
   const [applicantMode, setApplicantMode] = useState<MdcApplicantMode>("natural");
@@ -3427,6 +3522,7 @@ export function MdcScreen() {
   const [showAddApplication, setShowAddApplication] = useState(false);
   const [detailApp, setDetailApp] = useState<Application | null>(null);
   const [flowApp, setFlowApp] = useState<Application | null>(null);
+  const [uploadApp, setUploadApp] = useState<Application | null>(null);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | "all">("all");
@@ -3468,6 +3564,7 @@ export function MdcScreen() {
         const mapped: Application[] = data.map((item: any) => ({
           id: item.id,
           appNo: `APP-${item.id.split("-")[0].toUpperCase()}`,
+          applicantId: item.user?.id || 'N/A',
           applicantName: item.personType === "natural"
             ? `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Desconocido'
             : item.businessName || 'Desconocido',
@@ -4205,6 +4302,16 @@ export function MdcScreen() {
                                     >
                                       Reenviar onboarding
                                     </button>
+                                    {app.status === "pending" && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setUploadApp(app);
+                                        }}
+                                      >
+                                        Subir documentos
+                                      </button>
+                                    )}
                                     <button
                                       type="button"
                                       onClick={() => {
@@ -4497,32 +4604,32 @@ export function MdcScreen() {
         mode={applicantMode}
         products={activeProducts}
         onCreate={async ({ identificationNumber, firstName, lastName, email, phone, bank, birthPlace, maritalStatus, educationLevel, product, amount }) => {
-          const orgId = getStoredOrganization()?.id || "ORG-001";
-          const payload = {
-            orgId,
-            identificationNumber,
-            personType: applicantMode,
-            email,
-            phone,
-            bank,
-            birthPlace,
-            maritalStatus,
-            educationLevel,
-            product,
-            amount: Number(amount) || 0,
-            status: "Pendiente",
-            ...(applicantMode === "natural" ? { firstName, lastName } : { businessName: firstName })
-          };
-
           try {
-            const response = await createFinanceRequest(payload);
-            const item = response.data || response;
-            if (response.notification) {
-              alert(response.notification);
+            const response = await createFinanceRequest({
+              orgId: getStoredOrganization()?.id || "ORG-001",
+              personType: applicantMode,
+              identificationNumber,
+              firstName,
+              lastName,
+              email,
+              phone,
+              bank,
+              birthPlace,
+              maritalStatus,
+              educationLevel,
+              product,
+              amount: Number(amount),
+            });
+            
+            if (response?.notification) {
+              setGlobalAlert({ message: response.notification, type: "success" });
             }
+
+            const item = response.data || response;
             const next: Application = {
               id: item.id,
               appNo: `APP-${item.id.split("-")[0].toUpperCase()}`,
+              applicantId: item.user?.id || 'N/A',
               applicantName: applicantMode === "moral" ? (firstName.trim() || email) : `${firstName} ${lastName}`.trim() || email,
               applicantEmail: email,
               product,
@@ -4539,11 +4646,13 @@ export function MdcScreen() {
               openKybForApplication(next, lastName);
             }
           } catch (e: any) {
-            alert(e.message || "Error al crear la solicitud");
+            setGlobalAlert({ message: e.message || "Error al crear la solicitud", type: "error" });
             console.error("Failed to create application", e);
           }
         }}
       />
+
+      {globalAlert && <AlertModal message={globalAlert.message} type={globalAlert.type} onClose={() => setGlobalAlert(null)} />}
 
       {detailApp && (
         <AppDetailModal
@@ -4561,6 +4670,20 @@ export function MdcScreen() {
           app={flowApp}
           mode={applicantMode}
           onClose={() => setFlowApp(null)}
+        />
+      )}
+
+      {uploadApp && (
+        <UploadModal
+          app={uploadApp}
+          onClose={() => setUploadApp(null)}
+          onSuccess={(msg) => {
+            setGlobalAlert({ message: msg, type: "success" });
+            setUploadApp(null);
+          }}
+          onError={(msg) => {
+            setGlobalAlert({ message: msg, type: "error" });
+          }}
         />
       )}
 
