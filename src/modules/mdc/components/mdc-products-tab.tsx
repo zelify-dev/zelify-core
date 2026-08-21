@@ -437,7 +437,7 @@ function ConfigPanel({
               <option value="SUSPENDIDO">SUSPENDIDO</option>
             </select>
           </Field>
-          <Field label="Descripcion" className="mdc-form-grid__full"><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} /></Field>
+          <Field label="Tipo de credito / contrato" className="mdc-form-grid__full"><input value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
           <Field label="Tasa interes min. (%)"><input type="number" min="0" step="any" value={interestMin} onChange={(e) => { const v = e.target.value; if (v === '' || Number(v) >= 0) setInterestMin(v); }} /></Field>
           <Field label="Tasa interes max. (%)"><input type="number" min="0" step="any" value={interestMax} onChange={(e) => { const v = e.target.value; if (v === '' || Number(v) >= 0) setInterestMax(v); }} /></Field>
           <Field label="Monto minimo"><input type="number" min="0" value={amountMin} onChange={(e) => setAmountMin(Math.max(0, Number(e.target.value)))} /></Field>
@@ -668,10 +668,7 @@ function CreateProductModal({
             </select>
           </Field>
           <Field label="Tipo de contrato">
-            <select value={contractType} onChange={(e) => setContractType(e.target.value)}>
-              <option value="CREDITO SIMPLE">CREDITO SIMPLE</option>
-              <option value="APERTURA_CREDITO">APERTURA_CREDITO</option>
-            </select>
+            <input value={contractType} onChange={(e) => setContractType(e.target.value.toUpperCase())} placeholder="Ej. CREDITO SIMPLE" />
           </Field>
 
           <Field label="Frecuencia de pago">

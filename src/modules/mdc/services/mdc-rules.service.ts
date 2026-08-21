@@ -31,6 +31,23 @@ export const fetchRules = async (mode: "natural" | "moral", orgId: string): Prom
   return response.json();
 };
 
+export const fetchFinanceProducts = async (orgId: string): Promise<any[]> => {
+  if (orgId === "demo-bypass-org") return [];
+  const url = `${getBaseUrl()}/finance-products?orgId=${orgId}`;
+  const response = await customFetch(url, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    console.warn("Failed to fetch finance products", response.statusText);
+    return [];
+  }
+  return response.json();
+};
+
 export const createRule = async (rule: Partial<CreditRuleRow>, orgId: string): Promise<CreditRuleRow | null> => {
   if (orgId === "demo-bypass-org") {
     const newRule = { ...rule, id: `cr-mock-${Date.now()}` } as CreditRuleRow;

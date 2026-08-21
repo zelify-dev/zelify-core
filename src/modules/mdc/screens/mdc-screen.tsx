@@ -71,6 +71,7 @@ type RuleFormState = {
   reviewMax: string;
   rejectMin: string;
   rejectMax: string;
+  conditions?: any[];
 };
 
 type RangePreset = "7d" | "30d" | "90d";
@@ -448,8 +449,16 @@ const RULE_FIELD_LABELS: Record<string, string> = {
   "company.naicsRiskIndex": "Indice de riesgo sectorial NAICS",
   "company.requestedTermMonths": "Plazo solicitado (meses)",
   "company.taxComplianceStatus": "Opinion de Cumplimiento Fiscal 32-D",
+  "applicant.employmentType": "Tipo de empleo",
+  "applicant.ageAtTerm": "Edad al termino del contrato",
+  "loan.requestedTerm": "Plazo solicitado",
+  "loan.requestedAmount": "Monto solicitado",
+  "income.averageLiquid": "Ingreso liquido promedio",
+  "income.remainingLiquid": "Liquido restante (Resguardo)",
   "custom.field": "Campo personalizado",
 };
+
+const FALLBACK_RULE_FIELDS = Object.keys(RULE_FIELD_LABELS);
 
 const RULE_OPERATOR_LABELS: Record<RuleOperator, string> = {
   equals: "Igual a (=)",
@@ -1164,7 +1173,7 @@ function mergeRulesWithDefaults(rows: CreditRuleRow[], availableProducts: readon
     const products =
       normalizedRule.products && normalizedRule.products.length > 0
         ? normalizedRule.products.filter((product) => availableProducts.includes(product))
-        : (availableProducts.filter((product) => PRODUCT_RULE_FIELDS[product]?.includes(normalizedRule.field)) as RuleProduct[]);
+        : (availableProducts.filter((product) => (PRODUCT_RULE_FIELDS[product] || FALLBACK_RULE_FIELDS).includes(normalizedRule.field)) as RuleProduct[]);
     if (products.length === 0) return [];
     return products.map((product) => ({
       ...normalizedRule,
@@ -1197,7 +1206,8 @@ function ruleFieldLabel(field: string) {
 }
 
 function getRuleFieldsForProduct(product: RuleProduct) {
-  return PRODUCT_RULE_FIELDS[product].map((field) => ({
+  const fields = PRODUCT_RULE_FIELDS[product] || FALLBACK_RULE_FIELDS;
+  return fields.map((field) => ({
     value: field,
     label: ruleFieldLabel(field),
   }));
@@ -3319,6 +3329,14 @@ function UploadModal({ app, onClose, onSuccess, onError }: { app: Application, o
   );
 }
 
+const FORM_CONFIG = [
+  { id: "tipoEmpleo", type: "string", label: "Tipo de empleo", field: "applicant.employmentType" },
+  { id: "edad", type: "number", label: "Edad al termino del contrato", field: "applicant.ageAtTerm" },
+  { id: "plazo", type: "number", label: "Plazo solicitado", field: "loan.requestedTerm" },
+  { id: "montoCredito", type: "number", label: "Monto solicitado", field: "loan.requestedAmount" },
+  { id: "capacidadPago", type: "number", label: "Liquido restante (Resguardo)", field: "income.remainingLiquid" }
+];
+
 function RuleModal({
   open,
   onClose,
@@ -3326,7 +3344,9 @@ function RuleModal({
   availableFields,
   isEditing,
   products,
+  productDetails,
   onSave,
+  initialBulkRules,
 }: {
   open: boolean;
   onClose: () => void;
@@ -3334,12 +3354,83 @@ function RuleModal({
   availableFields: { value: string; label: string }[];
   isEditing: boolean;
   products: readonly RuleProduct[];
+  productDetails?: any[];
+  initialBulkRules?: CreditRuleRow[];
   onSave: (form: RuleFormState, duplicateToProduct?: RuleProduct) => void;
 }) {
+  const isDemoOrg = getStoredOrganization()?.id === "demo-bypass-org";
   const [form, setForm] = useState<RuleFormState>(() => initial);
+
+  const selectedProductDetail = productDetails?.find(p => p.financialProduct === form.product);
+  const contractType = selectedProductDetail?.contractType || selectedProductDetail?.contract_type || "No definido";
+
+  const dynamicFormConfig = useMemo(() => {
+    if (selectedProductDetail) {
+      const raw = selectedProductDetail.form_config || selectedProductDetail.formConfig;
+      if (typeof raw === "string") {
+        try { return JSON.parse(raw); } catch (e) { console.error("Error parsing form_config", e); }
+      } else if (Array.isArray(raw)) {
+        return raw;
+      }
+    }
+    return FORM_CONFIG;
+  }, [selectedProductDetail]);
+  
+  // State for bulk fields
+  const [bulkFields, setBulkFields] = useState<Record<string, { enabled: boolean, operator: RuleOperator, value: string, type: RuleDataType }>>(() => {
+    const initialBulk: any = {};
+    dynamicFormConfig.forEach((c: any) => {
+      const fieldKey = c.id || c.field;
+      
+      let existingRule: any;
+      if (!isDemoOrg && initialBulkRules?.length) {
+        existingRule = initialBulkRules[0].conditions?.find((cond: any) => cond.field === fieldKey);
+      } else {
+        existingRule = initialBulkRules?.find(r => r.fieldEvaluated === fieldKey);
+      }
+      
+      if (existingRule) {
+        const val = existingRule.value !== undefined ? existingRule.value : existingRule.thresholdValue;
+        const op = existingRule.operator === "eq" ? "equals" : existingRule.operator;
+        initialBulk[fieldKey] = { enabled: true, operator: op || (c.type === "number" ? "gte" : "equals"), value: val || "", type: c.type as RuleDataType };
+      } else if (!initialBulkRules || initialBulkRules.length === 0) {
+        if (initial.field === fieldKey) {
+          initialBulk[fieldKey] = { enabled: true, operator: initial.operator || (c.type === "number" ? "gte" : "equals"), value: initial.value || "", type: c.type as RuleDataType };
+        } else {
+          initialBulk[fieldKey] = { enabled: false, operator: c.type === "number" ? "gte" : "equals", value: "", type: c.type as RuleDataType };
+        }
+      } else {
+        initialBulk[fieldKey] = { enabled: false, operator: c.type === "number" ? "gte" : "equals", value: "", type: c.type as RuleDataType };
+      }
+    });
+    return initialBulk;
+  });
+
+  useEffect(() => {
+    const newBulk: any = {};
+    dynamicFormConfig.forEach((c: any) => {
+      const fieldKey = c.id || c.field;
+      
+      let existingRule: any;
+      if (!isDemoOrg && initialBulkRules?.length) {
+        existingRule = initialBulkRules[0].conditions?.find((cond: any) => cond.field === fieldKey);
+      } else {
+        existingRule = initialBulkRules?.find(r => r.fieldEvaluated === fieldKey);
+      }
+      
+      if (existingRule) {
+        const val = existingRule.value !== undefined ? existingRule.value : existingRule.thresholdValue;
+        const op = existingRule.operator === "eq" ? "equals" : existingRule.operator;
+        newBulk[fieldKey] = { enabled: true, operator: op || (c.type === "number" ? "gte" : "equals"), value: val || "", type: c.type as RuleDataType };
+      } else {
+        newBulk[fieldKey] = { enabled: false, operator: c.type === "number" ? "gte" : "equals", value: "", type: c.type as RuleDataType };
+      }
+    });
+    setBulkFields(newBulk);
+  }, [dynamicFormConfig, initialBulkRules, isDemoOrg]);
   const [duplicateToProduct, setDuplicateToProduct] = useState<"" | RuleProduct>("");
   const duplicateOptions = products.filter(
-    (product) => product !== form.product && PRODUCT_RULE_FIELDS[product].includes(form.field),
+    (product) => product !== form.product && (PRODUCT_RULE_FIELDS[product] || FALLBACK_RULE_FIELDS).includes(form.field),
   ) as RuleProduct[];
   const isBandMode = form.evaluationMode === "bands";
 
@@ -3351,7 +3442,7 @@ function RuleModal({
         <header className="mdc-modal-head">
           <div>
             <p>Regla de credito</p>
-            <h3>{initial.name ? "Editar regla" : "Nueva regla"}</h3>
+            <h3>{isEditing ? "Editar regla" : "Nueva regla"}</h3>
           </div>
           <button type="button" className="mdc-icon-btn" onClick={onClose}>×</button>
         </header>
@@ -3362,7 +3453,19 @@ function RuleModal({
           </label>
           <label>
             <span>Producto</span>
-            <input value={form.product} disabled />
+            <select value={form.product} onChange={(e) => setForm((s) => ({ ...s, product: e.target.value as RuleProduct }))}>
+              {products.length > 0 ? (
+                products.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))
+              ) : (
+                <option value="" disabled>No hay productos disponibles</option>
+              )}
+            </select>
+          </label>
+          <label>
+            <span>Tipo de credito / contrato</span>
+            <input value={contractType} disabled style={{ backgroundColor: '#e2e8f0', color: '#64748b', cursor: 'not-allowed' }} />
           </label>
           {isEditing && (
             <label>
@@ -3375,81 +3478,274 @@ function RuleModal({
               </select>
             </label>
           )}
-          <label>
-            <span>Campo</span>
-            <select value={form.field} onChange={(e) => setForm((s) => ({ ...s, field: e.target.value }))}>
-              <option value="">Selecciona variable</option>
-              {availableFields.map((field) => (
-                <option key={field.value} value={field.value}>{field.label}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>Modo de evaluacion</span>
-            <select
-              value={form.evaluationMode}
-              onChange={(e) =>
-                setForm((s) => ({
-                  ...s,
-                  evaluationMode: e.target.value as "single" | "bands",
-                }))
-              }
-            >
-              <option value="single">Umbral unico</option>
-              <option value="bands">Por bandas</option>
-            </select>
-          </label>
-          {isBandMode ? (
+
+          {isDemoOrg ? (
             <>
               <label>
-                <span>Aprobacion desde</span>
-                <input value={form.approveMin} onChange={(e) => setForm((s) => ({ ...s, approveMin: e.target.value }))} type="number" step="0.01" />
-              </label>
-              <label>
-                <span>Aprobacion hasta</span>
-                <input value={form.approveMax} onChange={(e) => setForm((s) => ({ ...s, approveMax: e.target.value }))} type="number" step="0.01" />
-              </label>
-              <label>
-                <span>Revision desde</span>
-                <input value={form.reviewMin} onChange={(e) => setForm((s) => ({ ...s, reviewMin: e.target.value }))} type="number" step="0.01" />
-              </label>
-              <label>
-                <span>Revision hasta</span>
-                <input value={form.reviewMax} onChange={(e) => setForm((s) => ({ ...s, reviewMax: e.target.value }))} type="number" step="0.01" />
-              </label>
-              <label>
-                <span>Rechazo desde</span>
-                <input value={form.rejectMin} onChange={(e) => setForm((s) => ({ ...s, rejectMin: e.target.value }))} type="number" step="0.01" />
-              </label>
-              <label>
-                <span>Rechazo hasta</span>
-                <input value={form.rejectMax} onChange={(e) => setForm((s) => ({ ...s, rejectMax: e.target.value }))} type="number" step="0.01" />
-              </label>
-            </>
-          ) : (
-            <>
-              <label>
-                <span>Operador</span>
-                <select value={form.operator} onChange={(e) => setForm((s) => ({ ...s, operator: e.target.value as RuleOperator }))}>
-                  {RULE_OPERATORS.map((operator) => (
-                    <option key={operator} value={operator}>{RULE_OPERATOR_LABELS[operator]}</option>
+                <span>Campo</span>
+                <select
+                  value={form.field}
+                  onChange={(e) => {
+                    const newField = e.target.value;
+                    setForm((s) => {
+                      const isStringField = ["applicant.employmentType", "company.taxComplianceStatus"].includes(newField);
+                      const isBooleanField = ["payroll.directDeposit"].includes(newField);
+                      
+                      let newType = s.type;
+                      let newOperator = s.operator;
+                      
+                      if (isStringField) {
+                        newType = "string";
+                        if (!["equals", "notEquals", "contains"].includes(newOperator)) {
+                          newOperator = "equals";
+                        }
+                      } else if (isBooleanField) {
+                        newType = "boolean";
+                        if (!["equals", "notEquals"].includes(newOperator)) {
+                          newOperator = "equals";
+                        }
+                      } else {
+                        newType = "number";
+                        if (newField === "loan.requestedAmount") {
+                          newOperator = "between";
+                        } else if (newField === "loan.requestedTerm" || newField === "applicant.ageAtTerm") {
+                          newOperator = "lte";
+                        } else if (newField === "income.remainingLiquid") {
+                          newOperator = "gte";
+                        } else if (["string", "boolean"].includes(s.type)) {
+                          newOperator = "gte";
+                        }
+                      }
+
+                      return {
+                        ...s,
+                        field: newField,
+                        type: newType,
+                        operator: newOperator,
+                      };
+                    });
+                  }}
+                >
+                  <option value="">Selecciona variable</option>
+                  {availableFields.map((field) => (
+                    <option key={field.value} value={field.value}>{field.label}</option>
                   ))}
                 </select>
               </label>
               <label>
-                <span>Valor</span>
-                <input value={form.value} onChange={(e) => setForm((s) => ({ ...s, value: e.target.value }))} />
+                <span>Modo de evaluacion</span>
+                <select
+                  value={form.evaluationMode}
+                  onChange={(e) =>
+                    setForm((s) => ({
+                      ...s,
+                      evaluationMode: e.target.value as "single" | "bands",
+                    }))
+                  }
+                >
+                  <option value="single">Umbral unico</option>
+                  <option value="bands">Por bandas</option>
+                </select>
               </label>
+              {isBandMode ? (
+                <>
+                  <label>
+                    <span>Aprobacion desde</span>
+                    <input value={form.approveMin} onChange={(e) => setForm((s) => ({ ...s, approveMin: e.target.value }))} type="number" step="0.01" />
+                  </label>
+                  <label>
+                    <span>Aprobacion hasta</span>
+                    <input value={form.approveMax} onChange={(e) => setForm((s) => ({ ...s, approveMax: e.target.value }))} type="number" step="0.01" />
+                  </label>
+                  <label>
+                    <span>Revision desde</span>
+                    <input value={form.reviewMin} onChange={(e) => setForm((s) => ({ ...s, reviewMin: e.target.value }))} type="number" step="0.01" />
+                  </label>
+                  <label>
+                    <span>Revision hasta</span>
+                    <input value={form.reviewMax} onChange={(e) => setForm((s) => ({ ...s, reviewMax: e.target.value }))} type="number" step="0.01" />
+                  </label>
+                  <label>
+                    <span>Rechazo desde</span>
+                    <input value={form.rejectMin} onChange={(e) => setForm((s) => ({ ...s, rejectMin: e.target.value }))} type="number" step="0.01" />
+                  </label>
+                  <label>
+                    <span>Rechazo hasta</span>
+                    <input value={form.rejectMax} onChange={(e) => setForm((s) => ({ ...s, rejectMax: e.target.value }))} type="number" step="0.01" />
+                  </label>
+                </>
+              ) : (
+                <>
+                  <label>
+                    <span>Operador</span>
+                    <select value={form.operator} onChange={(e) => setForm((s) => ({ ...s, operator: e.target.value as RuleOperator }))}>
+                      {RULE_OPERATORS.map((operator) => (
+                        <option key={operator} value={operator}>{RULE_OPERATOR_LABELS[operator]}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Valor</span>
+                    {form.field === "applicant.employmentType" ? (
+                      <select value={form.value} onChange={(e) => setForm((s) => ({ ...s, value: e.target.value }))}>
+                        <option value="">Seleccione una opcion...</option>
+                        <option value="Jubilado Sindicalizado">Jubilado Sindicalizado</option>
+                        <option value="Jubilado Confianza">Jubilado Confianza</option>
+                      </select>
+                    ) : form.type === "number" ? (
+                      <input type="number" min="0" step="any" value={form.value} onChange={(e) => setForm((s) => ({ ...s, value: e.target.value }))} placeholder="Ingrese un numero" />
+                    ) : (
+                      <input type="text" value={form.value} onChange={(e) => setForm((s) => ({ ...s, value: e.target.value }))} placeholder="Ingrese un valor" />
+                    )}
+                  </label>
+                </>
+              )}
             </>
+          ) : (
+            dynamicFormConfig.map((config: any) => {
+            const fieldKey = config.id || config.field;
+            const state = bulkFields[fieldKey];
+            if (!state) return null;
+            
+            return (
+              <div
+                key={fieldKey}
+                className="mdc-form-grid__full"
+                style={{
+                  border: state.enabled ? "1.5px solid var(--mdc-primary, #2563eb)" : "1.5px solid #e2e8f0",
+                  borderRadius: "10px",
+                  background: state.enabled ? "linear-gradient(135deg, #eff6ff 0%, #f8faff 100%)" : "#f8fafc",
+                  transition: "all 0.2s ease",
+                  overflow: "hidden",
+                  marginBottom: "2px",
+                }}
+              >
+                {/* Header row: toggle button + label */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    padding: "12px 16px",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => setBulkFields(prev => ({ ...prev, [fieldKey]: { ...prev[fieldKey], enabled: !prev[fieldKey].enabled } }))}
+                >
+                  {/* Toggle pill */}
+                  <div
+                    style={{
+                      width: "40px",
+                      height: "22px",
+                      borderRadius: "11px",
+                      background: state.enabled ? "var(--mdc-primary, #2563eb)" : "#cbd5e1",
+                      position: "relative",
+                      transition: "background 0.2s ease",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: "16px",
+                        height: "16px",
+                        borderRadius: "50%",
+                        background: "#fff",
+                        position: "absolute",
+                        top: "3px",
+                        left: state.enabled ? "21px" : "3px",
+                        transition: "left 0.2s ease",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                      }}
+                    />
+                  </div>
+                  <span
+                    style={{
+                      fontWeight: 600,
+                      fontSize: "0.875rem",
+                      color: state.enabled ? "var(--mdc-primary, #2563eb)" : "#64748b",
+                      transition: "color 0.2s ease",
+                    }}
+                  >
+                    {config.label}
+                  </span>
+                  {state.enabled && (
+                    <span
+                      style={{
+                        marginLeft: "auto",
+                        fontSize: "0.7rem",
+                        fontWeight: 600,
+                        background: "var(--mdc-primary, #2563eb)",
+                        color: "#fff",
+                        borderRadius: "20px",
+                        padding: "2px 10px",
+                        letterSpacing: "0.04em",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Habilitado
+                    </span>
+                  )}
+                </div>
+
+                {/* Expanded inputs when enabled */}
+                {state.enabled && (
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "12px",
+                      padding: "0 16px 16px 16px",
+                      borderTop: "1px solid #dbeafe",
+                    }}
+                  >
+                    <label>
+                      <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Operador</span>
+                      <select
+                        value={state.operator}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => setBulkFields(prev => ({ ...prev, [fieldKey]: { ...prev[fieldKey], operator: e.target.value as RuleOperator } }))}
+                      >
+                        {(config.type === "number" ? RULE_OPERATORS : ["equals", "notEquals"] as RuleOperator[]).map((op) => (
+                          <option key={op} value={op}>{RULE_OPERATOR_LABELS[op]}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Valor</span>
+                      {config.type === "number" ? (
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          value={state.value}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => setBulkFields(prev => ({ ...prev, [fieldKey]: { ...prev[fieldKey], value: e.target.value } }))}
+                          placeholder="Ingrese un número"
+                        />
+                      ) : (
+                        <select
+                          value={state.value}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => setBulkFields(prev => ({ ...prev, [fieldKey]: { ...prev[fieldKey], value: e.target.value } }))}
+                        >
+                          <option value="">Seleccione...</option>
+                          {config.options ? config.options.map((opt: string) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          )) : (
+                            <>
+                              <option value="Jubilado Sindicalizado">Jubilado Sindicalizado</option>
+                              <option value="Jubilado Confianza">Jubilado Confianza</option>
+                            </>
+                          )}
+                        </select>
+                      )}
+                    </label>
+                  </div>
+                )}
+              </div>
+            );
+          })
           )}
-          <label>
-            <span>Tipo</span>
-            <select value={form.dataType} onChange={(e) => setForm((s) => ({ ...s, dataType: e.target.value as RuleDataType }))}>
-              {RULE_TYPES.map((type) => (
-                <option key={type} value={type}>{RULE_TYPE_LABELS[type]}</option>
-              ))}
-            </select>
-          </label>
+
           {isBandMode ? (
             <label>
               <span>Severidad base</span>
@@ -3487,11 +3783,34 @@ function RuleModal({
             type="button"
             className="mdc-btn mdc-btn--primary"
             onClick={() => {
-              onSave(form, duplicateToProduct || undefined);
+              if (isDemoOrg) {
+                onSave(form, duplicateToProduct || undefined);
+                onClose();
+                return;
+              }
+              
+              const conditions: any[] = [];
+              Object.entries(bulkFields).forEach(([fieldId, state]) => {
+                if (state.enabled && state.value !== "") {
+                  const config = dynamicFormConfig.find((c: any) => (c.id || c.field) === fieldId);
+                  conditions.push({
+                    field: fieldId,
+                    operator: state.operator === "equals" ? "eq" : state.operator,
+                    value: state.value,
+                    dataType: state.type,
+                  });
+                }
+              });
+
+              onSave({
+                ...form,
+                conditions,
+              }, duplicateToProduct || undefined);
+              
               onClose();
             }}
           >
-            Guardar
+            {isEditing ? "Actualizar" : "Guardar"}
           </button>
         </footer>
       </div>
@@ -3505,7 +3824,39 @@ export function MdcScreen() {
   const creditStore = useCreditDemoStore();
   const [applicantMode, setApplicantMode] = useState<MdcApplicantMode>("natural");
   const [activeTab, setActiveTab] = useState<MdcTab>("overview");
-  const activeProducts = useMemo(() => CREDIT_PRODUCTS_BY_MODE[applicantMode] as readonly RuleProduct[], [applicantMode]);
+  const [activeProducts, setActiveProducts] = useState<readonly RuleProduct[]>(() => {
+    return [] as readonly RuleProduct[];
+  });
+  const [productDetails, setProductDetails] = useState<any[]>([]);
+
+  useEffect(() => {
+    const org = getStoredOrganization();
+    const orgId = org?.id || "ORG-001";
+    if (orgId === "demo-bypass-org") {
+       setActiveProducts(["Credito automotriz"] as readonly RuleProduct[]);
+       setProductDetails([{ financialProduct: "Credito automotriz", contractType: "N/A" }]);
+       return;
+    }
+    
+    // Using the same URL logic as RequestsTab (no orgId filter) to ensure products load
+    fetch(process.env.NEXT_PUBLIC_MDC_API_URL ? `${process.env.NEXT_PUBLIC_MDC_API_URL}/finance-products` : `http://127.0.0.1:3000/finance-products`)
+      .then(res => res.json())
+      .then(data => {
+         if (Array.isArray(data) && data.length > 0) {
+            setProductDetails(data);
+            setActiveProducts(data.map(d => d.financialProduct) as readonly RuleProduct[]);
+         } else {
+            setProductDetails([]);
+            setActiveProducts([] as readonly RuleProduct[]);
+         }
+      })
+      .catch(err => {
+         console.error("Error fetching rules products", err);
+         setProductDetails([]);
+         setActiveProducts([] as readonly RuleProduct[]);
+      });
+  }, [applicantMode]);
+
   const activeStorageKeys = MODE_STORAGE_KEYS[applicantMode];
   const defaultApplications = useMemo(() => APPLICATIONS_BY_MODE[applicantMode], [applicantMode]);
   const defaultRules = useMemo(() => [] as CreditRuleRow[], []);
@@ -3537,10 +3888,72 @@ export function MdcScreen() {
   const [ruleModalState, setRuleModalState] = useState<RuleFormState>(defaultRuleForm(CREDIT_PRODUCTS_BY_MODE.natural as readonly RuleProduct[]));
   const [ruleProductFilter, setRuleProductFilter] = useState<RuleProduct>((CREDIT_PRODUCTS_BY_MODE.natural[0] ?? NATURAL_CREDIT_PRODUCTS[0]) as RuleProduct);
   const [rangeFilter, setRangeFilter] = useState<RangePreset>("7d");
-  const normalizedRules = useMemo(
-    () => mergeRulesWithDefaults(rules, activeProducts, defaultRules),
-    [activeProducts, defaultRules, rules],
-  );
+  const normalizedRules = useMemo(() => {
+    return rules.map(rule => {
+      let finProd = "Credito simple";
+      if (Array.isArray(rule.products) && rule.products.length > 0) {
+        finProd = rule.products[0];
+      } else if (typeof rule.products === "string") {
+        try {
+          const parsed = JSON.parse(rule.products);
+          if (Array.isArray(parsed) && parsed.length > 0) finProd = parsed[0];
+          else finProd = rule.products;
+        } catch {
+          finProd = rule.products;
+        }
+      } else if ((rule as any).product) {
+        finProd = (rule as any).product;
+      }
+
+      return {
+        ...rule,
+        financialProduct: finProd,
+        fieldEvaluated: rule.field || "custom.field",
+        operator: rule.operator || "gte",
+        thresholdValue: rule.value || "0"
+      };
+    });
+  }, [rules]);
+
+  const isDemoOrg = getStoredOrganization()?.id === "demo-bypass-org";
+  
+  const filteredLegacyRules = useMemo(() => {
+    const q = ruleQuery.trim().toLowerCase();
+    let scopedRules = normalizedRules;
+    if (ruleProductFilter && ruleProductFilter !== "all") {
+      scopedRules = scopedRules.filter((rule) => rule.financialProduct === ruleProductFilter || rule.products.includes(ruleProductFilter));
+    }
+    if (!q) return scopedRules;
+    return scopedRules.filter((r) => `${r.name} ${r.fieldEvaluated} ${r.description}`.toLowerCase().includes(q));
+  }, [normalizedRules, ruleProductFilter, ruleQuery]);
+
+  const policiesByProduct = useMemo(() => {
+    const map = new Map<string, CreditRuleRow[]>();
+    activeProducts.forEach(p => map.set(p, []));
+    normalizedRules.forEach(r => {
+      if (!map.has(r.financialProduct)) map.set(r.financialProduct, []);
+      map.get(r.financialProduct)!.push(r);
+    });
+    return Array.from(map.entries()).map(([product, productRules]) => ({
+      product,
+      rules: productRules,
+      activeCount: productRules.filter(r => r.status === 'active').length,
+    }));
+  }, [normalizedRules, activeProducts]);
+
+  const filteredPolicies = policiesByProduct.filter((policy) => {
+    if (ruleProductFilter && ruleProductFilter !== "all" && policy.product !== ruleProductFilter) return false;
+    
+    if (ruleQuery) {
+      const q = ruleQuery.toLowerCase();
+      if (policy.product.toLowerCase().includes(q)) return true;
+      return policy.rules.some(r => 
+        r.name.toLowerCase().includes(q) || 
+        r.description.toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
 
   useEffect(() => {
     seedScotiaCreditStorage();
@@ -3775,13 +4188,6 @@ export function MdcScreen() {
     return filteredApps.slice(start, start + PAGE_SIZE);
   }, [filteredApps, page]);
 
-  const filteredRules = useMemo(() => {
-    const q = ruleQuery.trim().toLowerCase();
-    const scopedRules = normalizedRules.filter((rule) => rule.products.includes(ruleProductFilter));
-    if (!q) return scopedRules;
-    return scopedRules.filter((r) => `${r.name} ${r.field} ${r.description}`.toLowerCase().includes(q));
-  }, [normalizedRules, ruleProductFilter, ruleQuery]);
-
   const openKybForApplication = (application: Application, rfc?: string | null) => {
     activateKybCompanyContext(
       {
@@ -3838,6 +4244,33 @@ export function MdcScreen() {
     });
   };
 
+  const openEditPolicy = (policy: { product: string; rules: CreditRuleRow[] }) => {
+    setRuleProductFilter(policy.product as RuleProduct);
+    const baseRule = policy.rules[0];
+    
+    if (baseRule) {
+      setEditingRuleId(baseRule.id);
+      setEditingPolicyRules(policy.rules);
+      setRuleModalState(ruleToFormState(baseRule, policy.product as RuleProduct));
+    } else {
+      setEditingRuleId(null);
+      setEditingPolicyRules([]);
+      setRuleModalState({
+        ...defaultRuleForm(activeProducts),
+        product: policy.product as RuleProduct,
+      });
+    }
+    setShowRuleModal(true);
+  };
+
+  const openEditRule = (rule: CreditRuleRow) => {
+    const activeProduct = rule.products.includes(ruleProductFilter) ? ruleProductFilter : rule.products[0] ?? ruleProductFilter;
+    setRuleProductFilter(activeProduct);
+    setEditingRuleId(rule.id);
+    setRuleModalState(ruleToFormState(rule, activeProduct));
+    setShowRuleModal(true);
+  };
+
   const activeTraceability = useMemo<MdcTraceabilityEntry[]>(
     () => traceabilityLocal,
     [traceabilityLocal],
@@ -3884,21 +4317,16 @@ export function MdcScreen() {
     }
   }, [activeTab, applicantMode]);
 
+  const [editingPolicyRules, setEditingPolicyRules] = useState<CreditRuleRow[]>([]);
+  
   const openCreateRule = () => {
     setEditingRuleId(null);
+    setEditingPolicyRules([]);
     setRuleModalState({
       ...defaultRuleForm(activeProducts),
       product: ruleProductFilter,
-      field: PRODUCT_RULE_FIELDS[ruleProductFilter][0] ?? "",
+      field: (PRODUCT_RULE_FIELDS[ruleProductFilter] || FALLBACK_RULE_FIELDS)[0] ?? "",
     });
-    setShowRuleModal(true);
-  };
-
-  const openEditRule = (rule: CreditRuleRow) => {
-    const activeProduct = rule.products.includes(ruleProductFilter) ? ruleProductFilter : rule.products[0] ?? ruleProductFilter;
-    setRuleProductFilter(activeProduct);
-    setEditingRuleId(rule.id);
-    setRuleModalState(ruleToFormState(rule, activeProduct));
     setShowRuleModal(true);
   };
 
@@ -4400,6 +4828,7 @@ export function MdcScreen() {
                       value={ruleProductFilter}
                       onChange={(e) => setRuleProductFilter(e.target.value as RuleProduct)}
                     >
+                      <option value="all">Todos los productos</option>
                       {activeProducts.map((product) => (
                         <option key={product} value={product}>{product}</option>
                       ))}
@@ -4416,99 +4845,134 @@ export function MdcScreen() {
                 </div>
 
                 <div className="mdc-table-wrap">
-                  <table className="mdc-table mdc-table--rules">
-                    <thead>
-                      <tr>
-                        <th>Nombre</th>
-                        <th>Descripción</th>
-                        <th>Operador</th>
-                        <th>Valor</th>
-                        <th>Tipo</th>
-                        <th>Severidad</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredRules.length === 0 ? (
+                  {isDemoOrg ? (
+                    <table className="mdc-table mdc-table--rules">
+                      <thead>
                         <tr>
-                          <td colSpan={8} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8" }}>Sin reglas para el producto seleccionado. Haz clic en “Agregar regla” para comenzar.</td>
+                          <th>Nombre</th>
+                          <th>Descripción</th>
+                          <th>Operador</th>
+                          <th>Valor</th>
+                          <th>Tipo</th>
+                          <th>Severidad</th>
+                          <th>Estado</th>
+                          <th>Acciones</th>
                         </tr>
-                      ) : filteredRules.map((rule) => (
-                        <tr key={rule.id}>
-                          <td>{rule.name}</td>
-                          <td>{rule.description}</td>
-                          <td>{renderRuleOperator(rule)}</td>
-                          <td>{renderRuleValue(rule)}</td>
-                          <td>{RULE_TYPE_LABELS[rule.dataType]}</td>
-                          <td>{renderRuleSeverity(rule)}</td>
-                          <td>
-                            <span className={rule.status === "active" ? "mdc-badge mdc-badge--ok" : "mdc-badge mdc-badge--neutral"}>
-                              {rule.status === "active" ? "Activa" : "Inactiva"}
-                            </span>
-                          </td>
-                          <td>
-                            <details className="mdc-row-menu">
-                              <summary className="mdc-row-menu__summary-dots">...</summary>
-                              <div className="mdc-row-menu__items">
-                                <button type="button" onClick={() => openEditRule(rule)}>
-                                  Editar
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    const newStatus = rule.status === "active" ? "inactive" : "active";
-                                    const updated = await updateRule(rule.id, { status: newStatus }, getStoredOrganization()?.id || "demo-bypass-org");
-                                    if (updated) {
-                                      setRules((current) =>
-                                        current.map((item) => (item.id === rule.id ? { ...item, status: newStatus } : item)),
-                                      );
-                                      logTraceabilityAction("ACTUALIZAR", `Cambio de estado en regla "${rule.name}"`, rule.status, newStatus);
-                                    }
-                                  }}
-                                >
-                                  {rule.status === "active" ? "Desactivar" : "Activar"}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    const duplicated: Partial<CreditRuleRow> = {
-                                      ...rule,
-                                      name: `${rule.name} (copia)`,
-                                      individualPerson: applicantMode === "natural",
-                                      legalEntity: applicantMode === "moral",
-                                    } as any;
-                                    delete duplicated.id;
-                                    delete duplicated.createdAt;
-                                    const created = await createRule(duplicated, getStoredOrganization()?.id || "demo-bypass-org");
-                                    if (created) {
-                                      setRules((current) => [...current, created]);
-                                      logTraceabilityAction("DUPLICAR", `Duplicación de regla "${rule.name}"`, "N/A", `Nueva regla: ${duplicated.name}`);
-                                    }
-                                  }}
-                                >
-                                  Duplicar
-                                </button>
-                                <button
-                                  type="button"
-                                  className="mdc-row-menu__danger"
-                                  onClick={async () => {
-                                    const success = await deleteRule(rule.id, getStoredOrganization()?.id || "demo-bypass-org");
-                                    if (success) {
-                                      setRules((current) => current.filter((item) => item.id !== rule.id));
-                                      logTraceabilityAction("ELIMINAR", `Eliminación de regla "${rule.name}"`, JSON.stringify({ valor: rule.value, operador: rule.operator }), "Eliminado");
-                                    }
-                                  }}
-                                >
-                                  Eliminar
-                                </button>
-                              </div>
-                            </details>
-                          </td>
+                      </thead>
+                      <tbody>
+                        {filteredLegacyRules.length === 0 ? (
+                          <tr>
+                            <td colSpan={8} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8" }}>Sin reglas para el producto seleccionado. Haz clic en “Agregar regla” para comenzar.</td>
+                          </tr>
+                        ) : filteredLegacyRules.map((rule) => (
+                          <tr key={rule.id}>
+                            <td>{rule.name}</td>
+                            <td>{rule.description}</td>
+                            <td>{renderRuleOperator(rule)}</td>
+                            <td>{renderRuleValue(rule)}</td>
+                            <td>{RULE_TYPE_LABELS[rule.dataType]}</td>
+                            <td>{renderRuleSeverity(rule)}</td>
+                            <td>
+                              <span className={rule.status === "active" ? "mdc-badge mdc-badge--ok" : "mdc-badge mdc-badge--neutral"}>
+                                {rule.status === "active" ? "Activa" : "Inactiva"}
+                              </span>
+                            </td>
+                            <td>
+                              <details className="mdc-row-menu">
+                                <summary className="mdc-row-menu__summary-dots">...</summary>
+                                <div className="mdc-row-menu__items">
+                                  <button type="button" onClick={() => openEditRule(rule)}>
+                                    Editar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      const newStatus = rule.status === "active" ? "inactive" : "active";
+                                      const updated = await updateRule(rule.id, { status: newStatus }, getStoredOrganization()?.id || "demo-bypass-org");
+                                      if (updated) {
+                                        setRules((current) =>
+                                          current.map((item) => (item.id === rule.id ? { ...item, status: newStatus } : item)),
+                                        );
+                                        logTraceabilityAction("ACTUALIZAR", `Cambio de estado en regla "${rule.name}"`, rule.status, newStatus);
+                                      }
+                                    }}
+                                  >
+                                    {rule.status === "active" ? "Desactivar" : "Activar"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      const duplicated: Partial<CreditRuleRow> = {
+                                        ...rule,
+                                        name: `${rule.name} (copia)`,
+                                        individualPerson: applicantMode === "natural",
+                                        legalEntity: applicantMode === "moral",
+                                      } as any;
+                                      delete duplicated.id;
+                                      delete duplicated.createdAt;
+                                      const created = await createRule(duplicated, getStoredOrganization()?.id || "demo-bypass-org");
+                                      if (created) {
+                                        setRules((current) => [...current, created]);
+                                        logTraceabilityAction("DUPLICAR", `Duplicación de regla "${rule.name}"`, "N/A", `Nueva regla: ${duplicated.name}`);
+                                      }
+                                    }}
+                                  >
+                                    Duplicar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="mdc-row-menu__danger"
+                                    onClick={async () => {
+                                      const success = await deleteRule(rule.id, getStoredOrganization()?.id || "demo-bypass-org");
+                                      if (success) {
+                                        setRules((current) => current.filter((item) => item.id !== rule.id));
+                                        logTraceabilityAction("ELIMINAR", `Eliminación de regla "${rule.name}"`, JSON.stringify({ valor: rule.value, operador: rule.operator }), "Eliminado");
+                                      }
+                                    }}
+                                  >
+                                    Eliminar
+                                  </button>
+                                </div>
+                              </details>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <table className="mdc-table mdc-table--rules">
+                      <thead>
+                        <tr>
+                          <th>Producto Financiero</th>
+                          <th>Campos configurados</th>
+                          <th>Estado de la política</th>
+                          <th>Acciones</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {filteredPolicies.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8" }}>No hay productos disponibles o reglas configuradas.</td>
+                          </tr>
+                        ) : filteredPolicies.map((policy) => (
+                          <tr key={policy.product}>
+                            <td className="font-semibold text-slate-800">{policy.product}</td>
+                            <td>{policy.rules.length} campos</td>
+                            <td>
+                              <span className={policy.activeCount > 0 ? "mdc-badge mdc-badge--ok" : "mdc-badge mdc-badge--neutral"}>
+                                {policy.activeCount > 0 ? "Activa" : "Sin configurar"}
+                              </span>
+                            </td>
+                            <td>
+                              <button type="button" className="mdc-btn mdc-btn--ghost mdc-btn--sm" onClick={() => openEditPolicy(policy)}>
+                                Configurar Política
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
               </article>
             </section>
@@ -4688,18 +5152,21 @@ export function MdcScreen() {
       )}
 
       <RuleModal
-        key={`${editingRuleId ?? "new"}-${showRuleModal ? "open" : "closed"}`}
+        key={`${editingPolicyRules.length ? "edit" : "new"}-${showRuleModal ? "open" : "closed"}`}
         open={showRuleModal}
         onClose={() => setShowRuleModal(false)}
         initial={ruleModalState}
+        initialBulkRules={editingPolicyRules}
         availableFields={ruleFieldOptions}
         isEditing={Boolean(editingRuleId)}
         products={activeProducts}
+        productDetails={productDetails}
         onSave={async (form, duplicateToProduct) => {
+          const isDemoOrg = getStoredOrganization()?.id === "demo-bypass-org";
           const decisionBands = buildDecisionBands(form);
           const updatedRule: any = {
             name: form.name || "Nueva regla",
-            products: [form.product] as RuleProduct[],
+            products: form.product ? [form.product] : [],
             field: form.field || "custom.field",
             operator: form.operator,
             value: form.evaluationMode === "bands" ? "" : form.value || "0",
@@ -4712,6 +5179,10 @@ export function MdcScreen() {
             legalEntity: applicantMode === "moral",
           };
 
+          if (!isDemoOrg && form.conditions) {
+            updatedRule.conditions = form.conditions;
+          }
+
           if (editingRuleId) {
             const ruleBefore = normalizedRules.find(r => r.id === editingRuleId);
             const saved = await updateRule(editingRuleId, updatedRule, getStoredOrganization()?.id || "demo-bypass-org");
@@ -4721,7 +5192,7 @@ export function MdcScreen() {
               );
               logTraceabilityAction("ACTUALIZAR", `Modificación de regla "${updatedRule.name}"`, ruleBefore ? `Valor: ${ruleBefore.value}, Operador: ${ruleBefore.operator}` : "Desconocido", `Valor: ${updatedRule.value}, Operador: ${updatedRule.operator}`);
             }
-            if (duplicateToProduct && PRODUCT_RULE_FIELDS[duplicateToProduct]?.includes(form.field)) {
+            if (duplicateToProduct && (PRODUCT_RULE_FIELDS[duplicateToProduct] || FALLBACK_RULE_FIELDS).includes(form.field)) {
               const dupRule = { ...updatedRule, products: [duplicateToProduct] };
               const createdDup = await createRule(dupRule, getStoredOrganization()?.id || "demo-bypass-org");
               if (createdDup) {

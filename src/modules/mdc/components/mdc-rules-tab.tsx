@@ -3,7 +3,7 @@
 import { Plus, MoreHorizontal, X, Search, ChevronDown, Pencil } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { naturalCreditRulesMock, type CreditRuleRow, type RuleOperator, type RuleDataType, type RuleSeverity } from "@/modules/mdc/data/mdc-rules-mock";
-import { fetchRules, createRule, updateRule, deleteRule } from "@/modules/mdc/services/mdc-rules.service";
+import { fetchRules, createRule, updateRule, deleteRule, fetchFinanceProducts } from "@/modules/mdc/services/mdc-rules.service";
 import { getStoredOrganization } from "@/lib/auth-api";
 
 // Helper functions for formatting
@@ -47,9 +47,11 @@ export function MdcRulesTab({ mode }: { mode: "natural" | "moral" }) {
     load();
   }, [mode]);
 
+  const orgId = getStoredOrganization()?.id || "demo-bypass-org";
+
   const [newRule, setNewRule] = useState<Partial<CreditRuleRow>>({
     name: "",
-    products: ["Credito automotriz"],
+    products: [],
     field: "Edad del solicitante",
     evaluationMode: "single",
     operator: "gte",
@@ -60,8 +62,28 @@ export function MdcRulesTab({ mode }: { mode: "natural" | "moral" }) {
     status: "active",
   });
 
+  const [availableProducts, setAvailableProducts] = useState<{id: string, financialProduct: string}[]>([]);
+
+  useEffect(() => {
+    async function loadProducts() {
+      try {
+        const products = await fetchFinanceProducts(orgId);
+        if (Array.isArray(products)) {
+          setAvailableProducts(products);
+          if (products.length > 0) {
+            setActiveProduct(products[0].financialProduct);
+            setNewRule(prev => ({ ...prev, products: [products[0].financialProduct] }));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load products", err);
+      }
+    }
+    loadProducts();
+  }, [mode]);
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeProduct, setActiveProduct] = useState("Credito automotriz");
+  const [activeProduct, setActiveProduct] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
 
@@ -87,7 +109,7 @@ export function MdcRulesTab({ mode }: { mode: "natural" | "moral" }) {
             setEditingRuleId(null);
             setNewRule({
               name: "",
-              products: ["Credito automotriz"],
+              products: orgId === "demo-bypass-org" ? ["Credito automotriz"] : (availableProducts.length > 0 ? [availableProducts[0].financialProduct] : []),
               field: "Edad del solicitante",
               evaluationMode: "single",
               operator: "gte",
@@ -112,8 +134,15 @@ export function MdcRulesTab({ mode }: { mode: "natural" | "moral" }) {
                 value={activeProduct}
                 onChange={(e) => setActiveProduct(e.target.value)}
               >
-                <option value="Credito automotriz">Credito automotriz</option>
-                <option value="Credito personal">Credito personal</option>
+                {orgId === "demo-bypass-org" ? (
+                  <option value="Credito automotriz">Credito automotriz</option>
+                ) : availableProducts.length > 0 ? (
+                  availableProducts.map(p => (
+                    <option key={p.id} value={p.financialProduct}>{p.financialProduct}</option>
+                  ))
+                ) : (
+                  <option value="" disabled>No hay productos disponibles</option>
+                )}
               </select>
               <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
             </div>
@@ -270,9 +299,20 @@ export function MdcRulesTab({ mode }: { mode: "natural" | "moral" }) {
                 <div>
                   <label className="block text-sm font-medium text-slate-600 mb-1.5">Producto</label>
                   <div className="relative">
-                    <select value={newRule.products?.[0]} onChange={e => setNewRule({...newRule, products: [e.target.value as any]})} className="w-full h-10 px-3 border border-slate-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <option value="Credito automotriz">Credito automotriz</option>
-                      <option value="Credito personal">Credito personal</option>
+                    <select 
+                      value={newRule.products?.[0] || ""} 
+                      onChange={e => setNewRule({...newRule, products: [e.target.value as any]})} 
+                      className="w-full h-10 px-3 border border-slate-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {orgId === "demo-bypass-org" ? (
+                        <option value="Credito automotriz">Credito automotriz</option>
+                      ) : availableProducts.length > 0 ? (
+                        availableProducts.map(p => (
+                          <option key={p.id} value={p.financialProduct}>{p.financialProduct}</option>
+                        ))
+                      ) : (
+                        <option value="" disabled>No hay productos disponibles</option>
+                      )}
                     </select>
                     <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
                   </div>
@@ -285,6 +325,12 @@ export function MdcRulesTab({ mode }: { mode: "natural" | "moral" }) {
                   <div className="relative">
                     <select value={newRule.field} onChange={e => setNewRule({...newRule, field: e.target.value})} className="w-full h-10 px-3 border border-slate-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                       <option value="Edad del solicitante">Edad del solicitante</option>
+                      <option value="Edad al término del contrato">Edad al término del contrato</option>
+                      <option value="Plazo solicitado">Plazo solicitado</option>
+                      <option value="Monto solicitado">Monto solicitado</option>
+                      <option value="Ingreso líquido promedio">Ingreso líquido promedio</option>
+                      <option value="Líquido restante (Resguardo)">Líquido restante (Resguardo)</option>
+                      <option value="Tipo de empleo">Tipo de empleo</option>
                       <option value="Score crediticio">Score crediticio</option>
                       <option value="Relacion deuda / ingreso (DTI)">Relacion deuda / ingreso (DTI)</option>
                     </select>
@@ -379,7 +425,7 @@ export function MdcRulesTab({ mode }: { mode: "natural" | "moral" }) {
                 onClick={async () => {
                   const payload = {
                     ...newRule, 
-                    products: newRule.products || ["Credito automotriz"], 
+                    products: newRule.products?.length ? newRule.products : orgId === "demo-bypass-org" ? ["Credito automotriz"] : availableProducts.length > 0 ? [availableProducts[0].financialProduct] : [], 
                     individualPerson: mode === "natural",
                     legalEntity: mode === "moral"
                   } as any;
