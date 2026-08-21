@@ -51,6 +51,7 @@ import { activateKybCompanyContext } from "@/modules/kyb/lib/kyb-company-context
 import "@/components/ui/templates/workspace-page.css";
 import "@/modules/cortex/components/credit-quote-result-panel.css";
 import "./mdc-screen.css";
+import { FinancialDocumentUploader } from "@/components/upload/FinancialDocumentUploader";
 
 type MdcTab = "overview" | "products" | "applications" | "rules" | "traceability" | "payments" | "collections" | "reports" | "configuration";
 
@@ -3258,64 +3259,15 @@ function AddApplicationModal({
 }
 
 function UploadModal({ app, onClose, onSuccess, onError }: { app: Application, onClose: () => void, onSuccess: (msg: string) => void, onError: (msg: string) => void }) {
-  const [file, setFile] = useState<File | null>(null);
-  const [loading, setLoading] = useState(false);
-
+  const applicantId = app.applicantId && app.applicantId !== "N/A" ? app.applicantId : app.id;
+  
   return (
-    <div className="mdc-modal-backdrop" onClick={onClose}>
-      <div className="mdc-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 500 }}>
-        <header className="mdc-modal-head">
-          <h3>Subir Documentos</h3>
-          <button className="mdc-icon-btn" onClick={onClose} disabled={loading}>×</button>
-        </header>
-        <div style={{ padding: "20px" }}>
-          <p style={{ marginBottom: "16px" }}>Selecciona el documento (PDF, JPEG, PNG) para la solicitud <strong>{app.appNo}</strong>.</p>
-          <input
-            type="file"
-            accept="application/pdf,image/jpeg,image/png"
-            onChange={(e) => {
-              if (e.target.files && e.target.files.length > 0) {
-                setFile(e.target.files[0]);
-              }
-            }}
-            style={{ width: "100%", padding: "8px", border: "1px solid var(--border-subtle)", borderRadius: "6px" }}
-            disabled={loading}
-          />
-          {file && (
-            <p style={{ marginTop: "12px", fontSize: "14px", color: "var(--color-text-secondary)" }}>
-              Archivo seleccionado: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
-            </p>
-          )}
-        </div>
-        <footer className="mdc-modal-actions">
-          <button className="mdc-btn mdc-btn--ghost" onClick={onClose} disabled={loading}>Cancelar</button>
-          <button
-            className="mdc-btn mdc-btn--primary"
-            disabled={!file || loading}
-            onClick={async () => {
-              if (!file) return;
-              if (file.size > 10 * 1024 * 1024) {
-                onError("El archivo excede el tamaño máximo permitido (10MB)");
-                return;
-              }
-              setLoading(true);
-              try {
-                // Ensure applicantId exists. The backend expects it to map to userId.
-                const applicantId = app.applicantId && app.applicantId !== "N/A" ? app.applicantId : "unknown-user";
-                const res = await uploadFinancialDocument(app.id, applicantId, file);
-                onSuccess(res.notification || "Documento subido y enviado a análisis exitosamente.");
-              } catch (e: any) {
-                onError(e.message || "Error al subir el documento.");
-              } finally {
-                setLoading(false);
-              }
-            }}
-          >
-            {loading ? "Subiendo..." : "Subir y Analizar"}
-          </button>
-        </footer>
-      </div>
-    </div>
+    <FinancialDocumentUploader 
+      userId={applicantId}
+      onClose={() => {
+        onClose();
+      }}
+    />
   );
 }
 
@@ -4629,7 +4581,7 @@ export function MdcScreen() {
             const next: Application = {
               id: item.id,
               appNo: `APP-${item.id.split("-")[0].toUpperCase()}`,
-              applicantId: item.user?.id || 'N/A',
+              applicantId: item.orgId || 'N/A',
               applicantName: applicantMode === "moral" ? (firstName.trim() || email) : `${firstName} ${lastName}`.trim() || email,
               applicantEmail: email,
               product,

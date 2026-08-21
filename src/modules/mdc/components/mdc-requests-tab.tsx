@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Eye, Settings2, X } from "lucide-react";
 import { MDC_REQUESTS, type MdcRequest } from "@/modules/mdc/data/mdc-requests-mock";
 import { getStoredOrganization } from "@/lib/auth-api";
+import { FinancialDocumentUploader } from "@/components/upload/FinancialDocumentUploader";
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(value);
@@ -127,6 +128,15 @@ export function MdcRequestsTab() {
   const [riskFilter, setRiskFilter] = useState("Todos");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [requests, setRequests] = useState<MdcRequest[]>(MDC_REQUESTS);
+  
+  const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
+  const [uploadUserId, setUploadUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleClick = () => setActiveDropdownId(null);
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, []);
 
   useEffect(() => {
     const fetchRequests = async () => {
@@ -283,13 +293,40 @@ export function MdcRequestsTab() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-gray-500 text-xs text-right font-medium">{req.date}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex justify-center items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md border border-transparent hover:border-blue-100 transition-all">
+                    <div className="flex justify-center items-center gap-1.5 relative">
+                      <button className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md border border-transparent hover:border-blue-100 transition-all opacity-0 group-hover:opacity-100">
                         <Eye size={16} />
                       </button>
-                      <button className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md border border-transparent hover:border-gray-200 transition-all">
+                      <button 
+                        className={`p-1.5 rounded-md border transition-all ${activeDropdownId === req.id ? 'text-gray-700 bg-gray-100 border-gray-200' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100 border-transparent hover:border-gray-200 opacity-0 group-hover:opacity-100'}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveDropdownId(activeDropdownId === req.id ? null : req.id);
+                        }}
+                      >
                         <Settings2 size={16} />
                       </button>
+                      
+                      {activeDropdownId === req.id && (
+                        <div 
+                          className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-100 rounded-lg shadow-lg z-20 py-1"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button className="w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 transition-colors">Ejecutar evaluacion</button>
+                          <button className="w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 transition-colors">Reenviar onboarding</button>
+                          <button 
+                            className="w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
+                            onClick={() => {
+                              setUploadUserId(req.id);
+                              setActiveDropdownId(null);
+                            }}
+                          >
+                            Subir documentos
+                          </button>
+                          <button className="w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 transition-colors">Ver flujo</button>
+                          <button className="w-full text-left px-4 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors">Eliminar</button>
+                        </div>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -299,6 +336,13 @@ export function MdcRequestsTab() {
         </div>
       </div>
       {isModalOpen && <CreateRequestModal onClose={() => setIsModalOpen(false)} />}
+      
+      {uploadUserId && (
+        <FinancialDocumentUploader 
+          userId={uploadUserId} 
+          onClose={() => setUploadUserId(null)} 
+        />
+      )}
     </section>
   );
 }
