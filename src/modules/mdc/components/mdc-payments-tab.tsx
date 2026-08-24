@@ -13,6 +13,7 @@ type Installment = {
   status: "pendiente" | "pagado" | "vencido" | "parcial" | "fallido" | "cancelado";
   amount: number;
   dueDate: string;
+  amountPaid?: number;
 };
 
 type RangePreset = "7d" | "30d" | "90d";
@@ -139,6 +140,11 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
   const activeRange = range ?? internalRange;
   const rangeDays = RANGE_DAYS[activeRange];
 
+  const hydratedSessions = useMemo(
+    () => sessions.map((session) => hydratePaymentSession(session, mode)),
+    [mode, sessions],
+  );
+
   const setActiveRange = (nextRange: RangePreset) => {
     onRangeChange?.(nextRange);
     if (range === undefined) {
@@ -147,23 +153,23 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
   };
 
   const { filteredSessions, startMs } = useMemo(() => {
-    if (sessions.length === 0) {
+    if (hydratedSessions.length === 0) {
       return { filteredSessions: [] as Session[], startMs: 0 };
     }
 
-    const latestDayMs = sessions.reduce(
+    const latestDayMs = hydratedSessions.reduce(
       (max, session) => Math.max(max, sessionDayStartMs(session.createdAt ?? "")),
       0,
     );
     const rangeEnd = latestDayMs + DAY_MS - 1;
     const rangeStart = rangeEnd - (rangeDays * DAY_MS - 1);
-    const filtered = sessions.filter((session) => {
+    const filtered = hydratedSessions.filter((session) => {
       const dayMs = sessionDayStartMs(session.createdAt ?? "");
       return dayMs >= rangeStart && dayMs <= rangeEnd;
     });
 
     return { filteredSessions: filtered, startMs: rangeStart };
-  }, [rangeDays, sessions]);
+  }, [hydratedSessions, rangeDays]);
 
   const kpis = useMemo(() => {
     const totalSessions = filteredSessions.length;
@@ -267,7 +273,6 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
           </div>
           <PaymentTrendChart points={trendPoints} />
         </article>
-
 
         <article className="mdc-card mdc-pay-table-wrap">
           <div className="mdc-table-wrap">
@@ -525,10 +530,10 @@ function PaymentTrendChart({ points }: { points: { label: string; value: number 
 }
 
 function PaymentScheduleDetail({ payment, onClose }: { payment: Session; onClose: () => void }) {
-  const installments = payment.installments || [];
+  const installments = (payment.installments || []) as Installment[];
 
   const totalAmount = payment.amount || installments.reduce((acc, item) => acc + Number(item.amount), 0);
-  const paidAmount = installments.reduce((acc, item) => acc + (Number((item as any).amountPaid) || (item.status === "Aprobado" ? Number(item.amount) : 0)), 0);
+  const paidAmount = installments.reduce((acc, item) => acc + (Number(item.amountPaid) || (item.status === "Aprobado" ? Number(item.amount) : 0)), 0);
 
   return (
     <div className="mdc-modal-backdrop mdc-pay-modal-backdrop">
@@ -582,7 +587,7 @@ function PaymentScheduleDetail({ payment, onClose }: { payment: Session; onClose
                   <InstallmentBadge status={item.status} />
                 </div>
                 <strong>${formatMoney(Number(item.amount))}</strong>
-                {(item as any).amountPaid !== undefined && <span style={{fontSize: '0.8rem', color: '#64748b'}}>${formatMoney(Number((item as any).amountPaid))} pagado</span>}
+                {item.amountPaid !== undefined && <span style={{fontSize: '0.8rem', color: '#64748b'}}>${formatMoney(Number(item.amountPaid))} pagado</span>}
                 <span>Vencido: {new Date(item.dueDate).toLocaleDateString("es-MX", { year: "numeric", month: "short", day: "numeric" })}</span>
               </button>
             ))}
@@ -597,6 +602,62 @@ function PaymentScheduleDetail({ payment, onClose }: { payment: Session; onClose
       </div>
     </div>
   );
+}
+
+function hydratePaymentSession(payment: Session, mode: MdcApplicantMode): Session {
+  if (payment.installments && payment.installments.length > 0) {
+    return payment;
+  }
+  return {
+    ...payment,
+    installments: buildFallbackInstallments(payment, mode),
+  };
+}
+
+function buildFallbackInstallments(payment: Session, mode: MdcApplicantMode): Installment[] {
+  const totalInstallments = mode === "moral" ? 8 : 12;
+  const principalAmount = Math.max(Number(payment.amount) || 0, mode === "moral" ? 120000 : 12000);
+  const installmentAmount = principalAmount / totalInstallments;
+  const baseDate = safeDate(payment.createdAt);
+
+  return Array.from({ length: totalInstallments }, (_, index) => {
+    const dueDate = new Date(baseDate);
+    dueDate.setMonth(dueDate.getMonth() + index + 1);
+    const installmentNumber = index + 1;
+    const paidThreshold = payment.status === "CAPTURADO" || payment.status === "Aprobado" ? Math.max(1, Math.floor(totalInstallments * 0.35)) : 0;
+
+    let status: Installment["status"] = "pendiente";
+    let amountPaid = 0;
+
+    if (installmentNumber < paidThreshold) {
+      status = "pagado";
+      amountPaid = installmentAmount;
+    } else if (installmentNumber === paidThreshold && paidThreshold > 0) {
+      status = "parcial";
+      amountPaid = installmentAmount * 0.6;
+    } else if (payment.status === "FALLIDO" || payment.status === "Rechazado") {
+      status = installmentNumber === 1 ? "fallido" : "pendiente";
+    } else if (payment.status === "PENDIENTE" || payment.status === "PROCESANDO") {
+      status = installmentNumber === 1 ? "pendiente" : "cancelado";
+    }
+
+    return {
+      installmentNumber,
+      status,
+      amount: Number(installmentAmount.toFixed(2)),
+      amountPaid: Number(amountPaid.toFixed(2)),
+      dueDate: dueDate.toISOString().slice(0, 10),
+    };
+  });
+}
+
+function safeDate(value?: string) {
+  const parsed = value ? new Date(value) : new Date();
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+function formatDateLong(value: string) {
+  return new Date(value).toLocaleDateString("es-MX", { year: "numeric", month: "short", day: "numeric" });
 }
 
 function MetaItem({ label, value }: { label: string; value: string }) {

@@ -8,8 +8,10 @@ import InputGroup from "@/components/form-elements/input-group";
 import { login, verifyDashboardOtp, persistAuthSession, AuthError, syncMe, type AuthSuccessResponse } from "@/lib/auth-api";
 import { getLoginAuthErrorDisplay } from "@/lib/auth-error-messages";
 import { getDefaultDashboardPath } from "@/lib/dashboard-routing";
+import { resetScopedDemoExperienceStorage } from "@/lib/demo-storage";
 import { seedScotiaDemoStorage } from "@/modules/lim/hooks/use-lim-demo-store";
 import { seedScotiaCreditStorage } from "@/modules/cortex/hooks/use-credit-demo-store";
+import { resetDemoRulesState } from "@/modules/mdc/services/mdc-rules.service";
 import { useBranding } from "@/providers/branding-provider";
 
 const DEMO_BYPASS_EMAIL = "demo@zwippe.com";
@@ -398,6 +400,8 @@ export default function LoginPage() {
       persistAuthSession(demoAuthSession);
       if (typeof window !== "undefined") {
         sessionStorage.setItem(DEMO_BYPASS_STORAGE_KEY, "true");
+        resetScopedDemoExperienceStorage();
+        resetDemoRulesState();
         seedScotiaDemoStorage(true);
         seedScotiaCreditStorage(true);
       }

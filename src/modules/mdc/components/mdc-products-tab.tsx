@@ -26,14 +26,15 @@ function normalizeProductName(name: string) {
 
 function normalizeProductFinancials(product: MdcProduct): MdcProduct {
   const name = normalizeProductName(product.name);
+  const metrics = {
+    activeClients: Number(product.metrics?.activeClients) || 0,
+    totalPortfolio: Number(product.metrics?.totalPortfolio) || 0,
+  };
   if (name === "Credito automotriz") {
     return {
       ...product,
       name,
-      metrics: {
-        activeClients: 0,
-        totalPortfolio: 0,
-      },
+      metrics,
       configuration: {
         ...product.configuration,
         interestRate: product.configuration.interestRate.max <= 8 ? { min: 13, max: 15 } : product.configuration.interestRate,
@@ -48,10 +49,7 @@ function normalizeProductFinancials(product: MdcProduct): MdcProduct {
     return {
       ...product,
       name,
-      metrics: {
-        activeClients: 0,
-        totalPortfolio: 0,
-      },
+      metrics,
       configuration: {
         ...product.configuration,
         interestRate: product.configuration.interestRate.max <= 8 ? { min: 19, max: 22 } : product.configuration.interestRate,
@@ -64,10 +62,7 @@ function normalizeProductFinancials(product: MdcProduct): MdcProduct {
   return {
     ...product,
     name,
-    metrics: {
-      activeClients: 0,
-      totalPortfolio: 0,
-    }
+    metrics,
   };
 }
 

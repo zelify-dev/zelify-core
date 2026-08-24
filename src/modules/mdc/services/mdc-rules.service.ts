@@ -1,4 +1,3 @@
-import { createTraceabilityLog } from "./mdc-traceability.service";
 import { type CreditRuleRow, CREDIT_RULES_BY_MODE } from "../data/mdc-rules-mock";
 import { customFetch } from "./mdc-api-client";
 
@@ -9,6 +8,11 @@ const getBaseUrl = (): string => {
 // In-memory store for demo bypass org
 let demoRulesNatural = [...CREDIT_RULES_BY_MODE.natural];
 let demoRulesMoral = [...CREDIT_RULES_BY_MODE.moral];
+
+export const resetDemoRulesState = (): void => {
+  demoRulesNatural = [...CREDIT_RULES_BY_MODE.natural];
+  demoRulesMoral = [...CREDIT_RULES_BY_MODE.moral];
+};
 
 export const fetchRules = async (mode: "natural" | "moral", orgId: string): Promise<CreditRuleRow[]> => {
   if (orgId === "demo-bypass-org") {
@@ -31,7 +35,7 @@ export const fetchRules = async (mode: "natural" | "moral", orgId: string): Prom
   return response.json();
 };
 
-export const fetchFinanceProducts = async (orgId: string): Promise<any[]> => {
+export const fetchFinanceProducts = async (orgId: string): Promise<Record<string, unknown>[]> => {
   if (orgId === "demo-bypass-org") return [];
   const url = `${getBaseUrl()}/finance-products?orgId=${orgId}`;
   const response = await customFetch(url, {

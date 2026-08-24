@@ -55,6 +55,12 @@ import { FinancialDocumentUploader } from "@/components/upload/FinancialDocument
 
 type MdcTab = "overview" | "products" | "applications" | "rules" | "traceability" | "payments" | "collections" | "reports" | "configuration";
 
+type FinanceProductOption = {
+  financialProduct: string;
+  minimumAmount?: number;
+  maximumAmount?: number;
+};
+
 type RuleFormState = {
   name: string;
   product: RuleProduct;
@@ -3097,6 +3103,17 @@ function AddApplicationModal({
   products: readonly RuleProduct[];
   onCreate: (values: { identificationNumber: string; firstName: string; lastName: string; email: string; product: string; amount: number; bank: string; phone: string; birthPlace: string; maritalStatus: string; educationLevel: string; }) => void;
 }) {
+  const localProductOptions = useMemo<FinanceProductOption[]>(() => {
+    const catalog = MDC_PRODUCTS_BY_MODE[mode] ?? [];
+    const allowedProducts = new Set(products);
+    return catalog
+      .filter((item) => allowedProducts.size === 0 || allowedProducts.has(item.name as RuleProduct))
+      .map((item) => ({
+        financialProduct: item.name,
+        minimumAmount: item.configuration.amount.min,
+        maximumAmount: item.configuration.amount.max,
+      }));
+  }, [mode, products]);
   const [identificationNumber, setIdentificationNumber] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -3108,19 +3125,51 @@ function AddApplicationModal({
   const [educationLevel, setEducationLevel] = useState("");
   const [product, setProduct] = useState<string>(products[0] ?? NATURAL_CREDIT_PRODUCTS[0]);
   const [amount, setAmount] = useState("12000");
-  const [apiProducts, setApiProducts] = useState<any[]>([]);
+  const [apiProducts, setApiProducts] = useState<FinanceProductOption[]>(localProductOptions);
   const [alertMsg, setAlertMsg] = useState<{message: string, type: "error" | "success"} | null>(null);
   const isMoral = mode === "moral";
 
   useEffect(() => {
-    fetch(process.env.NEXT_PUBLIC_MDC_API_URL ? `${process.env.NEXT_PUBLIC_MDC_API_URL}/finance-products` : "http://127.0.0.1:3000/finance-products")
-      .then(res => res.json())
-      .then(data => {
-        setApiProducts(data);
-        if (data.length > 0 && !product) setProduct(data[0].financialProduct);
+    let cancelled = false;
+    const apiBase = process.env.NEXT_PUBLIC_MDC_API_URL?.trim();
+
+    if (!apiBase) {
+      setApiProducts(localProductOptions);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    fetch(`${apiBase}/finance-products`)
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        return res.json();
       })
-      .catch(err => console.error("Error fetching products", err));
-  }, []);
+      .then((data: unknown) => {
+        if (cancelled) return;
+        const normalized = Array.isArray(data)
+          ? data.filter(
+              (item): item is FinanceProductOption =>
+                typeof item === "object" &&
+                item !== null &&
+                "financialProduct" in item &&
+                typeof item.financialProduct === "string",
+            )
+          : [];
+        setApiProducts(normalized.length > 0 ? normalized : localProductOptions);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setApiProducts(localProductOptions);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [localProductOptions]);
 
   const displayProducts = apiProducts.length > 0 ? apiProducts.map(p => p.financialProduct) : products;
 
@@ -3139,8 +3188,10 @@ function AddApplicationModal({
   };
 
   useEffect(() => {
-    setProduct(displayProducts[0] ?? NATURAL_CREDIT_PRODUCTS[0]);
-  }, [products, apiProducts]);
+    if (!displayProducts.includes(product)) {
+      setProduct(displayProducts[0] ?? NATURAL_CREDIT_PRODUCTS[0]);
+    }
+  }, [displayProducts, product]);
 
   if (!open) return null;
 
@@ -3785,8 +3836,9 @@ export function MdcScreen() {
     const org = getStoredOrganization();
     const orgId = org?.id || "ORG-001";
     if (orgId === "demo-bypass-org") {
-       setActiveProducts(["Credito automotriz"] as readonly RuleProduct[]);
-       setProductDetails([{ financialProduct: "Credito automotriz", contractType: "N/A" }]);
+       const demoProducts = CREDIT_PRODUCTS_BY_MODE[applicantMode] as readonly RuleProduct[];
+       setActiveProducts(demoProducts);
+       setProductDetails(demoProducts.map((financialProduct) => ({ financialProduct, contractType: "N/A" })));
        return;
     }
     
@@ -3811,14 +3863,14 @@ export function MdcScreen() {
 
   const activeStorageKeys = MODE_STORAGE_KEYS[applicantMode];
   const defaultApplications = useMemo(() => APPLICATIONS_BY_MODE[applicantMode], [applicantMode]);
-  const defaultRules = useMemo(() => [] as CreditRuleRow[], []);
+  const defaultRules = useMemo(() => CREDIT_RULES_BY_MODE[applicantMode], [applicantMode]);
   const [apps, setApps] = useState<Application[]>([]);
   const [appsLoading, setAppsLoading] = useState(true);
   const [rules, setRules] = useState<CreditRuleRow[]>(() =>
     mergeRulesWithDefaults(
       readStoredJson<CreditRuleRow[]>(MODE_STORAGE_KEYS.natural.rules, []),
       CREDIT_PRODUCTS_BY_MODE.natural as readonly RuleProduct[],
-      [],
+      CREDIT_RULES_BY_MODE.natural,
     ),
   );
 
