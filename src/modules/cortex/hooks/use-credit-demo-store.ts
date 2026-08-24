@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { getStoredOrganization } from "@/lib/auth-api";
 import { DEMO_STORAGE_KEYS, readDemoJson, writeDemoJson } from "@/lib/demo-storage";
 import {
   clientsForProduct,
@@ -187,8 +188,9 @@ export function useCreditDemoStore() {
 
   useEffect(() => {
     const loaded = loadCreditState();
-    const pinned = collectCustomersForLccSync();
-    const merged = mergeCustomersIntoCreditState(loaded, pinned, { includeAllInbound: true });
+    const isDemoBypassOrg = getStoredOrganization()?.id === "demo-bypass-org";
+    const pinned = isDemoBypassOrg ? [] : collectCustomersForLccSync();
+    const merged = isDemoBypassOrg ? loaded : mergeCustomersIntoCreditState(loaded, pinned, { includeAllInbound: true });
     const normalized = normalizeQuoteContext(merged);
     const withQuote = recalcQuote(normalized);
     writeDemoJson(DEMO_STORAGE_KEYS.credit, withQuote);

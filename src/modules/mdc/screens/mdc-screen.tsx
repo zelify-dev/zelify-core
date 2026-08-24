@@ -55,6 +55,12 @@ import { FinancialDocumentUploader } from "@/components/upload/FinancialDocument
 
 type MdcTab = "overview" | "products" | "applications" | "rules" | "traceability" | "payments" | "collections" | "reports" | "configuration";
 
+type FinanceProductOption = {
+  financialProduct: string;
+  minimumAmount?: number;
+  maximumAmount?: number;
+};
+
 type RuleFormState = {
   name: string;
   product: RuleProduct;
@@ -2160,15 +2166,15 @@ function MoralApplicantDetailModal({
                 <span
                   className={
                     breakdownStatus === "Aprobada" || breakdownStatus === "Aprobado" ? "mdc-badge mdc-badge--ok" :
-                    breakdownStatus === "Rechazada" || breakdownStatus === "Rechazado" ? "mdc-badge mdc-badge--bad" :
-                    breakdownStatus === "Revision manual" || breakdownStatus === "Revision" ? "mdc-badge mdc-badge--warn" :
-                    isFreshLocalApplication
-                      ? "mdc-badge mdc-badge--neutral"
-                      : failedRuleRows.length > 0
-                        ? "mdc-badge mdc-badge--bad"
-                        : warnedRuleRows.length > 0
-                          ? "mdc-badge mdc-badge--warn"
-                          : "mdc-badge mdc-badge--ok"
+                      breakdownStatus === "Rechazada" || breakdownStatus === "Rechazado" ? "mdc-badge mdc-badge--bad" :
+                        breakdownStatus === "Revision manual" || breakdownStatus === "Revision" ? "mdc-badge mdc-badge--warn" :
+                          isFreshLocalApplication
+                            ? "mdc-badge mdc-badge--neutral"
+                            : failedRuleRows.length > 0
+                              ? "mdc-badge mdc-badge--bad"
+                              : warnedRuleRows.length > 0
+                                ? "mdc-badge mdc-badge--warn"
+                                : "mdc-badge mdc-badge--ok"
                   }
                 >
                   {breakdownStatus || (isFreshLocalApplication ? "Pendiente" : failedRuleRows.length > 0 ? "Con rechazos" : warnedRuleRows.length > 0 ? "Con revision" : "Aprobable")}
@@ -3088,9 +3094,9 @@ function AppDetailModal({
                 <h4>Desglose de reglas</h4>
                 <span className={
                   breakdownStatus === "Aprobada" || breakdownStatus === "Aprobado" ? "mdc-badge mdc-badge--ok" :
-                  breakdownStatus === "Rechazada" || breakdownStatus === "Rechazado" ? "mdc-badge mdc-badge--bad" :
-                  breakdownStatus === "Revision manual" || breakdownStatus === "Revision" ? "mdc-badge mdc-badge--warn" :
-                  ruleSummaryBadgeClass
+                    breakdownStatus === "Rechazada" || breakdownStatus === "Rechazado" ? "mdc-badge mdc-badge--bad" :
+                      breakdownStatus === "Revision manual" || breakdownStatus === "Revision" ? "mdc-badge mdc-badge--warn" :
+                        ruleSummaryBadgeClass
                 }>
                   {breakdownStatus || ruleSummaryLabel}
                 </span>
@@ -3278,6 +3284,17 @@ function AddApplicationModal({
     capacidadPago?: number;
   }) => void;
 }) {
+  const localProductOptions = useMemo<FinanceProductOption[]>(() => {
+    const catalog = MDC_PRODUCTS_BY_MODE[mode] ?? [];
+    const allowedProducts = new Set(products);
+    return catalog
+      .filter((item) => allowedProducts.size === 0 || allowedProducts.has(item.name as RuleProduct))
+      .map((item) => ({
+        financialProduct: item.name,
+        minimumAmount: item.configuration.amount.min,
+        maximumAmount: item.configuration.amount.max,
+      }));
+  }, [mode, products]);
   const [identificationNumber, setIdentificationNumber] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -3289,23 +3306,51 @@ function AddApplicationModal({
   const [educationLevel, setEducationLevel] = useState("");
   const [product, setProduct] = useState<string>(products[0] ?? NATURAL_CREDIT_PRODUCTS[0]);
   const [amount, setAmount] = useState("12000");
-  const [tipoEmpleo, setTipoEmpleo] = useState("Jubilado Confianza");
-  const [edad, setEdad] = useState("10");
-  const [plazo, setPlazo] = useState("1000");
-  const [capacidadPago, setCapacidadPago] = useState("25.5");
-  const [apiProducts, setApiProducts] = useState<any[]>([]);
-  const [alertMsg, setAlertMsg] = useState<{message: string, type: "error" | "success"} | null>(null);
+  const [apiProducts, setApiProducts] = useState<FinanceProductOption[]>(localProductOptions);
+  const [alertMsg, setAlertMsg] = useState<{ message: string, type: "error" | "success" } | null>(null);
   const isMoral = mode === "moral";
 
   useEffect(() => {
-    fetch(process.env.NEXT_PUBLIC_MDC_API_URL ? `${process.env.NEXT_PUBLIC_MDC_API_URL}/finance-products` : "http://127.0.0.1:3000/finance-products")
-      .then(res => res.json())
-      .then(data => {
-        setApiProducts(data);
-        if (data.length > 0 && !product) setProduct(data[0].financialProduct);
+    let cancelled = false;
+    const apiBase = process.env.NEXT_PUBLIC_MDC_API_URL?.trim();
+
+    if (!apiBase) {
+      setApiProducts(localProductOptions);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    fetch(`${apiBase}/finance-products`)
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        return res.json();
       })
-      .catch(err => console.error("Error fetching products", err));
-  }, []);
+      .then((data: unknown) => {
+        if (cancelled) return;
+        const normalized = Array.isArray(data)
+          ? data.filter(
+            (item): item is FinanceProductOption =>
+              typeof item === "object" &&
+              item !== null &&
+              "financialProduct" in item &&
+              typeof item.financialProduct === "string",
+          )
+          : [];
+        setApiProducts(normalized.length > 0 ? normalized : localProductOptions);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setApiProducts(localProductOptions);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [localProductOptions]);
 
   const displayProducts = apiProducts.length > 0 ? apiProducts.map(p => p.financialProduct) : products;
 
@@ -3328,161 +3373,163 @@ function AddApplicationModal({
   };
 
   useEffect(() => {
-    setProduct(displayProducts[0] ?? NATURAL_CREDIT_PRODUCTS[0]);
-  }, [products, apiProducts]);
+    if (!displayProducts.includes(product)) {
+      setProduct(displayProducts[0] ?? NATURAL_CREDIT_PRODUCTS[0]);
+    }
+  }, [displayProducts, product]);
 
   if (!open) return null;
 
   return (
     <>
-    <div className="mdc-modal-backdrop" onClick={() => { reset(); onClose(); }}>
-      <div className="mdc-modal" onClick={(e) => e.stopPropagation()}>
-        <header className="mdc-modal-head">
-          <div>
-            <p>Nueva solicitud</p>
-            <h3>Alta manual</h3>
-          </div>
-          <button type="button" className="mdc-icon-btn" onClick={() => { reset(); onClose(); }}>×</button>
-        </header>
-        <div className="mdc-form-grid">
-          <label>
-            <span>ID (RFC/CURP) *</span>
-            <input value={identificationNumber} onChange={(e) => setIdentificationNumber(e.target.value.replace(/[^A-Za-z0-9]/g, ''))} required />
-          </label>
-          <label>
-            <span>{isMoral ? "Razon social *" : "Nombre *"}</span>
-            <input value={firstName} onChange={(e) => setFirstName(e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]/g, ''))} required />
-          </label>
-          {!isMoral ? (
+      <div className="mdc-modal-backdrop" onClick={() => { reset(); onClose(); }}>
+        <div className="mdc-modal" onClick={(e) => e.stopPropagation()}>
+          <header className="mdc-modal-head">
+            <div>
+              <p>Nueva solicitud</p>
+              <h3>Alta manual</h3>
+            </div>
+            <button type="button" className="mdc-icon-btn" onClick={() => { reset(); onClose(); }}>×</button>
+          </header>
+          <div className="mdc-form-grid">
             <label>
-              <span>Apellido *</span>
-              <input value={lastName} onChange={(e) => setLastName(e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]/g, ''))} required />
+              <span>ID (RFC/CURP) *</span>
+              <input value={identificationNumber} onChange={(e) => setIdentificationNumber(e.target.value.replace(/[^A-Za-z0-9]/g, ''))} required />
             </label>
-          ) : null}
-          <label>
-            <span>{isMoral ? "Correo corporativo *" : "Email *"}</span>
-            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required />
-          </label>
-          <label>
-            <span>Teléfono (Celular)</span>
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" />
-          </label>
-          <label>
-            <span>Banco</span>
-            <input value={bank} onChange={(e) => setBank(e.target.value)} />
-          </label>
-          <label>
-            <span>Lugar de nacimiento</span>
-            <input value={birthPlace} onChange={(e) => setBirthPlace(e.target.value)} />
-          </label>
-          <label>
-            <span>Estado civil</span>
-            <input value={maritalStatus} onChange={(e) => setMaritalStatus(e.target.value)} />
-          </label>
-          <label>
-            <span>Escolaridad</span>
-            <input value={educationLevel} onChange={(e) => setEducationLevel(e.target.value)} />
-          </label>
-          <label>
-            <span>Producto</span>
-            <select value={product} onChange={(e) => setProduct(e.target.value)}>
-              {displayProducts.map((p, i) => (
-                <option key={`${p}-${i}`} value={p}>{p}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>Monto (MXN) *</span>
-            <input
-              value={amount}
-              onChange={(e) => {
-                let val = e.target.value;
-                const maxAmt = apiProducts.find(p => p.financialProduct === product)?.maximumAmount;
-                const maxLimit = maxAmt ? Number(maxAmt) : 9999999;
-                if (Number(val) > maxLimit) val = maxLimit.toString();
-                setAmount(val);
+            <label>
+              <span>{isMoral ? "Razon social *" : "Nombre *"}</span>
+              <input value={firstName} onChange={(e) => setFirstName(e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]/g, ''))} required />
+            </label>
+            {!isMoral ? (
+              <label>
+                <span>Apellido *</span>
+                <input value={lastName} onChange={(e) => setLastName(e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]/g, ''))} required />
+              </label>
+            ) : null}
+            <label>
+              <span>{isMoral ? "Correo corporativo *" : "Email *"}</span>
+              <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required />
+            </label>
+            <label>
+              <span>Teléfono (Celular)</span>
+              <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" />
+            </label>
+            <label>
+              <span>Banco</span>
+              <input value={bank} onChange={(e) => setBank(e.target.value)} />
+            </label>
+            <label>
+              <span>Lugar de nacimiento</span>
+              <input value={birthPlace} onChange={(e) => setBirthPlace(e.target.value)} />
+            </label>
+            <label>
+              <span>Estado civil</span>
+              <input value={maritalStatus} onChange={(e) => setMaritalStatus(e.target.value)} />
+            </label>
+            <label>
+              <span>Escolaridad</span>
+              <input value={educationLevel} onChange={(e) => setEducationLevel(e.target.value)} />
+            </label>
+            <label>
+              <span>Producto</span>
+              <select value={product} onChange={(e) => setProduct(e.target.value)}>
+                {displayProducts.map((p, i) => (
+                  <option key={`${p}-${i}`} value={p}>{p}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Monto (MXN) *</span>
+              <input
+                value={amount}
+                onChange={(e) => {
+                  let val = e.target.value;
+                  const maxAmt = apiProducts.find(p => p.financialProduct === product)?.maximumAmount;
+                  const maxLimit = maxAmt ? Number(maxAmt) : 9999999;
+                  if (Number(val) > maxLimit) val = maxLimit.toString();
+                  setAmount(val);
+                }}
+                type="number"
+                min={apiProducts.find(p => p.financialProduct === product)?.minimumAmount ? Number(apiProducts.find(p => p.financialProduct === product)?.minimumAmount) : 0}
+                max={apiProducts.find(p => p.financialProduct === product)?.maximumAmount ? Number(apiProducts.find(p => p.financialProduct === product)?.maximumAmount) : 9999999}
+                step="0.01"
+                required
+              />
+            </label>
+            <label>
+              <span>Tipo de empleo</span>
+              <input value={tipoEmpleo} onChange={(e) => setTipoEmpleo(e.target.value)} placeholder="Ej. Jubilado Confianza" />
+            </label>
+            <label>
+              <span>Edad</span>
+              <input value={edad} onChange={(e) => setEdad(e.target.value)} type="number" placeholder="Ej. 10" />
+            </label>
+            <label>
+              <span>Plazo</span>
+              <input value={plazo} onChange={(e) => setPlazo(e.target.value)} type="number" placeholder="Ej. 1000" />
+            </label>
+            <label>
+              <span>Capacidad de pago (%)</span>
+              <input value={capacidadPago} onChange={(e) => setCapacidadPago(e.target.value)} type="number" step="0.1" placeholder="Ej. 25.5" />
+            </label>
+          </div>
+          <footer className="mdc-modal-actions">
+            <button type="button" className="mdc-btn mdc-btn--ghost" onClick={() => { reset(); onClose(); }}>Cancelar</button>
+            <button
+              type="button"
+              className="mdc-btn mdc-btn--primary"
+              onClick={() => {
+                if (!identificationNumber || !firstName || !email) {
+                  setAlertMsg({ message: "Por favor completa los campos obligatorios (*)", type: "error" });
+                  return;
+                }
+                if (!email.includes("@")) {
+                  setAlertMsg({ message: "Correo inválido", type: "error" });
+                  return;
+                }
+                const minAmt = apiProducts.find(p => p.financialProduct === product)?.minimumAmount;
+                const minLimit = minAmt ? Number(minAmt) : 0;
+                if (Number(amount) < minLimit) {
+                  setAlertMsg({ message: `El monto mínimo para este producto es de ${minLimit} MXN`, type: "error" });
+                  return;
+                }
+                onCreate({
+                  identificationNumber,
+                  firstName,
+                  lastName,
+                  email,
+                  phone,
+                  bank,
+                  birthPlace,
+                  maritalStatus,
+                  educationLevel,
+                  product,
+                  amount: Number(amount) || 0,
+                  montoCredito: Number(amount) || 0,
+                  tipoEmpleo: tipoEmpleo || "Jubilado Confianza",
+                  edad: Number(edad) || 10,
+                  plazo: Number(plazo) || 1000,
+                  capacidadPago: Number(capacidadPago) || 25.5,
+                });
+                reset();
+                onClose();
               }}
-              type="number"
-              min={apiProducts.find(p => p.financialProduct === product)?.minimumAmount ? Number(apiProducts.find(p => p.financialProduct === product)?.minimumAmount) : 0}
-              max={apiProducts.find(p => p.financialProduct === product)?.maximumAmount ? Number(apiProducts.find(p => p.financialProduct === product)?.maximumAmount) : 9999999}
-              step="0.01"
-              required
-            />
-          </label>
-          <label>
-            <span>Tipo de empleo</span>
-            <input value={tipoEmpleo} onChange={(e) => setTipoEmpleo(e.target.value)} placeholder="Ej. Jubilado Confianza" />
-          </label>
-          <label>
-            <span>Edad</span>
-            <input value={edad} onChange={(e) => setEdad(e.target.value)} type="number" placeholder="Ej. 10" />
-          </label>
-          <label>
-            <span>Plazo</span>
-            <input value={plazo} onChange={(e) => setPlazo(e.target.value)} type="number" placeholder="Ej. 1000" />
-          </label>
-          <label>
-            <span>Capacidad de pago (%)</span>
-            <input value={capacidadPago} onChange={(e) => setCapacidadPago(e.target.value)} type="number" step="0.1" placeholder="Ej. 25.5" />
-          </label>
+            >
+              Crear solicitud
+            </button>
+          </footer>
         </div>
-        <footer className="mdc-modal-actions">
-          <button type="button" className="mdc-btn mdc-btn--ghost" onClick={() => { reset(); onClose(); }}>Cancelar</button>
-          <button
-            type="button"
-            className="mdc-btn mdc-btn--primary"
-            onClick={() => {
-              if (!identificationNumber || !firstName || !email) {
-                setAlertMsg({ message: "Por favor completa los campos obligatorios (*)", type: "error" });
-                return;
-              }
-              if (!email.includes("@")) {
-                setAlertMsg({ message: "Correo inválido", type: "error" });
-                return;
-              }
-              const minAmt = apiProducts.find(p => p.financialProduct === product)?.minimumAmount;
-              const minLimit = minAmt ? Number(minAmt) : 0;
-              if (Number(amount) < minLimit) {
-                setAlertMsg({ message: `El monto mínimo para este producto es de ${minLimit} MXN`, type: "error" });
-                return;
-              }
-              onCreate({
-                identificationNumber,
-                firstName,
-                lastName,
-                email,
-                phone,
-                bank,
-                birthPlace,
-                maritalStatus,
-                educationLevel,
-                product,
-                amount: Number(amount) || 0,
-                montoCredito: Number(amount) || 0,
-                tipoEmpleo: tipoEmpleo || "Jubilado Confianza",
-                edad: Number(edad) || 10,
-                plazo: Number(plazo) || 1000,
-                capacidadPago: Number(capacidadPago) || 25.5,
-              });
-              reset();
-              onClose();
-            }}
-          >
-            Crear solicitud
-          </button>
-        </footer>
       </div>
-    </div>
-    {alertMsg && <AlertModal message={alertMsg.message} type={alertMsg.type} onClose={() => setAlertMsg(null)} />}
+      {alertMsg && <AlertModal message={alertMsg.message} type={alertMsg.type} onClose={() => setAlertMsg(null)} />}
     </>
   );
 }
 
 function UploadModal({ app, onClose, onSuccess, onError }: { app: Application, onClose: () => void, onSuccess: (msg: string) => void, onError: (msg: string) => void }) {
   const applicantId = app.applicantId && app.applicantId !== "N/A" ? app.applicantId : app.id;
-  
+
   return (
-    <FinancialDocumentUploader 
+    <FinancialDocumentUploader
       userId={applicantId}
       onClose={() => {
         onClose();
@@ -3537,20 +3584,20 @@ function RuleModal({
     }
     return FORM_CONFIG;
   }, [selectedProductDetail]);
-  
+
   // State for bulk fields
   const [bulkFields, setBulkFields] = useState<Record<string, { enabled: boolean, operator: RuleOperator, value: string, type: RuleDataType }>>(() => {
     const initialBulk: any = {};
     dynamicFormConfig.forEach((c: any) => {
       const fieldKey = c.id || c.field;
-      
+
       let existingRule: any;
       if (!isDemoOrg && initialBulkRules?.length) {
         existingRule = initialBulkRules[0].conditions?.find((cond: any) => cond.field === fieldKey);
       } else {
         existingRule = initialBulkRules?.find(r => r.fieldEvaluated === fieldKey);
       }
-      
+
       if (existingRule) {
         const val = existingRule.value !== undefined ? existingRule.value : existingRule.thresholdValue;
         const op = existingRule.operator === "eq" ? "equals" : existingRule.operator;
@@ -3572,14 +3619,14 @@ function RuleModal({
     const newBulk: any = {};
     dynamicFormConfig.forEach((c: any) => {
       const fieldKey = c.id || c.field;
-      
+
       let existingRule: any;
       if (!isDemoOrg && initialBulkRules?.length) {
         existingRule = initialBulkRules[0].conditions?.find((cond: any) => cond.field === fieldKey);
       } else {
         existingRule = initialBulkRules?.find(r => r.fieldEvaluated === fieldKey);
       }
-      
+
       if (existingRule) {
         const val = existingRule.value !== undefined ? existingRule.value : existingRule.thresholdValue;
         const op = existingRule.operator === "eq" ? "equals" : existingRule.operator;
@@ -3652,10 +3699,10 @@ function RuleModal({
                     setForm((s) => {
                       const isStringField = ["applicant.employmentType", "company.taxComplianceStatus"].includes(newField);
                       const isBooleanField = ["payroll.directDeposit"].includes(newField);
-                      
+
                       let newType = s.type;
                       let newOperator = s.operator;
-                      
+
                       if (isStringField) {
                         newType = "string";
                         if (!["equals", "notEquals", "contains"].includes(newOperator)) {
@@ -3765,147 +3812,147 @@ function RuleModal({
             </>
           ) : (
             dynamicFormConfig.map((config: any) => {
-            const fieldKey = config.id || config.field;
-            const state = bulkFields[fieldKey];
-            if (!state) return null;
-            
-            return (
-              <div
-                key={fieldKey}
-                className="mdc-form-grid__full"
-                style={{
-                  border: state.enabled ? "1.5px solid var(--mdc-primary, #2563eb)" : "1.5px solid #e2e8f0",
-                  borderRadius: "10px",
-                  background: state.enabled ? "linear-gradient(135deg, #eff6ff 0%, #f8faff 100%)" : "#f8fafc",
-                  transition: "all 0.2s ease",
-                  overflow: "hidden",
-                  marginBottom: "2px",
-                }}
-              >
-                {/* Header row: toggle button + label */}
+              const fieldKey = config.id || config.field;
+              const state = bulkFields[fieldKey];
+              if (!state) return null;
+
+              return (
                 <div
+                  key={fieldKey}
+                  className="mdc-form-grid__full"
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "12px",
-                    padding: "12px 16px",
-                    cursor: "pointer",
+                    border: state.enabled ? "1.5px solid var(--mdc-primary, #2563eb)" : "1.5px solid #e2e8f0",
+                    borderRadius: "10px",
+                    background: state.enabled ? "linear-gradient(135deg, #eff6ff 0%, #f8faff 100%)" : "#f8fafc",
+                    transition: "all 0.2s ease",
+                    overflow: "hidden",
+                    marginBottom: "2px",
                   }}
-                  onClick={() => setBulkFields(prev => ({ ...prev, [fieldKey]: { ...prev[fieldKey], enabled: !prev[fieldKey].enabled } }))}
                 >
-                  {/* Toggle pill */}
+                  {/* Header row: toggle button + label */}
                   <div
                     style={{
-                      width: "40px",
-                      height: "22px",
-                      borderRadius: "11px",
-                      background: state.enabled ? "var(--mdc-primary, #2563eb)" : "#cbd5e1",
-                      position: "relative",
-                      transition: "background 0.2s ease",
-                      flexShrink: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                      padding: "12px 16px",
+                      cursor: "pointer",
                     }}
+                    onClick={() => setBulkFields(prev => ({ ...prev, [fieldKey]: { ...prev[fieldKey], enabled: !prev[fieldKey].enabled } }))}
                   >
+                    {/* Toggle pill */}
                     <div
                       style={{
-                        width: "16px",
-                        height: "16px",
-                        borderRadius: "50%",
-                        background: "#fff",
-                        position: "absolute",
-                        top: "3px",
-                        left: state.enabled ? "21px" : "3px",
-                        transition: "left 0.2s ease",
-                        boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                      }}
-                    />
-                  </div>
-                  <span
-                    style={{
-                      fontWeight: 600,
-                      fontSize: "0.875rem",
-                      color: state.enabled ? "var(--mdc-primary, #2563eb)" : "#64748b",
-                      transition: "color 0.2s ease",
-                    }}
-                  >
-                    {config.label}
-                  </span>
-                  {state.enabled && (
-                    <span
-                      style={{
-                        marginLeft: "auto",
-                        fontSize: "0.7rem",
-                        fontWeight: 600,
-                        background: "var(--mdc-primary, #2563eb)",
-                        color: "#fff",
-                        borderRadius: "20px",
-                        padding: "2px 10px",
-                        letterSpacing: "0.04em",
-                        textTransform: "uppercase",
+                        width: "40px",
+                        height: "22px",
+                        borderRadius: "11px",
+                        background: state.enabled ? "var(--mdc-primary, #2563eb)" : "#cbd5e1",
+                        position: "relative",
+                        transition: "background 0.2s ease",
+                        flexShrink: 0,
                       }}
                     >
-                      Habilitado
+                      <div
+                        style={{
+                          width: "16px",
+                          height: "16px",
+                          borderRadius: "50%",
+                          background: "#fff",
+                          position: "absolute",
+                          top: "3px",
+                          left: state.enabled ? "21px" : "3px",
+                          transition: "left 0.2s ease",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                        }}
+                      />
+                    </div>
+                    <span
+                      style={{
+                        fontWeight: 600,
+                        fontSize: "0.875rem",
+                        color: state.enabled ? "var(--mdc-primary, #2563eb)" : "#64748b",
+                        transition: "color 0.2s ease",
+                      }}
+                    >
+                      {config.label}
                     </span>
+                    {state.enabled && (
+                      <span
+                        style={{
+                          marginLeft: "auto",
+                          fontSize: "0.7rem",
+                          fontWeight: 600,
+                          background: "var(--mdc-primary, #2563eb)",
+                          color: "#fff",
+                          borderRadius: "20px",
+                          padding: "2px 10px",
+                          letterSpacing: "0.04em",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        Habilitado
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Expanded inputs when enabled */}
+                  {state.enabled && (
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: "12px",
+                        padding: "0 16px 16px 16px",
+                        borderTop: "1px solid #dbeafe",
+                      }}
+                    >
+                      <label>
+                        <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Operador</span>
+                        <select
+                          value={state.operator}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => setBulkFields(prev => ({ ...prev, [fieldKey]: { ...prev[fieldKey], operator: e.target.value as RuleOperator } }))}
+                        >
+                          {(config.type === "number" ? RULE_OPERATORS : ["equals", "notEquals"] as RuleOperator[]).map((op) => (
+                            <option key={op} value={op}>{RULE_OPERATOR_LABELS[op]}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Valor</span>
+                        {config.type === "number" ? (
+                          <input
+                            type="number"
+                            min="0"
+                            step="any"
+                            value={state.value}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => setBulkFields(prev => ({ ...prev, [fieldKey]: { ...prev[fieldKey], value: e.target.value } }))}
+                            placeholder="Ingrese un número"
+                          />
+                        ) : (
+                          <select
+                            value={state.value}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => setBulkFields(prev => ({ ...prev, [fieldKey]: { ...prev[fieldKey], value: e.target.value } }))}
+                          >
+                            <option value="">Seleccione...</option>
+                            {config.options ? config.options.map((opt: string) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            )) : (
+                              <>
+                                <option value="Jubilado Sindicalizado">Jubilado Sindicalizado</option>
+                                <option value="Jubilado Confianza">Jubilado Confianza</option>
+                              </>
+                            )}
+                          </select>
+                        )}
+                      </label>
+                    </div>
                   )}
                 </div>
-
-                {/* Expanded inputs when enabled */}
-                {state.enabled && (
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: "12px",
-                      padding: "0 16px 16px 16px",
-                      borderTop: "1px solid #dbeafe",
-                    }}
-                  >
-                    <label>
-                      <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Operador</span>
-                      <select
-                        value={state.operator}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => setBulkFields(prev => ({ ...prev, [fieldKey]: { ...prev[fieldKey], operator: e.target.value as RuleOperator } }))}
-                      >
-                        {(config.type === "number" ? RULE_OPERATORS : ["equals", "notEquals"] as RuleOperator[]).map((op) => (
-                          <option key={op} value={op}>{RULE_OPERATOR_LABELS[op]}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Valor</span>
-                      {config.type === "number" ? (
-                        <input
-                          type="number"
-                          min="0"
-                          step="any"
-                          value={state.value}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => setBulkFields(prev => ({ ...prev, [fieldKey]: { ...prev[fieldKey], value: e.target.value } }))}
-                          placeholder="Ingrese un número"
-                        />
-                      ) : (
-                        <select
-                          value={state.value}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => setBulkFields(prev => ({ ...prev, [fieldKey]: { ...prev[fieldKey], value: e.target.value } }))}
-                        >
-                          <option value="">Seleccione...</option>
-                          {config.options ? config.options.map((opt: string) => (
-                            <option key={opt} value={opt}>{opt}</option>
-                          )) : (
-                            <>
-                              <option value="Jubilado Sindicalizado">Jubilado Sindicalizado</option>
-                              <option value="Jubilado Confianza">Jubilado Confianza</option>
-                            </>
-                          )}
-                        </select>
-                      )}
-                    </label>
-                  </div>
-                )}
-              </div>
-            );
-          })
+              );
+            })
           )}
 
           {isBandMode ? (
@@ -3950,7 +3997,7 @@ function RuleModal({
                 onClose();
                 return;
               }
-              
+
               const conditions: any[] = [];
               Object.entries(bulkFields).forEach(([fieldId, state]) => {
                 if (state.enabled && state.value !== "") {
@@ -3968,7 +4015,7 @@ function RuleModal({
                 ...form,
                 conditions,
               }, duplicateToProduct || undefined);
-              
+
               onClose();
             }}
           >
@@ -3981,7 +4028,7 @@ function RuleModal({
 }
 
 export function MdcScreen() {
-  const [globalAlert, setGlobalAlert] = useState<{message: string, type: "error" | "success"} | null>(null);
+  const [globalAlert, setGlobalAlert] = useState<{ message: string, type: "error" | "success" } | null>(null);
   const router = useRouter();
   const creditStore = useCreditDemoStore();
   const [applicantMode, setApplicantMode] = useState<MdcApplicantMode>("natural");
@@ -3995,40 +4042,41 @@ export function MdcScreen() {
     const org = getStoredOrganization();
     const orgId = org?.id || "ORG-001";
     if (orgId === "demo-bypass-org") {
-       setActiveProducts(["Credito automotriz"] as readonly RuleProduct[]);
-       setProductDetails([{ financialProduct: "Credito automotriz", contractType: "N/A" }]);
-       return;
+      const demoProducts = CREDIT_PRODUCTS_BY_MODE[applicantMode] as readonly RuleProduct[];
+      setActiveProducts(demoProducts);
+      setProductDetails(demoProducts.map((financialProduct) => ({ financialProduct, contractType: "N/A" })));
+      return;
     }
-    
+
     // Using the same URL logic as RequestsTab (no orgId filter) to ensure products load
     fetch(process.env.NEXT_PUBLIC_MDC_API_URL ? `${process.env.NEXT_PUBLIC_MDC_API_URL}/finance-products` : `http://127.0.0.1:3000/finance-products`)
       .then(res => res.json())
       .then(data => {
-         if (Array.isArray(data) && data.length > 0) {
-            setProductDetails(data);
-            setActiveProducts(data.map(d => d.financialProduct) as readonly RuleProduct[]);
-         } else {
-            setProductDetails([]);
-            setActiveProducts([] as readonly RuleProduct[]);
-         }
+        if (Array.isArray(data) && data.length > 0) {
+          setProductDetails(data);
+          setActiveProducts(data.map(d => d.financialProduct) as readonly RuleProduct[]);
+        } else {
+          setProductDetails([]);
+          setActiveProducts([] as readonly RuleProduct[]);
+        }
       })
       .catch(err => {
-         console.error("Error fetching rules products", err);
-         setProductDetails([]);
-         setActiveProducts([] as readonly RuleProduct[]);
+        console.error("Error fetching rules products", err);
+        setProductDetails([]);
+        setActiveProducts([] as readonly RuleProduct[]);
       });
   }, [applicantMode]);
 
   const activeStorageKeys = MODE_STORAGE_KEYS[applicantMode];
   const defaultApplications = useMemo(() => APPLICATIONS_BY_MODE[applicantMode], [applicantMode]);
-  const defaultRules = useMemo(() => [] as CreditRuleRow[], []);
+  const defaultRules = useMemo(() => CREDIT_RULES_BY_MODE[applicantMode], [applicantMode]);
   const [apps, setApps] = useState<Application[]>([]);
   const [appsLoading, setAppsLoading] = useState(true);
   const [rules, setRules] = useState<CreditRuleRow[]>(() =>
     mergeRulesWithDefaults(
       readStoredJson<CreditRuleRow[]>(MODE_STORAGE_KEYS.natural.rules, []),
       CREDIT_PRODUCTS_BY_MODE.natural as readonly RuleProduct[],
-      [],
+      CREDIT_RULES_BY_MODE.natural,
     ),
   );
 
@@ -4078,7 +4126,7 @@ export function MdcScreen() {
   }, [rules]);
 
   const isDemoOrg = getStoredOrganization()?.id === "demo-bypass-org";
-  
+
   const filteredLegacyRules = useMemo(() => {
     const q = ruleQuery.trim().toLowerCase();
     let scopedRules = normalizedRules;
@@ -4105,12 +4153,12 @@ export function MdcScreen() {
 
   const filteredPolicies = policiesByProduct.filter((policy) => {
     if (ruleProductFilter && ruleProductFilter !== "all" && policy.product !== ruleProductFilter) return false;
-    
+
     if (ruleQuery) {
       const q = ruleQuery.toLowerCase();
       if (policy.product.toLowerCase().includes(q)) return true;
-      return policy.rules.some(r => 
-        r.name.toLowerCase().includes(q) || 
+      return policy.rules.some(r =>
+        r.name.toLowerCase().includes(q) ||
         r.description.toLowerCase().includes(q)
       );
     }
@@ -4432,7 +4480,7 @@ export function MdcScreen() {
   const openEditPolicy = (policy: { product: string; rules: CreditRuleRow[] }) => {
     setRuleProductFilter(policy.product as RuleProduct);
     const baseRule = policy.rules[0];
-    
+
     if (baseRule) {
       setEditingRuleId(baseRule.id);
       setEditingPolicyRules(policy.rules);
@@ -4503,7 +4551,7 @@ export function MdcScreen() {
   }, [activeTab, applicantMode]);
 
   const [editingPolicyRules, setEditingPolicyRules] = useState<CreditRuleRow[]>([]);
-  
+
   const openCreateRule = () => {
     setEditingRuleId(null);
     setEditingPolicyRules([]);
@@ -5302,9 +5350,9 @@ export function MdcScreen() {
 
             const backendStatus =
               analysisResult?.status === "Aprobado" || analysisResult?.status === "Aprobada" ? "Aprobada" :
-              analysisResult?.status === "Rechazado" || analysisResult?.status === "Rechazada" ? "Rechazada" :
-              analysisResult?.status === "Revision" || analysisResult?.status === "Revision manual" ? "Revision manual" :
-              "Pendiente";
+                analysisResult?.status === "Rechazado" || analysisResult?.status === "Rechazada" ? "Rechazada" :
+                  analysisResult?.status === "Revision" || analysisResult?.status === "Revision manual" ? "Revision manual" :
+                    "Pendiente";
 
             const response = await createFinanceRequest({
               ...analyzePayload,
@@ -5312,7 +5360,7 @@ export function MdcScreen() {
               riskLevel: analysisResult?.riskLevel || "Medio",
               riskScore: analysisResult?.status === "Rechazado" || analysisResult?.status === "Rechazada" ? 85 : 50,
             });
-            
+
             if (response?.notification) {
               setGlobalAlert({ message: response.notification, type: "success" });
             }
@@ -5320,13 +5368,13 @@ export function MdcScreen() {
             const item = response.data || response;
             const mappedStatus: ApplicationStatus =
               analysisResult?.status === "Aprobado" || analysisResult?.status === "Aprobada" || item.status === "Aprobada" ? "approved" :
-              analysisResult?.status === "Rechazado" || analysisResult?.status === "Rechazada" || item.status === "Rechazada" ? "declined" :
-              analysisResult?.status === "Revision" || analysisResult?.status === "Revision manual" || item.status === "Revision manual" ? "manualReview" :
-              item.status === "Override" ? "overridden" : "pending";
+                analysisResult?.status === "Rechazado" || analysisResult?.status === "Rechazada" || item.status === "Rechazada" ? "declined" :
+                  analysisResult?.status === "Revision" || analysisResult?.status === "Revision manual" || item.status === "Revision manual" ? "manualReview" :
+                    item.status === "Override" ? "overridden" : "pending";
 
             const mappedRisk: RiskLevel =
               analysisResult?.riskLevel === "Alto" || item.riskLevel === "Alto" ? "high" :
-              analysisResult?.riskLevel === "Bajo" || item.riskLevel === "Bajo" ? "low" : "medium";
+                analysisResult?.riskLevel === "Bajo" || item.riskLevel === "Bajo" ? "low" : "medium";
 
             const next: Application = {
               id: item.id || `local-${Date.now()}`,
