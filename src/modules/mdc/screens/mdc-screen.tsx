@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, Settings } from "lucide-react";
+import { Eye, Settings, Trash2, AlertTriangle } from "lucide-react";
 import { seedScotiaCreditStorage, useCreditDemoStore } from "@/modules/cortex/hooks/use-credit-demo-store";
 import { AppCheckbox } from "@/components/ui/atoms/checkbox/app-checkbox";
 import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
@@ -3254,6 +3254,277 @@ function AlertModal({ message, type, onClose }: { message: string, type: "error"
   );
 }
 
+function ConfirmDeleteModal({
+  open,
+  title = "Eliminar regla",
+  ruleName,
+  description,
+  isLoading = false,
+  onConfirm,
+  onClose,
+}: {
+  open: boolean;
+  title?: string;
+  ruleName?: string;
+  description?: string;
+  isLoading?: boolean;
+  onConfirm: () => void | Promise<void>;
+  onClose: () => void;
+}) {
+  if (!open) return null;
+
+  return (
+    <div
+      className="mdc-modal-backdrop"
+      style={{ zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center" }}
+      onClick={onClose}
+    >
+      <div
+        className="mdc-modal"
+        style={{
+          maxWidth: 440,
+          width: "100%",
+          padding: "24px",
+          textAlign: "center",
+          borderRadius: "16px",
+          boxShadow: "0 20px 60px rgba(15, 23, 42, 0.25)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          style={{
+            width: "56px",
+            height: "56px",
+            borderRadius: "50%",
+            backgroundColor: "#fff1f2",
+            border: "1px solid #ffe4e6",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            margin: "0 auto 16px",
+            color: "#e11d48",
+          }}
+        >
+          <Trash2 style={{ width: "28px", height: "28px" }} />
+        </div>
+
+        <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#0f172a", marginBottom: "8px" }}>
+          {title}
+        </h3>
+
+        <p style={{ fontSize: "14px", color: "#64748b", lineHeight: "1.5", marginBottom: "24px" }}>
+          {description || (
+            <>
+              ¿Estás seguro de que deseas eliminar la regla{" "}
+              {ruleName ? <strong style={{ color: "#0f172a" }}>"{ruleName}"</strong> : "seleccionada"}?
+              <br />
+              Esta acción no se puede deshacer.
+            </>
+          )}
+        </p>
+
+        <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+          <button
+            type="button"
+            className="mdc-btn mdc-btn--ghost"
+            style={{ flex: 1, padding: "10px 16px", fontSize: "14px", fontWeight: 500 }}
+            onClick={onClose}
+            disabled={isLoading}
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            className="mdc-btn"
+            style={{
+              flex: 1,
+              padding: "10px 16px",
+              fontSize: "14px",
+              fontWeight: 600,
+              backgroundColor: "#e11d48",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: "8px",
+              cursor: isLoading ? "not-allowed" : "pointer",
+              opacity: isLoading ? 0.7 : 1,
+            }}
+            onClick={onConfirm}
+            disabled={isLoading}
+          >
+            {isLoading ? "Eliminando..." : "Eliminar"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RuleViewModal({
+  open,
+  policy,
+  rule,
+  productDetails,
+  onClose,
+  onEdit,
+}: {
+  open: boolean;
+  policy?: { product: string; rules: CreditRuleRow[]; activeCount: number } | null;
+  rule?: CreditRuleRow | null;
+  productDetails?: any[];
+  onClose: () => void;
+  onEdit?: () => void;
+}) {
+  if (!open || (!policy && !rule)) return null;
+
+  const productName = policy ? policy.product : ((rule as any)?.financialProduct || rule?.products?.[0] || "Producto");
+  const selectedProductDetail = productDetails?.find(p => p.financialProduct === productName);
+  const contractType = selectedProductDetail?.contractType || selectedProductDetail?.contract_type || "No definido";
+
+  const baseRule = policy ? policy.rules[0] : rule;
+  const conditions: any[] = (baseRule as any)?.conditions || [];
+  const hasConditions = conditions.length > 0;
+
+  return (
+    <div className="mdc-modal-backdrop" style={{ zIndex: 9999 }} onClick={onClose}>
+      <div className="mdc-modal mdc-modal--wide" style={{ maxWidth: "680px" }} onClick={(e) => e.stopPropagation()}>
+        <header className="mdc-modal-head" style={{ borderBottom: "1px solid #f1f5f9", paddingBottom: "12px", marginBottom: "16px" }}>
+          <div>
+            <p style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Visualización de regla de crédito
+            </p>
+            <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#0f172a", marginTop: "4px" }}>
+              {baseRule?.name || `Política - ${productName}`}
+            </h3>
+          </div>
+          <button type="button" className="mdc-icon-btn" onClick={onClose}>×</button>
+        </header>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
+          <div style={{ padding: "12px", backgroundColor: "#f8fafc", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+            <span style={{ fontSize: "11px", color: "#64748b", fontWeight: 600, textTransform: "uppercase" }}>Producto Financiero</span>
+            <strong style={{ display: "block", fontSize: "14px", color: "#0f172a", marginTop: "4px" }}>{productName}</strong>
+          </div>
+          <div style={{ padding: "12px", backgroundColor: "#f8fafc", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+            <span style={{ fontSize: "11px", color: "#64748b", fontWeight: 600, textTransform: "uppercase" }}>Tipo de contrato</span>
+            <strong style={{ display: "block", fontSize: "14px", color: "#0f172a", marginTop: "4px" }}>{contractType}</strong>
+          </div>
+          <div style={{ padding: "12px", backgroundColor: "#f8fafc", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+            <span style={{ fontSize: "11px", color: "#64748b", fontWeight: 600, textTransform: "uppercase" }}>Estado</span>
+            <div style={{ marginTop: "4px" }}>
+              <span className={baseRule?.status === "inactive" ? "mdc-badge mdc-badge--neutral" : "mdc-badge mdc-badge--ok"}>
+                {baseRule?.status === "inactive" ? "Inactiva" : "Activa"}
+              </span>
+            </div>
+          </div>
+          <div style={{ padding: "12px", backgroundColor: "#f8fafc", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+            <span style={{ fontSize: "11px", color: "#64748b", fontWeight: 600, textTransform: "uppercase" }}>Severidad</span>
+            <strong style={{ display: "block", fontSize: "14px", color: "#0f172a", marginTop: "4px" }}>
+              {baseRule?.severity === "fail" ? "Rechazo" : baseRule?.severity === "warn" ? "Revisión" : "Aprobación"}
+            </strong>
+          </div>
+        </div>
+
+        {baseRule?.description && (
+          <div style={{ marginBottom: "16px", padding: "12px", backgroundColor: "#f8fafc", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+            <span style={{ fontSize: "11px", color: "#64748b", fontWeight: 600, textTransform: "uppercase" }}>Descripción</span>
+            <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#334155", lineHeight: "1.5" }}>{baseRule.description}</p>
+          </div>
+        )}
+
+        <div style={{ marginBottom: "16px" }}>
+          <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#1e293b", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            Condiciones y Parámetros ({hasConditions ? conditions.length : policy ? policy.rules.length : 1})
+          </h4>
+
+          {hasConditions ? (
+            <div style={{ border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden" }}>
+              <table style={{ width: "100%", fontSize: "12px", borderCollapse: "collapse" }}>
+                <thead style={{ backgroundColor: "#f8fafc", borderBottom: "1px solid #e2e8f0", color: "#64748b" }}>
+                  <tr>
+                    <th style={{ padding: "8px 12px", textAlign: "left" }}>VARIABLE / CAMPO</th>
+                    <th style={{ padding: "8px 12px", textAlign: "center" }}>OPERADOR</th>
+                    <th style={{ padding: "8px 12px", textAlign: "right" }}>VALOR / UMBRAL</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {conditions.map((cond: any, idx: number) => {
+                    const label = FORM_CONFIG.find(c => (c.id || c.field) === cond.field)?.label || cond.field;
+                    return (
+                      <tr key={idx} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                        <td style={{ padding: "10px 12px", fontWeight: 600, color: "#1e293b" }}>{label}</td>
+                        <td style={{ padding: "10px 12px", textAlign: "center", color: "#475569" }}>
+                          {RULE_OPERATOR_LABELS[cond.operator as RuleOperator] || cond.operator}
+                        </td>
+                        <td style={{ padding: "10px 12px", textAlign: "right", fontWeight: 600, color: "#0f172a" }}>
+                          {cond.value}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : policy && policy.rules.length > 0 ? (
+            <div style={{ border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden" }}>
+              <table style={{ width: "100%", fontSize: "12px", borderCollapse: "collapse" }}>
+                <thead style={{ backgroundColor: "#f8fafc", borderBottom: "1px solid #e2e8f0", color: "#64748b" }}>
+                  <tr>
+                    <th style={{ padding: "8px 12px", textAlign: "left" }}>NOMBRE DE REGLA</th>
+                    <th style={{ padding: "8px 12px", textAlign: "center" }}>OPERADOR</th>
+                    <th style={{ padding: "8px 12px", textAlign: "right" }}>VALOR</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {policy.rules.map((r, idx) => (
+                    <tr key={idx} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                      <td style={{ padding: "10px 12px", fontWeight: 600, color: "#1e293b" }}>{r.name}</td>
+                      <td style={{ padding: "10px 12px", textAlign: "center", color: "#475569" }}>{renderRuleOperator(r)}</td>
+                      <td style={{ padding: "10px 12px", textAlign: "right", fontWeight: 600, color: "#0f172a" }}>{renderRuleValue(r)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : rule ? (
+            <div style={{ padding: "12px", backgroundColor: "#f8fafc", borderRadius: "10px", border: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <span style={{ fontSize: "11px", color: "#64748b" }}>Campo evaluado</span>
+                <p style={{ margin: "2px 0 0", fontWeight: 600, color: "#0f172a" }}>{(rule as any).fieldEvaluated || rule.field}</p>
+              </div>
+              <div>
+                <span style={{ fontSize: "11px", color: "#64748b" }}>Operador</span>
+                <p style={{ margin: "2px 0 0", color: "#475569" }}>{renderRuleOperator(rule)}</p>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <span style={{ fontSize: "11px", color: "#64748b" }}>Valor umbral</span>
+                <p style={{ margin: "2px 0 0", fontWeight: 600, color: "#0f172a" }}>{renderRuleValue(rule)}</p>
+              </div>
+            </div>
+          ) : (
+            <p style={{ fontSize: "13px", color: "#94a3b8", textAlign: "center", padding: "16px" }}>Sin condiciones configuradas.</p>
+          )}
+        </div>
+
+        <footer className="mdc-modal-actions" style={{ display: "flex", justifyContent: "flex-end", gap: "8px", borderTop: "1px solid #f1f5f9", paddingTop: "14px" }}>
+          <button type="button" className="mdc-btn mdc-btn--ghost" onClick={onClose}>Cerrar</button>
+          {onEdit && (
+            <button
+              type="button"
+              className="mdc-btn mdc-btn--primary"
+              onClick={() => {
+                onClose();
+                onEdit();
+              }}
+            >
+              Configurar política
+            </button>
+          )}
+        </footer>
+      </div>
+    </div>
+  );
+}
+
 function AddApplicationModal({
   open,
   onClose,
@@ -3555,6 +3826,7 @@ function RuleModal({
   products,
   productDetails,
   onSave,
+  onDelete,
   initialBulkRules,
 }: {
   open: boolean;
@@ -3566,6 +3838,7 @@ function RuleModal({
   productDetails?: any[];
   initialBulkRules?: CreditRuleRow[];
   onSave: (form: RuleFormState, duplicateToProduct?: RuleProduct) => void;
+  onDelete?: () => void;
 }) {
   const isDemoOrg = getStoredOrganization()?.id === "demo-bypass-org";
   const [form, setForm] = useState<RuleFormState>(() => initial);
@@ -3661,20 +3934,12 @@ function RuleModal({
             <input value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} />
           </label>
           <label>
-            <span>Producto</span>
-            <select value={form.product} onChange={(e) => setForm((s) => ({ ...s, product: e.target.value as RuleProduct }))}>
-              {products.length > 0 ? (
-                products.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))
-              ) : (
-                <option value="" disabled>No hay productos disponibles</option>
-              )}
-            </select>
+            <span>Producto activo</span>
+            <input value={form.product || "Sin producto"} disabled style={{ backgroundColor: '#f1f5f9', color: '#334155', fontWeight: 600, cursor: 'not-allowed' }} />
           </label>
           <label>
             <span>Tipo de credito / contrato</span>
-            <input value={contractType} disabled style={{ backgroundColor: '#e2e8f0', color: '#64748b', cursor: 'not-allowed' }} />
+            <input value={contractType} disabled style={{ backgroundColor: '#f1f5f9', color: '#64748b', cursor: 'not-allowed' }} />
           </label>
           {isEditing && (
             <label>
@@ -3986,41 +4251,41 @@ function RuleModal({
             </select>
           </label>
         </div>
-        <footer className="mdc-modal-actions">
+        <footer className="mdc-modal-actions" style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "8px" }}>
           <button type="button" className="mdc-btn mdc-btn--ghost" onClick={onClose}>Cancelar</button>
           <button
             type="button"
             className="mdc-btn mdc-btn--primary"
-            onClick={() => {
-              if (isDemoOrg) {
-                onSave(form, duplicateToProduct || undefined);
-                onClose();
-                return;
-              }
-
-              const conditions: any[] = [];
-              Object.entries(bulkFields).forEach(([fieldId, state]) => {
-                if (state.enabled && state.value !== "") {
-                  const config = dynamicFormConfig.find((c: any) => (c.id || c.field) === fieldId);
-                  conditions.push({
-                    field: fieldId,
-                    operator: state.operator === "equals" ? "eq" : state.operator,
-                    value: state.value,
-                    dataType: state.type,
-                  });
+              onClick={() => {
+                if (isDemoOrg) {
+                  onSave(form, duplicateToProduct || undefined);
+                  onClose();
+                  return;
                 }
-              });
 
-              onSave({
-                ...form,
-                conditions,
-              }, duplicateToProduct || undefined);
+                const conditions: any[] = [];
+                Object.entries(bulkFields).forEach(([fieldId, state]) => {
+                  if (state.enabled && state.value !== "") {
+                    const config = dynamicFormConfig.find((c: any) => (c.id || c.field) === fieldId);
+                    conditions.push({
+                      field: fieldId,
+                      operator: state.operator === "equals" ? "eq" : state.operator,
+                      value: state.value,
+                      dataType: state.type,
+                    });
+                  }
+                });
 
-              onClose();
-            }}
-          >
-            {isEditing ? "Actualizar" : "Guardar"}
-          </button>
+                onSave({
+                  ...form,
+                  conditions,
+                }, duplicateToProduct || undefined);
+
+                onClose();
+              }}
+            >
+              {isEditing ? "Actualizar" : "Guardar"}
+            </button>
         </footer>
       </div>
     </div>
@@ -4553,14 +4818,107 @@ export function MdcScreen() {
   const [editingPolicyRules, setEditingPolicyRules] = useState<CreditRuleRow[]>([]);
 
   const openCreateRule = () => {
-    setEditingRuleId(null);
-    setEditingPolicyRules([]);
-    setRuleModalState({
-      ...defaultRuleForm(activeProducts),
-      product: ruleProductFilter,
-      field: (PRODUCT_RULE_FIELDS[ruleProductFilter] || FALLBACK_RULE_FIELDS)[0] ?? "",
-    });
+    const selectedProd = (ruleProductFilter && ruleProductFilter !== "all")
+      ? ruleProductFilter
+      : (activeProducts[0] ?? NATURAL_CREDIT_PRODUCTS[0]);
+
+    const existingRulesForProduct = normalizedRules.filter(
+      (r) => r.financialProduct === selectedProd || (Array.isArray(r.products) && r.products.includes(selectedProd as any))
+    );
+
+    if (existingRulesForProduct.length > 0) {
+      const baseRule = existingRulesForProduct[0];
+      setEditingRuleId(baseRule.id);
+      setEditingPolicyRules(existingRulesForProduct);
+      setRuleModalState(ruleToFormState(baseRule, selectedProd as RuleProduct));
+    } else {
+      setEditingRuleId(null);
+      setEditingPolicyRules([]);
+      setRuleModalState({
+        ...defaultRuleForm(activeProducts),
+        name: `Regla - ${selectedProd}`,
+        product: selectedProd as RuleProduct,
+        field: (PRODUCT_RULE_FIELDS[selectedProd as RuleProduct] || FALLBACK_RULE_FIELDS)[0] ?? "",
+      });
+    }
     setShowRuleModal(true);
+  };
+
+  const [viewingPolicy, setViewingPolicy] = useState<{ product: string; rules: CreditRuleRow[]; activeCount: number } | null>(null);
+  const [viewingRule, setViewingRule] = useState<CreditRuleRow | null>(null);
+
+  const [deleteRuleTarget, setDeleteRuleTarget] = useState<{
+    type: "policy" | "single";
+    product?: string;
+    ruleId?: string;
+    ruleName?: string;
+    ruleIds?: string[];
+  } | null>(null);
+  const [isDeletingRule, setIsDeletingRule] = useState(false);
+
+  const handleConfirmDeleteRule = async () => {
+    if (!deleteRuleTarget) return;
+    setIsDeletingRule(true);
+    try {
+      const orgId = getStoredOrganization()?.id || "demo-bypass-org";
+      if (deleteRuleTarget.type === "policy") {
+        const product = deleteRuleTarget.product;
+        const idsToDelete = deleteRuleTarget.ruleIds || [];
+        for (const id of idsToDelete) {
+          await deleteRule(id, orgId);
+        }
+
+        const doesRuleMatch = (r: CreditRuleRow) => {
+          if (!r) return false;
+          const cleanIds = idsToDelete.map((i) => (i || "").split("::")[0]).filter(Boolean);
+          const ruleBaseId = (r.id || "").split("::")[0];
+          if (r.id && idsToDelete.includes(r.id)) return true;
+          if (ruleBaseId && cleanIds.includes(ruleBaseId)) return true;
+
+          if (!product) return false;
+          if ((r as any).financialProduct === product) return true;
+          if ((r as any).product === product) return true;
+          if (Array.isArray(r.products) && (r.products as any[]).some((p: any) => p === product || (typeof p === "string" && p.includes(product)))) return true;
+          if (typeof r.products === "string") {
+            const strProd = r.products as string;
+            if (strProd === product) return true;
+            try {
+              const parsed = JSON.parse(strProd);
+              if (Array.isArray(parsed) && parsed.some((p: any) => p === product || (typeof p === "string" && p.includes(product)))) return true;
+              if (parsed === product) return true;
+            } catch {
+              if (strProd.includes(product)) return true;
+            }
+          }
+          return false;
+        };
+
+        const updatedRules = rules.filter((r) => !doesRuleMatch(r));
+        setRules(updatedRules);
+        writeStoredJson(activeStorageKeys.rules, updatedRules);
+
+        logTraceabilityAction("ELIMINAR", `Eliminación de regla para producto "${product}"`, `${idsToDelete.length} regla(s) eliminada(s)`, "Eliminado");
+        setGlobalAlert({ message: `Configuración de regla para "${product}" eliminada correctamente.`, type: "success" });
+      } else if (deleteRuleTarget.type === "single" && deleteRuleTarget.ruleId) {
+        const id = deleteRuleTarget.ruleId;
+        const name = deleteRuleTarget.ruleName || "Regla";
+        await deleteRule(id, orgId);
+        const cleanId = id.split("::")[0];
+        const updatedRules = rules.filter((item) => item.id !== id && (item.id || "").split("::")[0] !== cleanId);
+        setRules(updatedRules);
+        writeStoredJson(activeStorageKeys.rules, updatedRules);
+
+        logTraceabilityAction("ELIMINAR", `Eliminación de regla "${name}"`, id, "Eliminado");
+        setGlobalAlert({ message: `Regla "${name}" eliminada correctamente.`, type: "success" });
+      }
+    } catch (err) {
+      console.error("Error al eliminar la regla:", err);
+      setGlobalAlert({ message: "Error al eliminar la regla. Por favor intente nuevamente.", type: "error" });
+    } finally {
+      setIsDeletingRule(false);
+      setDeleteRuleTarget(null);
+      setShowRuleModal(false);
+    }
   };
 
   return (
@@ -5111,62 +5469,79 @@ export function MdcScreen() {
                               </span>
                             </td>
                             <td>
-                              <details className="mdc-row-menu">
-                                <summary className="mdc-row-menu__summary-dots">...</summary>
-                                <div className="mdc-row-menu__items">
-                                  <button type="button" onClick={() => openEditRule(rule)}>
-                                    Editar
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={async () => {
-                                      const newStatus = rule.status === "active" ? "inactive" : "active";
-                                      const updated = await updateRule(rule.id, { status: newStatus }, getStoredOrganization()?.id || "demo-bypass-org");
-                                      if (updated) {
-                                        setRules((current) =>
-                                          current.map((item) => (item.id === rule.id ? { ...item, status: newStatus } : item)),
-                                        );
-                                        logTraceabilityAction("ACTUALIZAR", `Cambio de estado en regla "${rule.name}"`, rule.status, newStatus);
-                                      }
-                                    }}
+                              <div className="mdc-actions">
+                                <button
+                                  type="button"
+                                  className="mdc-btn mdc-btn--xs mdc-btn--icon"
+                                  onClick={() => setViewingRule(rule)}
+                                  aria-label={`Visualizar regla ${rule.name}`}
+                                  title="Visualizar regla"
+                                >
+                                  <Eye size={14} aria-hidden />
+                                </button>
+                                <details className="mdc-row-menu">
+                                  <summary
+                                    className="mdc-row-menu__summary-icon"
+                                    aria-label={`Opciones de ${rule.name}`}
+                                    title="Opciones"
                                   >
-                                    {rule.status === "active" ? "Desactivar" : "Activar"}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={async () => {
-                                      const duplicated: Partial<CreditRuleRow> = {
-                                        ...rule,
-                                        name: `${rule.name} (copia)`,
-                                        individualPerson: applicantMode === "natural",
-                                        legalEntity: applicantMode === "moral",
-                                      } as any;
-                                      delete duplicated.id;
-                                      delete duplicated.createdAt;
-                                      const created = await createRule(duplicated, getStoredOrganization()?.id || "demo-bypass-org");
-                                      if (created) {
-                                        setRules((current) => [...current, created]);
-                                        logTraceabilityAction("DUPLICAR", `Duplicación de regla "${rule.name}"`, "N/A", `Nueva regla: ${duplicated.name}`);
-                                      }
-                                    }}
-                                  >
-                                    Duplicar
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="mdc-row-menu__danger"
-                                    onClick={async () => {
-                                      const success = await deleteRule(rule.id, getStoredOrganization()?.id || "demo-bypass-org");
-                                      if (success) {
-                                        setRules((current) => current.filter((item) => item.id !== rule.id));
-                                        logTraceabilityAction("ELIMINAR", `Eliminación de regla "${rule.name}"`, JSON.stringify({ valor: rule.value, operador: rule.operator }), "Eliminado");
-                                      }
-                                    }}
-                                  >
-                                    Eliminar
-                                  </button>
-                                </div>
-                              </details>
+                                    <Settings size={14} aria-hidden />
+                                  </summary>
+                                  <div className="mdc-row-menu__items">
+                                    <button type="button" onClick={() => openEditRule(rule)}>
+                                      Configurar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        const newStatus = rule.status === "active" ? "inactive" : "active";
+                                        const updated = await updateRule(rule.id, { status: newStatus }, getStoredOrganization()?.id || "demo-bypass-org");
+                                        if (updated) {
+                                          setRules((current) =>
+                                            current.map((item) => (item.id === rule.id ? { ...item, status: newStatus } : item)),
+                                          );
+                                          logTraceabilityAction("ACTUALIZAR", `Cambio de estado en regla "${rule.name}"`, rule.status, newStatus);
+                                        }
+                                      }}
+                                    >
+                                      {rule.status === "active" ? "Desactivar" : "Activar"}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        const duplicated: Partial<CreditRuleRow> = {
+                                          ...rule,
+                                          name: `${rule.name} (copia)`,
+                                          individualPerson: applicantMode === "natural",
+                                          legalEntity: applicantMode === "moral",
+                                        } as any;
+                                        delete duplicated.id;
+                                        delete duplicated.createdAt;
+                                        const created = await createRule(duplicated, getStoredOrganization()?.id || "demo-bypass-org");
+                                        if (created) {
+                                          setRules((current) => [...current, created]);
+                                          logTraceabilityAction("DUPLICAR", `Duplicación de regla "${rule.name}"`, "N/A", `Nueva regla: ${duplicated.name}`);
+                                        }
+                                      }}
+                                    >
+                                      Duplicar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="mdc-row-menu__danger"
+                                      onClick={() => {
+                                        setDeleteRuleTarget({
+                                          type: "single",
+                                          ruleId: rule.id,
+                                          ruleName: rule.name,
+                                        });
+                                      }}
+                                    >
+                                      Eliminar
+                                    </button>
+                                  </div>
+                                </details>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -5187,22 +5562,66 @@ export function MdcScreen() {
                           <tr>
                             <td colSpan={4} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8" }}>No hay productos disponibles o reglas configuradas.</td>
                           </tr>
-                        ) : filteredPolicies.map((policy) => (
-                          <tr key={policy.product}>
-                            <td className="font-semibold text-slate-800">{policy.product}</td>
-                            <td>{policy.rules.length} campos</td>
-                            <td>
-                              <span className={policy.activeCount > 0 ? "mdc-badge mdc-badge--ok" : "mdc-badge mdc-badge--neutral"}>
-                                {policy.activeCount > 0 ? "Activa" : "Sin configurar"}
-                              </span>
-                            </td>
-                            <td>
-                              <button type="button" className="mdc-btn mdc-btn--ghost mdc-btn--sm" onClick={() => openEditPolicy(policy)}>
-                                Configurar Política
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
+                        ) : filteredPolicies.map((policy) => {
+                          const hasRules = policy.rules.length > 0;
+                          return (
+                            <tr key={policy.product}>
+                              <td className="font-semibold text-slate-800">{policy.product}</td>
+                              <td>{policy.rules.length} campos</td>
+                              <td>
+                                <span className={policy.activeCount > 0 ? "mdc-badge mdc-badge--ok" : "mdc-badge mdc-badge--neutral"}>
+                                  {policy.activeCount > 0 ? "Activa" : "Sin configurar"}
+                                </span>
+                              </td>
+                              <td>
+                                <div className="mdc-actions">
+                                  <button
+                                    type="button"
+                                    className="mdc-btn mdc-btn--xs mdc-btn--icon"
+                                    onClick={() => setViewingPolicy(policy)}
+                                    aria-label={`Visualizar regla de ${policy.product}`}
+                                    title="Visualizar regla"
+                                  >
+                                    <Eye size={14} aria-hidden />
+                                  </button>
+                                  <details className="mdc-row-menu">
+                                    <summary
+                                      className="mdc-row-menu__summary-icon"
+                                      aria-label={`Opciones de ${policy.product}`}
+                                      title="Opciones"
+                                    >
+                                      <Settings size={14} aria-hidden />
+                                    </summary>
+                                    <div className="mdc-row-menu__items">
+                                      <button
+                                        type="button"
+                                        onClick={() => openEditPolicy(policy)}
+                                      >
+                                        Configurar
+                                      </button>
+                                      {hasRules && (
+                                        <button
+                                          type="button"
+                                          className="mdc-row-menu__danger"
+                                          onClick={() => {
+                                            setDeleteRuleTarget({
+                                              type: "policy",
+                                              product: policy.product,
+                                              ruleIds: policy.rules.map((r) => r.id).filter(Boolean) as string[],
+                                              ruleName: policy.product,
+                                            });
+                                          }}
+                                        >
+                                          Eliminar
+                                        </button>
+                                      )}
+                                    </div>
+                                  </details>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   )}
@@ -5451,6 +5870,24 @@ export function MdcScreen() {
         isEditing={Boolean(editingRuleId)}
         products={activeProducts}
         productDetails={productDetails}
+        onDelete={() => {
+          if (editingRuleId) {
+            const rule = rules.find((r) => r.id === editingRuleId);
+            setDeleteRuleTarget({
+              type: "single",
+              ruleId: editingRuleId,
+              ruleName: rule?.name || ruleModalState.name || "Regla de crédito",
+              product: ruleModalState.product,
+            });
+          } else if (editingPolicyRules.length > 0) {
+            setDeleteRuleTarget({
+              type: "policy",
+              product: ruleModalState.product,
+              ruleIds: editingPolicyRules.map((r) => r.id).filter(Boolean) as string[],
+              ruleName: ruleModalState.product,
+            });
+          }
+        }}
         onSave={async (form, duplicateToProduct) => {
           const isDemoOrg = getStoredOrganization()?.id === "demo-bypass-org";
           const decisionBands = buildDecisionBands(form);
@@ -5499,6 +5936,40 @@ export function MdcScreen() {
           }
         }}
       />
+
+      <RuleViewModal
+        open={Boolean(viewingPolicy || viewingRule)}
+        policy={viewingPolicy}
+        rule={viewingRule}
+        productDetails={productDetails}
+        onClose={() => {
+          setViewingPolicy(null);
+          setViewingRule(null);
+        }}
+        onEdit={() => {
+          if (viewingPolicy) {
+            openEditPolicy(viewingPolicy);
+          } else if (viewingRule) {
+            openEditRule(viewingRule);
+          }
+        }}
+      />
+
+      {deleteRuleTarget && (
+        <ConfirmDeleteModal
+          open={Boolean(deleteRuleTarget)}
+          ruleName={deleteRuleTarget.ruleName || deleteRuleTarget.product}
+          title={deleteRuleTarget.type === "policy" ? "Eliminar regla de producto" : "Eliminar regla"}
+          description={
+            deleteRuleTarget.type === "policy"
+              ? `¿Estás seguro de que deseas eliminar la configuración de reglas para el producto "${deleteRuleTarget.product}"? Esta acción no se puede deshacer.`
+              : `¿Estás seguro de que deseas eliminar la regla "${deleteRuleTarget.ruleName}"? Esta acción no se puede deshacer.`
+          }
+          isLoading={isDeletingRule}
+          onClose={() => setDeleteRuleTarget(null)}
+          onConfirm={handleConfirmDeleteRule}
+        />
+      )}
     </div>
   );
 }

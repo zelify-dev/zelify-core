@@ -102,22 +102,24 @@ export const updateRule = async (id: string, rule: Partial<CreditRuleRow>, orgId
 };
 
 export const deleteRule = async (id: string, orgId?: string): Promise<boolean> => {
+  const cleanId = id.split("::")[0];
   if (orgId === "demo-bypass-org") {
-    demoRulesNatural = demoRulesNatural.filter((r) => r.id !== id);
-    demoRulesMoral = demoRulesMoral.filter((r) => r.id !== id);
+    demoRulesNatural = demoRulesNatural.filter((r) => r.id !== id && r.id !== cleanId);
+    demoRulesMoral = demoRulesMoral.filter((r) => r.id !== id && r.id !== cleanId);
     return true;
   }
 
-  const url = `${getBaseUrl()}/decision-rules/${id}`;
+  const query = orgId ? `?orgId=${encodeURIComponent(orgId)}` : "";
+  const url = `${getBaseUrl()}/decision-rules/${cleanId}${query}`;
   try {
     const response = await customFetch(url, {
       method: "DELETE",
     });
     if (!response.ok) {
-      console.warn(`Backend failed to delete rule ${id}, applying optimistically in UI`);
+      console.warn(`Backend failed to delete rule ${cleanId} (status: ${response.status}), applying optimistically in UI`);
     }
   } catch (err) {
-    console.warn(`Network error deleting rule ${id}, applying optimistically in UI`, err);
+    console.warn(`Network error deleting rule ${cleanId}, applying optimistically in UI`, err);
   }
   return true;
 };

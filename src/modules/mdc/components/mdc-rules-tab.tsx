@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, MoreHorizontal, X, Search, ChevronDown, Pencil } from "lucide-react";
+import { Plus, MoreHorizontal, X, Search, ChevronDown, Pencil, Trash2, Eye, Settings } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { naturalCreditRulesMock, type CreditRuleRow, type RuleOperator, type RuleDataType, type RuleSeverity } from "@/modules/mdc/data/mdc-rules-mock";
 import { fetchRules, createRule, updateRule, deleteRule, fetchFinanceProducts } from "@/modules/mdc/services/mdc-rules.service";
@@ -87,6 +87,29 @@ export function MdcRulesTab({ mode }: { mode: "natural" | "moral" }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
 
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [viewingRule, setViewingRule] = useState<CreditRuleRow | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      const orgId = getStoredOrganization()?.id || "demo-bypass-org";
+      await deleteRule(deleteTarget.id, orgId);
+      setRules((prev) => prev.filter((r) => r.id !== deleteTarget.id));
+    } catch (err) {
+      console.error("Error al eliminar regla:", err);
+    } finally {
+      setIsDeleting(false);
+      setDeleteTarget(null);
+      if (editingRuleId === deleteTarget?.id) {
+        setIsModalOpen(false);
+        setEditingRuleId(null);
+      }
+    }
+  };
+
   const filteredRules = useMemo(() => {
     return rules.filter((r) => {
       const matchesSearch = r.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -108,8 +131,8 @@ export function MdcRulesTab({ mode }: { mode: "natural" | "moral" }) {
           <button type="button" className="mdc-btn mdc-btn--primary bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium shadow-sm transition-colors" onClick={() => {
             setEditingRuleId(null);
             setNewRule({
-              name: "",
-              products: orgId === "demo-bypass-org" ? ["Credito automotriz"] : (availableProducts.length > 0 ? [availableProducts[0].financialProduct] : []),
+              name: activeProduct ? `Regla - ${activeProduct}` : "",
+              products: activeProduct ? [activeProduct] : (orgId === "demo-bypass-org" ? ["Credito automotriz"] : (availableProducts.length > 0 ? [availableProducts[0].financialProduct] : [])),
               field: "Edad del solicitante",
               evaluationMode: "single",
               operator: "gte",
@@ -223,40 +246,57 @@ export function MdcRulesTab({ mode }: { mode: "natural" | "moral" }) {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <div className="flex gap-2 justify-center">
+                    <div className="mdc-actions">
                       <button 
-                        className="p-1.5 text-blue-400 hover:text-blue-600 border border-blue-200 rounded shadow-sm hover:bg-blue-50 transition-colors"
-                        onClick={() => {
-                          setEditingRuleId(rule.id);
-                          setNewRule({
-                            name: rule.name,
-                            products: rule.products,
-                            field: rule.field,
-                            evaluationMode: rule.evaluationMode,
-                            operator: rule.operator,
-                            value: rule.value,
-                            dataType: rule.dataType,
-                            severity: rule.severity,
-                            description: rule.description,
-                            status: rule.status,
-                          });
-                          setIsModalOpen(true);
-                        }}
+                        type="button"
+                        className="mdc-btn mdc-btn--xs mdc-btn--icon"
+                        onClick={() => setViewingRule(rule)}
+                        aria-label={`Visualizar regla ${rule.name}`}
+                        title="Visualizar regla"
                       >
-                        <Pencil className="w-4 h-4" />
+                        <Eye size={14} aria-hidden />
                       </button>
-                      <button 
-                        className="p-1.5 text-rose-400 hover:text-rose-600 border border-rose-200 rounded shadow-sm hover:bg-rose-50 transition-colors"
-                        onClick={async () => {
-                          if (rule.id) {
-                            const orgId = getStoredOrganization()?.id || "demo-bypass-org";
-                            await deleteRule(rule.id, orgId);
-                            setRules(rules.filter(r => r.id !== rule.id));
-                          }
-                        }}
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
+                      <details className="mdc-row-menu">
+                        <summary
+                          className="mdc-row-menu__summary-icon"
+                          aria-label={`Opciones de ${rule.name}`}
+                          title="Opciones"
+                        >
+                          <Settings size={14} aria-hidden />
+                        </summary>
+                        <div className="mdc-row-menu__items">
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setEditingRuleId(rule.id);
+                              setNewRule({
+                                name: rule.name,
+                                products: rule.products,
+                                field: rule.field,
+                                evaluationMode: (rule as any).evaluationMode,
+                                operator: rule.operator,
+                                value: rule.value,
+                                dataType: rule.dataType,
+                                severity: rule.severity,
+                                description: rule.description,
+                                status: rule.status,
+                              });
+                              setIsModalOpen(true);
+                            }}
+                          >
+                            Configurar
+                          </button>
+                          <button 
+                            type="button"
+                            className="mdc-row-menu__danger"
+                            onClick={() => {
+                              setDeleteTarget({ id: rule.id, name: rule.name });
+                            }}
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      </details>
                     </div>
                   </td>
                 </tr>
@@ -297,25 +337,13 @@ export function MdcRulesTab({ mode }: { mode: "natural" | "moral" }) {
                   <input type="text" value={newRule.name} onChange={e => setNewRule({...newRule, name: e.target.value})} className="w-full h-10 px-3 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-600 mb-1.5">Producto</label>
-                  <div className="relative">
-                    <select 
-                      value={newRule.products?.[0] || ""} 
-                      onChange={e => setNewRule({...newRule, products: [e.target.value as any]})} 
-                      className="w-full h-10 px-3 border border-slate-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {orgId === "demo-bypass-org" ? (
-                        <option value="Credito automotriz">Credito automotriz</option>
-                      ) : availableProducts.length > 0 ? (
-                        availableProducts.map(p => (
-                          <option key={p.id} value={p.financialProduct}>{p.financialProduct}</option>
-                        ))
-                      ) : (
-                        <option value="" disabled>No hay productos disponibles</option>
-                      )}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
-                  </div>
+                  <label className="block text-sm font-medium text-slate-600 mb-1.5">Producto activo</label>
+                  <input 
+                    type="text" 
+                    value={activeProduct || newRule.products?.[0] || ""} 
+                    disabled 
+                    className="w-full h-10 px-3 border border-slate-200 bg-slate-100 text-slate-700 font-semibold rounded-md cursor-not-allowed" 
+                  />
                 </div>
               </div>
 
@@ -413,39 +441,153 @@ export function MdcRulesTab({ mode }: { mode: "natural" | "moral" }) {
               </div>
             </div>
 
-            <div className="p-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50 rounded-b-xl">
+            <div className="p-4 border-t border-slate-100 flex items-center justify-end gap-3 bg-slate-50 rounded-b-xl">
               <button 
                 onClick={() => setIsModalOpen(false)}
                 className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition-colors"
               >
                 Cancelar
               </button>
+                <button 
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm transition-colors"
+                  onClick={async () => {
+                    const currentOrgId = getStoredOrganization()?.id || "demo-bypass-org";
+                    const payload = {
+                      ...newRule, 
+                      products: newRule.products?.length ? newRule.products : currentOrgId === "demo-bypass-org" ? ["Credito automotriz"] : availableProducts.length > 0 ? [availableProducts[0].financialProduct] : [], 
+                      individualPerson: mode === "natural",
+                      legalEntity: mode === "moral"
+                    } as any;
+                    
+                    if (editingRuleId) {
+                      const updated = await updateRule(editingRuleId, payload, currentOrgId);
+                      if (updated) {
+                        setRules(rules.map(r => r.id === editingRuleId ? updated : r));
+                      }
+                    } else {
+                      const created = await createRule(payload, currentOrgId);
+                      if (created) {
+                         setRules([created, ...rules]);
+                      }
+                    }
+                    setIsModalOpen(false);
+                  }}
+                >
+                  {editingRuleId ? "Actualizar" : "Guardar"}
+                </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 flex flex-col items-center text-center">
+            <div className="w-14 h-14 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center mb-4 text-rose-600">
+              <Trash2 className="w-7 h-7 stroke-[1.75]" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 mb-2">Eliminar regla</h3>
+            <p className="text-sm text-slate-600 leading-relaxed mb-6">
+              ¿Estás seguro de que deseas eliminar la regla <strong className="text-slate-800 font-semibold">"{deleteTarget.name}"</strong>? Esta acción no se puede deshacer.
+            </p>
+            <div className="flex items-center gap-3 w-full justify-end">
+              <button
+                type="button"
+                className="flex-1 px-4 py-2.5 rounded-lg border border-slate-200 text-slate-700 font-medium text-sm hover:bg-slate-50 transition-colors"
+                onClick={() => setDeleteTarget(null)}
+                disabled={isDeleting}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="flex-1 px-4 py-2.5 rounded-lg bg-rose-600 text-white font-medium text-sm hover:bg-rose-700 shadow-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? "Eliminando..." : "Eliminar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewingRule && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4" onClick={() => setViewingRule(null)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="p-5 border-b border-slate-100 flex items-start justify-between">
+              <div>
+                <p style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Visualización de regla de crédito
+                </p>
+                <h3 className="text-lg font-bold text-slate-900 mt-1">{viewingRule.name}</h3>
+              </div>
               <button 
+                onClick={() => setViewingRule(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
+                  <span className="text-xs font-semibold text-slate-500 uppercase block">Producto</span>
+                  <strong className="text-sm text-slate-800 font-semibold mt-1 block">{viewingRule.products?.[0] || "Todos"}</strong>
+                </div>
+                <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
+                  <span className="text-xs font-semibold text-slate-500 uppercase block">Estado</span>
+                  <span className="inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded bg-emerald-50 text-emerald-600 border border-emerald-100">
+                    {viewingRule.status === "inactive" ? "Inactiva" : "Activa"}
+                  </span>
+                </div>
+                <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
+                  <span className="text-xs font-semibold text-slate-500 uppercase block">Campo evaluado</span>
+                  <strong className="text-sm text-slate-800 font-semibold mt-1 block">{viewingRule.field}</strong>
+                </div>
+                <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
+                  <span className="text-xs font-semibold text-slate-500 uppercase block">Operador y Valor</span>
+                  <strong className="text-sm text-slate-800 font-semibold mt-1 block">{formatOperator(viewingRule.operator)} {viewingRule.value}</strong>
+                </div>
+              </div>
+              {viewingRule.description && (
+                <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
+                  <span className="text-xs font-semibold text-slate-500 uppercase block">Descripción</span>
+                  <p className="text-sm text-slate-700 mt-1">{viewingRule.description}</p>
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t border-slate-100 flex justify-end gap-2 bg-slate-50">
+              <button
+                type="button"
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition-colors"
+                onClick={() => setViewingRule(null)}
+              >
+                Cerrar
+              </button>
+              <button
+                type="button"
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm transition-colors"
-                onClick={async () => {
-                  const payload = {
-                    ...newRule, 
-                    products: newRule.products?.length ? newRule.products : orgId === "demo-bypass-org" ? ["Credito automotriz"] : availableProducts.length > 0 ? [availableProducts[0].financialProduct] : [], 
-                    individualPerson: mode === "natural",
-                    legalEntity: mode === "moral"
-                  } as any;
-                  
-                  const orgId = getStoredOrganization()?.id || "demo-bypass-org";
-                  if (editingRuleId) {
-                    const updated = await updateRule(editingRuleId, payload, orgId);
-                    if (updated) {
-                      setRules(rules.map(r => r.id === editingRuleId ? updated : r));
-                    }
-                  } else {
-                    const created = await createRule(payload, orgId);
-                    if (created) {
-                       setRules([created, ...rules]);
-                    }
-                  }
-                  setIsModalOpen(false);
+                onClick={() => {
+                  const rule = viewingRule;
+                  setViewingRule(null);
+                  setEditingRuleId(rule.id);
+                  setNewRule({
+                    name: rule.name,
+                    products: rule.products,
+                    field: rule.field,
+                    evaluationMode: (rule as any).evaluationMode,
+                    operator: rule.operator,
+                    value: rule.value,
+                    dataType: rule.dataType,
+                    severity: rule.severity,
+                    description: rule.description,
+                    status: rule.status,
+                  });
+                  setIsModalOpen(true);
                 }}
               >
-                Guardar
+                Configurar regla
               </button>
             </div>
           </div>
