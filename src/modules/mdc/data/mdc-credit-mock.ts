@@ -7,6 +7,7 @@ export type MdcApplicantMode = "natural" | "moral";
 export type Application = {
   id: string;
   appNo: string;
+  applicantId?: string;
   applicantName: string;
   applicantEmail: string;
   product: string;
@@ -17,6 +18,19 @@ export type Application = {
   riskScore: number;
   submittedAt: string;
   updatedAt?: string;
+  rawPayload?: any;
+  analysis?: any;
+  rulesBreakdown?: Array<{
+    id?: string;
+    name: string;
+    severity?: string;
+    status: string;
+    passed?: boolean;
+    matched?: boolean;
+    reason?: string;
+    conditions?: any[];
+  }>;
+  rulesBreakdownStatus?: string;
 };
 
 export const NATURAL_CREDIT_PRODUCTS = ["Credito automotriz", "Credito personal"] as const;

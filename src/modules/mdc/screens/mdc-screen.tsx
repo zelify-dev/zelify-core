@@ -28,7 +28,7 @@ import { CREDIT_RULES_BY_MODE, type CreditRuleRow, type RuleDataType, type RuleO
 import { fetchRules, createRule, updateRule, deleteRule } from "@/modules/mdc/services/mdc-rules.service";
 import { createTraceabilityLog, fetchTraceabilityLogs } from "@/modules/mdc/services/mdc-traceability.service";
 
-import { createFinanceRequest, deleteFinanceRequest, fetchFinanceRequests, updateFinanceRequest, uploadFinancialDocument } from "@/modules/mdc/services/mdc-finance-requests.service";
+import { analyzeFinanceRequest, createFinanceRequest, deleteFinanceRequest, fetchFinanceRequests, updateFinanceRequest, uploadFinancialDocument, type AnalyzeFinanceRequestResponse } from "@/modules/mdc/services/mdc-finance-requests.service";
 import { getStoredOrganization } from "@/lib/auth-api";
 import { MdcProductsTab } from "@/modules/mdc/components/mdc-products-tab";
 import { MdcRequestsTab } from "@/modules/mdc/components/mdc-requests-tab";
@@ -701,7 +701,8 @@ function classForStatus(status: ApplicationStatus) {
   if (status === "approved") return "mdc-badge mdc-badge--ok";
   if (status === "declined") return "mdc-badge mdc-badge--bad";
   if (status === "pending") return "mdc-badge mdc-badge--warn";
-  if (status === "manualReview") return "mdc-badge mdc-badge--info";
+  if (status === "manualReview") return "mdc-badge mdc-badge--warn";
+  if (status === "overridden") return "mdc-badge mdc-badge--info";
   return "mdc-badge mdc-badge--neutral";
 }
 
@@ -1819,6 +1820,43 @@ function MoralApplicantDetailModal({
   const [feedback, setFeedback] = useState("");
   const [overrideChoice, setOverrideChoice] = useState<ApplicationStatus>("manualReview");
   const [overrideReason, setOverrideReason] = useState("");
+  const [breakdown, setBreakdown] = useState<any[] | null>(app.rulesBreakdown || null);
+  const [breakdownStatus, setBreakdownStatus] = useState<string | null>(app.rulesBreakdownStatus || app.analysis?.status || null);
+
+  useEffect(() => {
+    if (app.rulesBreakdown && app.rulesBreakdown.length > 0) {
+      setBreakdown(app.rulesBreakdown);
+      setBreakdownStatus(app.rulesBreakdownStatus || app.analysis?.status || null);
+      return;
+    }
+    const analyzePayload = app.rawPayload || {
+      product: app.product,
+      personType: "moral",
+      orgId: getStoredOrganization()?.id || "ORG-001",
+      identificationNumber: app.applicantId || app.id || "APP-PM-001",
+      firstName: app.applicantName || "Empresa",
+      lastName: "",
+      businessName: app.applicantName,
+      email: app.applicantEmail,
+      amount: app.requestedAmount,
+      montoCredito: app.requestedAmount,
+      tipoEmpleo: "Empresarial",
+      edad: 35,
+      plazo: 24,
+      capacidadPago: 30,
+    };
+    analyzeFinanceRequest(analyzePayload)
+      .then((res) => {
+        if (res && Array.isArray(res.rulesBreakdown) && res.rulesBreakdown.length > 0) {
+          setBreakdown(res.rulesBreakdown);
+          setBreakdownStatus(res.status);
+        }
+      })
+      .catch((err) => {
+        console.debug("Moral rules breakdown fetch fallback", err);
+      });
+  }, [app]);
+
   const isFreshLocalApplication = app.id.startsWith("local-");
   const profile = buildMoralCompanyProfile(app);
   const appRiskLevel = riskFromScore(app.riskScore);
@@ -2121,6 +2159,9 @@ function MoralApplicantDetailModal({
                 <h4>6. Motor de reglas y politicas de credito</h4>
                 <span
                   className={
+                    breakdownStatus === "Aprobada" || breakdownStatus === "Aprobado" ? "mdc-badge mdc-badge--ok" :
+                    breakdownStatus === "Rechazada" || breakdownStatus === "Rechazado" ? "mdc-badge mdc-badge--bad" :
+                    breakdownStatus === "Revision manual" || breakdownStatus === "Revision" ? "mdc-badge mdc-badge--warn" :
                     isFreshLocalApplication
                       ? "mdc-badge mdc-badge--neutral"
                       : failedRuleRows.length > 0
@@ -2130,21 +2171,62 @@ function MoralApplicantDetailModal({
                           : "mdc-badge mdc-badge--ok"
                   }
                 >
-                  {isFreshLocalApplication ? "Pendiente" : failedRuleRows.length > 0 ? "Con rechazos" : warnedRuleRows.length > 0 ? "Con revision" : "Aprobable"}
+                  {breakdownStatus || (isFreshLocalApplication ? "Pendiente" : failedRuleRows.length > 0 ? "Con rechazos" : warnedRuleRows.length > 0 ? "Con revision" : "Aprobable")}
                 </span>
               </div>
               <div className="mdc-detail-rule-list">
-                {activeRules.map((rule) => (
-                  <article key={rule.id} className="mdc-detail-rule">
-                    <div>
-                      <strong>{rule.name}</strong>
-                      <p>{rule.description}</p>
-                    </div>
-                    <span className={isFreshLocalApplication ? "mdc-badge mdc-badge--neutral" : chipToneBySeverity(rule.result)}>
-                      {isFreshLocalApplication ? "Pendiente" : ruleResultLabel[rule.result]}
-                    </span>
-                  </article>
-                ))}
+                {breakdown && breakdown.length > 0 ? (
+                  breakdown.map((rule, idx) => {
+                    const rawStatus = rule.status || (rule.passed ? (rule.severity === "Revision" || rule.severity === "warn" ? "Revision" : "Aprobado") : "Rechazado");
+                    const isRevision =
+                      rawStatus === "Revision" ||
+                      rawStatus === "Revision manual" ||
+                      rawStatus === "warn" ||
+                      rule.severity === "Revision" ||
+                      rule.severity === "warn";
+
+                    const isApproved =
+                      !isRevision &&
+                      (rawStatus === "Aprobado" || rawStatus === "Aprobada" || rawStatus === "pass" || rule.passed === true);
+
+                    const isDeclined =
+                      !isRevision &&
+                      !isApproved &&
+                      (rawStatus === "Rechazado" || rawStatus === "Rechazada" || rawStatus === "Rechazo" || rawStatus === "fail" || rule.passed === false);
+
+                    const displayStatus = isRevision ? "Revision" : isApproved ? "Aprobado" : isDeclined ? "Rechazado" : rawStatus;
+                    const badgeClass =
+                      isApproved
+                        ? "mdc-badge mdc-badge--ok"
+                        : isDeclined
+                          ? "mdc-badge mdc-badge--bad"
+                          : "mdc-badge mdc-badge--warn";
+
+                    return (
+                      <article key={rule.id || `pm-rule-breakdown-${idx}`} className="mdc-detail-rule">
+                        <div>
+                          <strong>{rule.name}</strong>
+                          {rule.reason ? <p>{rule.reason}</p> : null}
+                        </div>
+                        <span className={badgeClass}>
+                          {displayStatus}
+                        </span>
+                      </article>
+                    );
+                  })
+                ) : (
+                  activeRules.map((rule) => (
+                    <article key={rule.id} className="mdc-detail-rule">
+                      <div>
+                        <strong>{rule.name}</strong>
+                        <p>{rule.description}</p>
+                      </div>
+                      <span className={isFreshLocalApplication ? "mdc-badge mdc-badge--neutral" : chipToneBySeverity(rule.result)}>
+                        {isFreshLocalApplication ? "Pendiente" : ruleResultLabel[rule.result]}
+                      </span>
+                    </article>
+                  ))
+                )}
               </div>
             </section>
 
@@ -2616,6 +2698,42 @@ function AppDetailModal({
   const [feedback, setFeedback] = useState("");
   const [overrideChoice, setOverrideChoice] = useState<ApplicationStatus>("manualReview");
   const [overrideReason, setOverrideReason] = useState("");
+  const [breakdown, setBreakdown] = useState<any[] | null>(app.rulesBreakdown || null);
+  const [breakdownStatus, setBreakdownStatus] = useState<string | null>(app.rulesBreakdownStatus || app.analysis?.status || null);
+
+  useEffect(() => {
+    if (app.rulesBreakdown && app.rulesBreakdown.length > 0) {
+      setBreakdown(app.rulesBreakdown);
+      setBreakdownStatus(app.rulesBreakdownStatus || app.analysis?.status || null);
+      return;
+    }
+    const analyzePayload = app.rawPayload || {
+      product: app.product,
+      personType: mode,
+      orgId: getStoredOrganization()?.id || "ORG-001",
+      identificationNumber: app.applicantId || app.id || "APP-001",
+      firstName: app.applicantName?.split(" ")[0] || "Cliente",
+      lastName: app.applicantName?.split(" ").slice(1).join(" ") || "",
+      email: app.applicantEmail,
+      amount: app.requestedAmount,
+      montoCredito: app.requestedAmount,
+      tipoEmpleo: "Jubilado Confianza",
+      edad: 10,
+      plazo: 1000,
+      capacidadPago: 25.5,
+    };
+    analyzeFinanceRequest(analyzePayload)
+      .then((res) => {
+        if (res && Array.isArray(res.rulesBreakdown) && res.rulesBreakdown.length > 0) {
+          setBreakdown(res.rulesBreakdown);
+          setBreakdownStatus(res.status);
+        }
+      })
+      .catch((err) => {
+        console.debug("Rules breakdown fetch fallback", err);
+      });
+  }, [app, mode]);
+
   const isMoralApplicant = mode === "moral";
   if (isMoralApplicant) {
     return <MoralApplicantDetailModal app={app} rules={rules} onClose={onClose} />;
@@ -2968,22 +3086,68 @@ function AppDetailModal({
             <section className="mdc-detail-card">
               <div className="mdc-detail-card__head">
                 <h4>Desglose de reglas</h4>
-                <span className={ruleSummaryBadgeClass}>
-                  {ruleSummaryLabel}
+                <span className={
+                  breakdownStatus === "Aprobada" || breakdownStatus === "Aprobado" ? "mdc-badge mdc-badge--ok" :
+                  breakdownStatus === "Rechazada" || breakdownStatus === "Rechazado" ? "mdc-badge mdc-badge--bad" :
+                  breakdownStatus === "Revision manual" || breakdownStatus === "Revision" ? "mdc-badge mdc-badge--warn" :
+                  ruleSummaryBadgeClass
+                }>
+                  {breakdownStatus || ruleSummaryLabel}
                 </span>
               </div>
               <div className="mdc-detail-rule-list">
-                {activeRules.map((rule) => (
-                  <article key={rule.id} className="mdc-detail-rule">
-                    <div>
-                      <strong>{rule.name}</strong>
-                      <p>{rule.description}</p>
-                    </div>
-                    <span className={rule.result === "pass" ? "mdc-badge mdc-badge--ok" : rule.result === "warn" ? "mdc-badge mdc-badge--warn" : "mdc-badge mdc-badge--bad"}>
-                      {ruleResultLabel[rule.result]}
-                    </span>
-                  </article>
-                ))}
+                {breakdown && breakdown.length > 0 ? (
+                  breakdown.map((rule, idx) => {
+                    const rawStatus = rule.status || (rule.passed ? (rule.severity === "Revision" || rule.severity === "warn" ? "Revision" : "Aprobado") : "Rechazado");
+                    const isRevision =
+                      rawStatus === "Revision" ||
+                      rawStatus === "Revision manual" ||
+                      rawStatus === "warn" ||
+                      rule.severity === "Revision" ||
+                      rule.severity === "warn";
+
+                    const isApproved =
+                      !isRevision &&
+                      (rawStatus === "Aprobado" || rawStatus === "Aprobada" || rawStatus === "pass" || rule.passed === true);
+
+                    const isDeclined =
+                      !isRevision &&
+                      !isApproved &&
+                      (rawStatus === "Rechazado" || rawStatus === "Rechazada" || rawStatus === "Rechazo" || rawStatus === "fail" || rule.passed === false);
+
+                    const displayStatus = isRevision ? "Revision" : isApproved ? "Aprobado" : isDeclined ? "Rechazado" : rawStatus;
+                    const badgeClass =
+                      isApproved
+                        ? "mdc-badge mdc-badge--ok"
+                        : isDeclined
+                          ? "mdc-badge mdc-badge--bad"
+                          : "mdc-badge mdc-badge--warn";
+
+                    return (
+                      <article key={rule.id || `rule-breakdown-${idx}`} className="mdc-detail-rule">
+                        <div>
+                          <strong>{rule.name}</strong>
+                          {rule.reason ? <p>{rule.reason}</p> : null}
+                        </div>
+                        <span className={badgeClass}>
+                          {displayStatus}
+                        </span>
+                      </article>
+                    );
+                  })
+                ) : (
+                  activeRules.map((rule) => (
+                    <article key={rule.id} className="mdc-detail-rule">
+                      <div>
+                        <strong>{rule.name}</strong>
+                        <p>{rule.description}</p>
+                      </div>
+                      <span className={rule.result === "pass" ? "mdc-badge mdc-badge--ok" : rule.result === "warn" ? "mdc-badge mdc-badge--warn" : "mdc-badge mdc-badge--bad"}>
+                        {ruleResultLabel[rule.result]}
+                      </span>
+                    </article>
+                  ))
+                )}
               </div>
             </section>
 
@@ -3095,7 +3259,24 @@ function AddApplicationModal({
   onClose: () => void;
   mode: MdcApplicantMode;
   products: readonly RuleProduct[];
-  onCreate: (values: { identificationNumber: string; firstName: string; lastName: string; email: string; product: string; amount: number; bank: string; phone: string; birthPlace: string; maritalStatus: string; educationLevel: string; }) => void;
+  onCreate: (values: {
+    identificationNumber: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    product: string;
+    amount: number;
+    montoCredito?: number;
+    bank: string;
+    phone: string;
+    birthPlace: string;
+    maritalStatus: string;
+    educationLevel: string;
+    tipoEmpleo?: string;
+    edad?: number;
+    plazo?: number;
+    capacidadPago?: number;
+  }) => void;
 }) {
   const [identificationNumber, setIdentificationNumber] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -3108,6 +3289,10 @@ function AddApplicationModal({
   const [educationLevel, setEducationLevel] = useState("");
   const [product, setProduct] = useState<string>(products[0] ?? NATURAL_CREDIT_PRODUCTS[0]);
   const [amount, setAmount] = useState("12000");
+  const [tipoEmpleo, setTipoEmpleo] = useState("Jubilado Confianza");
+  const [edad, setEdad] = useState("10");
+  const [plazo, setPlazo] = useState("1000");
+  const [capacidadPago, setCapacidadPago] = useState("25.5");
   const [apiProducts, setApiProducts] = useState<any[]>([]);
   const [alertMsg, setAlertMsg] = useState<{message: string, type: "error" | "success"} | null>(null);
   const isMoral = mode === "moral";
@@ -3136,6 +3321,10 @@ function AddApplicationModal({
     setEducationLevel("");
     setProduct(displayProducts[0] ?? NATURAL_CREDIT_PRODUCTS[0]);
     setAmount("12000");
+    setTipoEmpleo("Jubilado Confianza");
+    setEdad("10");
+    setPlazo("1000");
+    setCapacidadPago("25.5");
   };
 
   useEffect(() => {
@@ -3220,6 +3409,22 @@ function AddApplicationModal({
               required
             />
           </label>
+          <label>
+            <span>Tipo de empleo</span>
+            <input value={tipoEmpleo} onChange={(e) => setTipoEmpleo(e.target.value)} placeholder="Ej. Jubilado Confianza" />
+          </label>
+          <label>
+            <span>Edad</span>
+            <input value={edad} onChange={(e) => setEdad(e.target.value)} type="number" placeholder="Ej. 10" />
+          </label>
+          <label>
+            <span>Plazo</span>
+            <input value={plazo} onChange={(e) => setPlazo(e.target.value)} type="number" placeholder="Ej. 1000" />
+          </label>
+          <label>
+            <span>Capacidad de pago (%)</span>
+            <input value={capacidadPago} onChange={(e) => setCapacidadPago(e.target.value)} type="number" step="0.1" placeholder="Ej. 25.5" />
+          </label>
         </div>
         <footer className="mdc-modal-actions">
           <button type="button" className="mdc-btn mdc-btn--ghost" onClick={() => { reset(); onClose(); }}>Cancelar</button>
@@ -3253,6 +3458,11 @@ function AddApplicationModal({
                 educationLevel,
                 product,
                 amount: Number(amount) || 0,
+                montoCredito: Number(amount) || 0,
+                tipoEmpleo: tipoEmpleo || "Jubilado Confianza",
+                edad: Number(edad) || 10,
+                plazo: Number(plazo) || 1000,
+                capacidadPago: Number(capacidadPago) || 25.5,
               });
               reset();
               onClose();
@@ -3929,7 +4139,7 @@ export function MdcScreen() {
         const mapped: Application[] = data.map((item: any) => ({
           id: item.id,
           appNo: `APP-${item.id.split("-")[0].toUpperCase()}`,
-          applicantId: item.user?.id || 'N/A',
+          applicantId: item.user?.id || item.identificationNumber || item.applicantId || 'N/A',
           applicantName: item.personType === "natural"
             ? `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Desconocido'
             : item.businessName || 'Desconocido',
@@ -3937,15 +4147,38 @@ export function MdcScreen() {
           product: item.product || 'N/A',
           requestedAmount: Number(item.amount) || 0,
           currency: 'MXN',
-          status: item.status === "Aprobada" ? "approved" :
-            item.status === "Rechazada" ? "declined" :
-              item.status === "Revision manual" ? "manualReview" :
+          status: item.status === "Aprobada" || item.status === "Aprobado" ? "approved" :
+            item.status === "Rechazada" || item.status === "Rechazado" ? "declined" :
+              item.status === "Revision manual" || item.status === "Revision" ? "manualReview" :
                 item.status === "Override" ? "overridden" : "pending",
           risk: item.riskLevel === "Bajo" ? "low" :
             item.riskLevel === "Alto" ? "high" : "medium",
           riskScore: item.riskScore || 50,
           submittedAt: item.createdAt || new Date().toISOString(),
-          updatedAt: item.updatedAt || item.createdAt || new Date().toISOString()
+          updatedAt: item.updatedAt || item.createdAt || new Date().toISOString(),
+          rawPayload: {
+            product: item.product,
+            personType: item.personType || applicantMode,
+            orgId: item.orgId || orgId,
+            identificationNumber: item.identificationNumber || item.applicantId || item.id,
+            firstName: item.firstName || "",
+            lastName: item.lastName || "",
+            businessName: item.businessName || "",
+            email: item.email,
+            phone: item.phone,
+            bank: item.bank,
+            birthPlace: item.birthPlace,
+            maritalStatus: item.maritalStatus,
+            educationLevel: item.educationLevel,
+            amount: Number(item.amount) || 0,
+            montoCredito: Number(item.montoCredito || item.amount) || 0,
+            tipoEmpleo: item.tipoEmpleo || "Jubilado Confianza",
+            edad: Number(item.edad) || 10,
+            plazo: Number(item.plazo) || 1000,
+            capacidadPago: Number(item.capacidadPago) || 25.5,
+          },
+          rulesBreakdown: item.rulesBreakdown || undefined,
+          rulesBreakdownStatus: item.status || undefined,
         }));
 
         setApps(mapped);
@@ -5019,11 +5252,30 @@ export function MdcScreen() {
         onClose={() => setShowAddApplication(false)}
         mode={applicantMode}
         products={activeProducts}
-        onCreate={async ({ identificationNumber, firstName, lastName, email, phone, bank, birthPlace, maritalStatus, educationLevel, product, amount }) => {
+        onCreate={async ({
+          identificationNumber,
+          firstName,
+          lastName,
+          email,
+          phone,
+          bank,
+          birthPlace,
+          maritalStatus,
+          educationLevel,
+          product,
+          amount,
+          montoCredito,
+          tipoEmpleo,
+          edad,
+          plazo,
+          capacidadPago,
+        }) => {
           try {
-            const response = await createFinanceRequest({
-              orgId: getStoredOrganization()?.id || "ORG-001",
+            const orgId = getStoredOrganization()?.id || "ORG-001";
+            const analyzePayload = {
+              product,
               personType: applicantMode,
+              orgId,
               identificationNumber,
               firstName,
               lastName,
@@ -5033,8 +5285,32 @@ export function MdcScreen() {
               birthPlace,
               maritalStatus,
               educationLevel,
-              product,
               amount: Number(amount),
+              montoCredito: Number(montoCredito || amount),
+              tipoEmpleo: tipoEmpleo || "Jubilado Confianza",
+              edad: Number(edad) || 10,
+              plazo: Number(plazo) || 1000,
+              capacidadPago: Number(capacidadPago) || 25.5,
+            };
+
+            let analysisResult: AnalyzeFinanceRequestResponse | null = null;
+            try {
+              analysisResult = await analyzeFinanceRequest(analyzePayload);
+            } catch (analysisErr) {
+              console.warn("Failed to analyze finance request", analysisErr);
+            }
+
+            const backendStatus =
+              analysisResult?.status === "Aprobado" || analysisResult?.status === "Aprobada" ? "Aprobada" :
+              analysisResult?.status === "Rechazado" || analysisResult?.status === "Rechazada" ? "Rechazada" :
+              analysisResult?.status === "Revision" || analysisResult?.status === "Revision manual" ? "Revision manual" :
+              "Pendiente";
+
+            const response = await createFinanceRequest({
+              ...analyzePayload,
+              status: backendStatus,
+              riskLevel: analysisResult?.riskLevel || "Medio",
+              riskScore: analysisResult?.status === "Rechazado" || analysisResult?.status === "Rechazada" ? 85 : 50,
             });
             
             if (response?.notification) {
@@ -5042,19 +5318,33 @@ export function MdcScreen() {
             }
 
             const item = response.data || response;
+            const mappedStatus: ApplicationStatus =
+              analysisResult?.status === "Aprobado" || analysisResult?.status === "Aprobada" || item.status === "Aprobada" ? "approved" :
+              analysisResult?.status === "Rechazado" || analysisResult?.status === "Rechazada" || item.status === "Rechazada" ? "declined" :
+              analysisResult?.status === "Revision" || analysisResult?.status === "Revision manual" || item.status === "Revision manual" ? "manualReview" :
+              item.status === "Override" ? "overridden" : "pending";
+
+            const mappedRisk: RiskLevel =
+              analysisResult?.riskLevel === "Alto" || item.riskLevel === "Alto" ? "high" :
+              analysisResult?.riskLevel === "Bajo" || item.riskLevel === "Bajo" ? "low" : "medium";
+
             const next: Application = {
-              id: item.id,
-              appNo: `APP-${item.id.split("-")[0].toUpperCase()}`,
+              id: item.id || `local-${Date.now()}`,
+              appNo: `APP-${(item.id || String(Date.now())).split("-")[0].toUpperCase()}`,
               applicantId: item.orgId || 'N/A',
               applicantName: applicantMode === "moral" ? (firstName.trim() || email) : `${firstName} ${lastName}`.trim() || email,
               applicantEmail: email,
               product,
               requestedAmount: Number(amount) || 0,
               currency: "MXN",
-              status: "pending",
-              risk: "medium",
-              riskScore: 50,
+              status: mappedStatus,
+              risk: mappedRisk,
+              riskScore: analysisResult?.status === "Rechazado" || analysisResult?.status === "Rechazada" ? 85 : (item.riskScore || 50),
               submittedAt: item.createdAt || new Date().toISOString(),
+              rawPayload: analyzePayload,
+              analysis: analysisResult || undefined,
+              rulesBreakdown: analysisResult?.rulesBreakdown || undefined,
+              rulesBreakdownStatus: analysisResult?.status || undefined,
             };
             setApps((current) => [next, ...current]);
             setPage(0);

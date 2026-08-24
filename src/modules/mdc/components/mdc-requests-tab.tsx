@@ -12,7 +12,8 @@ function formatCurrency(value: number) {
 
 function StatusBadge({ status }: { status: MdcRequest["status"] }) {
   const colors: Record<string, string> = {
-    "Revision manual": "bg-blue-100 text-blue-800",
+    "Revision manual": "bg-amber-100 text-amber-800",
+    "Revision": "bg-amber-100 text-amber-800",
     "Aprobada": "bg-green-100 text-green-800",
     "Rechazada": "bg-red-100 text-red-800",
     "Override": "bg-purple-100 text-purple-800",

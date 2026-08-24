@@ -4,9 +4,74 @@ import { customFetch } from "./mdc-api-client";
 const getBaseUrl = (): string =>
   process.env.NEXT_PUBLIC_MDC_API_URL || "http://127.0.0.1:3000";
 
+export type RuleBreakdownCondition = {
+  field?: string;
+  label?: string;
+  dataType?: string;
+  operator?: string;
+  operatorLabel?: string;
+  expectedValue?: any;
+  actualValue?: any;
+  passed?: boolean;
+  message?: string;
+};
+
+export type RuleBreakdownItem = {
+  id?: string;
+  name: string;
+  severity?: string;
+  status: string;
+  passed?: boolean;
+  matched?: boolean;
+  conditionsCount?: number;
+  passedConditionsCount?: number;
+  failedConditionsCount?: number;
+  reason?: string;
+  conditions?: RuleBreakdownCondition[];
+};
+
+export type AnalyzeFinanceRequestPayload = {
+  product: string;
+  personType: "natural" | "moral" | string;
+  orgId: string;
+  identificationNumber: string;
+  firstName?: string;
+  lastName?: string;
+  businessName?: string;
+  email: string;
+  phone?: string;
+  bank?: string;
+  birthPlace?: string;
+  maritalStatus?: string;
+  educationLevel?: string;
+  amount: number;
+  montoCredito?: number;
+  tipoEmpleo?: string;
+  edad?: number;
+  plazo?: number;
+  capacidadPago?: number;
+};
+
+export type AnalyzeFinanceRequestResponse = {
+  decision: string;
+  status: string;
+  riskLevel: string;
+  reasons?: string[];
+  summary?: {
+    totalRules: number;
+    evaluatedRules: number;
+    approvedRules: number;
+    reviewRules: number;
+    rejectedRules: number;
+    passedRules: number;
+    failedRules: number;
+  };
+  rulesBreakdown?: RuleBreakdownItem[];
+};
+
 export type CreateFinanceRequest = {
   orgId: string;
-  personType: "natural" | "moral";
+  personType: "natural" | "moral" | string;
   firstName?: string;
   lastName?: string;
   businessName?: string;
@@ -14,13 +79,41 @@ export type CreateFinanceRequest = {
   email: string;
   product: string;
   amount: number;
+  montoCredito?: number;
   bank?: string;
   phone?: string;
   birthPlace?: string;
   maritalStatus?: string;
   educationLevel?: string;
+  tipoEmpleo?: string;
+  edad?: number;
+  plazo?: number;
+  capacidadPago?: number;
   status?: string;
+  riskLevel?: string;
+  riskScore?: number;
+  rulesBreakdown?: RuleBreakdownItem[];
 };
+
+export async function analyzeFinanceRequest(payload: AnalyzeFinanceRequestPayload): Promise<AnalyzeFinanceRequestResponse> {
+  const res = await fetch(`${getBaseUrl()}/finance-requests/analyze`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    let errorMessage = `Failed to analyze finance request (${res.status})`;
+    try {
+      const errorJson = await res.json();
+      if (errorJson.message) errorMessage = errorJson.message;
+    } catch {
+      const text = await res.text();
+      errorMessage += `: ${text.slice(0, 200)}`;
+    }
+    throw new Error(errorMessage);
+  }
+  return res.json();
+}
 
 export type FinanceRequest = {
   id: string;
