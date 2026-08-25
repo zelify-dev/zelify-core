@@ -7,6 +7,7 @@ import { getMessages } from "@/i18n/messages";
 import { I18nProvider } from "@/providers/i18n-provider";
 import { BrandingProvider } from "@/providers/branding-provider";
 import { TamaguiProvider } from "@/providers/tamagui-provider";
+import { QueryProvider } from "@/providers/query-provider";
 
 import "@/styles/tailwind.css";
 import "./globals.css";
@@ -48,11 +49,13 @@ export default async function RootLayout({
     <html lang={locale} className={nataSans.variable} suppressHydrationWarning>
       <body suppressHydrationWarning>
         <TamaguiProvider>
-          <BrandingProvider>
-            <I18nProvider initialLocale={locale} initialMessages={messages}>
-              <AuthGuard>{children}</AuthGuard>
-            </I18nProvider>
-          </BrandingProvider>
+          <QueryProvider>
+            <BrandingProvider>
+              <I18nProvider initialLocale={locale} initialMessages={messages}>
+                <AuthGuard>{children}</AuthGuard>
+              </I18nProvider>
+            </BrandingProvider>
+          </QueryProvider>
         </TamaguiProvider>
       </body>
     </html>

@@ -4,6 +4,21 @@ import { customFetch } from "./mdc-api-client";
 const getBaseUrl = (): string =>
   process.env.NEXT_PUBLIC_MDC_API_URL || "http://127.0.0.1:3000";
 
+export type MdcApiErrorShape = {
+  message?: string;
+  step?: "s3" | "bda" | "database" | "unknown" | string;
+  detail?: string;
+};
+
+export type MdcApiError = Error & MdcApiErrorShape;
+
+function buildApiError(fallbackMessage: string, payload?: MdcApiErrorShape | null): MdcApiError {
+  return Object.assign(new Error(payload?.message || fallbackMessage), {
+    step: payload?.step,
+    detail: payload?.detail,
+  });
+}
+
 export type RuleBreakdownCondition = {
   field?: string;
   label?: string;
@@ -186,7 +201,10 @@ export type FinancialDocumentProgress = {
 
 export async function fetchFinancialDocumentProgress(userId: string, category: string): Promise<FinancialDocumentProgress> {
   const res = await customFetch(`${getBaseUrl()}/financial-documents/${userId}/${category}/progress`);
-  if (!res.ok) throw new Error(`Failed to fetch document progress (${res.status})`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw buildApiError(`Failed to fetch document progress (${res.status})`, err);
+  }
   return res.json();
 }
 
@@ -218,7 +236,7 @@ export async function uploadOneFinancialDocument(userId: string, category: strin
   });
   if (!res.ok) {
     const err = await res.json().catch(() => null);
-    throw new Error(err?.message || `Failed to upload document (${res.status})`);
+    throw buildApiError(`Failed to upload document (${res.status})`, err);
   }
   return res.json();
 }
@@ -229,19 +247,78 @@ export type FinancialDocumentProcessResponse = {
 };
 
 export async function processFinancialDocumentAnalysis(analysisId: string): Promise<FinancialDocumentProcessResponse> {
-  const res = await fetch(`${getBaseUrl()}/financial-documents/${analysisId}/process`, {
+  const res = await customFetch(`${getBaseUrl()}/financial-documents/${analysisId}/process`, {
     method: "POST",
   });
   if (!res.ok) {
     const err = await res.json().catch(() => null);
-    throw new Error(err?.message || `Failed to process document analysis (${res.status})`);
+    throw buildApiError(`Failed to process document analysis (${res.status})`, err);
   }
   return res.json();
 }
 
 export type FinancialDocumentExtractionResponse = {
+  analysisId?: string;
+  documentId?: string;
+  applicationId?: string;
+  applicantId?: string;
+  category?: string;
+  fileName?: string;
+  status?: FinancialDocumentStatus | string;
+  confidence?: number | null;
+  documentType?: string | null;
+  blueprintArn?: string | null;
   processed?: boolean;
-  extraction?: unknown;
+  extraction?: {
+    rfc?: string | null;
+    curp?: string | null;
+    sexo?: string | null;
+    documentType?: string | null;
+    periodo_pago?: string | null;
+    conducto_pago?: string | null;
+    nombre_emisor?: string | null;
+    numero_recibo?: string | null;
+    centro_trabajo?: string | null;
+    tipo_documento?: string | null;
+    nombre_completo?: string | null;
+    regimen_laboral?: string | null;
+    fecha_expedicion?: string | null;
+    fecha_pago_liquidacion?: string | null;
+    numero_empleado_ficha?: string | null;
+    resumen_financiero?: {
+      isr?: number | null;
+      neto_pagar?: number | null;
+      total_deducciones?: number | null;
+      ingresos_gravables?: number | null;
+      total_percepciones?: number | null;
+    } | null;
+    movimientos_nomina?: Array<{
+      dias?: number | null;
+      clave?: string | null;
+      concepto?: string | null;
+      referencia?: string | null;
+      deducciones?: number | null;
+      percepciones?: number | null;
+      saldo_adeudo?: number | null;
+      pension_diaria?: number | null;
+    }> | null;
+    [key: string]: unknown;
+  } | null;
+  indicators?: Record<string, unknown> | null;
+  validation?: {
+    valid?: boolean;
+    requiresManualReview?: boolean;
+    reasonCodes?: string[];
+    customOutputStatus?: string | null;
+    message?: string | null;
+    totals?: Record<string, unknown> | null;
+    [key: string]: unknown;
+  } | null;
+  errorCode?: string | null;
+  errorMessage?: string | null;
+  updatedAt?: string | null;
+  step?: string;
+  detail?: string;
   [key: string]: unknown;
 };
 
@@ -249,7 +326,24 @@ export async function fetchFinancialDocumentExtraction(analysisId: string): Prom
   const res = await customFetch(`${getBaseUrl()}/financial-documents/${analysisId}/extraction`);
   if (!res.ok) {
     const err = await res.json().catch(() => null);
-    throw new Error(err?.message || `Failed to fetch document extraction (${res.status})`);
+    throw buildApiError(`Failed to fetch document extraction (${res.status})`, err);
+  }
+  return res.json();
+}
+
+export type FinancialDocumentFileUrlResponse = {
+  documentId: string;
+  fileName: string;
+  contentType: string;
+  url: string;
+  expiresIn: number;
+};
+
+export async function fetchFinancialDocumentFileUrl(documentId: string): Promise<FinancialDocumentFileUrlResponse> {
+  const res = await customFetch(`${getBaseUrl()}/financial-documents/${documentId}/file-url`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw buildApiError(`Failed to fetch document file URL (${res.status})`, err);
   }
   return res.json();
 }

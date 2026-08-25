@@ -1221,6 +1221,282 @@
   grid-template-columns: minmax(0, 1.8fr) minmax(280px, 0.9fr);
 }
 
+.mdc-document-error {
+  margin-top: 14px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fff7f7;
+  color: #b91c1c;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.mdc-document-error .mdc-btn {
+  margin-top: 4px;
+}
+
+.mdc-document-loading {
+  position: relative;
+  overflow: hidden;
+  padding: 24px !important;
+  color: #64748b;
+  text-align: center;
+  background: #f8fafc;
+}
+
+.mdc-document-loading::after,
+.mdc-extraction-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+  animation: mdc-document-shimmer 1.4s infinite;
+}
+
+@keyframes mdc-document-shimmer {
+  to { transform: translateX(100%); }
+}
+
+.mdc-extraction-backdrop {
+  z-index: 1200;
+  padding: 24px;
+}
+
+.mdc-extraction-modal {
+  width: min(90vw, 1580px);
+  height: min(90vh, 980px);
+  border: 1px solid #dbe3ee;
+  border-radius: 18px;
+  background: #f8fafc;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mdc-extraction-head {
+  min-height: 78px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
+  padding: 16px 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.mdc-extraction-head p,
+.mdc-extraction-section-head span,
+.mdc-extraction-result__head span {
+  margin: 0;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mdc-extraction-head__title {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mdc-extraction-head h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 20px;
+}
+
+.mdc-extraction-layout {
+  min-height: 0;
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(440px, 1.05fr) minmax(440px, 0.95fr);
+  gap: 1px;
+  background: #dbe3ee;
+}
+
+.mdc-extraction-pdf,
+.mdc-extraction-result {
+  min-width: 0;
+  min-height: 0;
+  background: #fff;
+  padding: 16px;
+}
+
+.mdc-extraction-pdf {
+  display: flex;
+  flex-direction: column;
+}
+
+.mdc-extraction-result {
+  overflow-y: auto;
+  background: #f8fafc;
+}
+
+.mdc-extraction-section-head,
+.mdc-extraction-result__head {
+  min-height: 42px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mdc-extraction-section-head strong,
+.mdc-extraction-result__head strong {
+  display: block;
+  margin-top: 3px;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.mdc-extraction-iframe {
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #eef2f7;
+}
+
+.mdc-extraction-skeleton,
+.mdc-extraction-empty {
+  position: relative;
+  min-height: 220px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 24px;
+  text-align: center;
+  overflow: hidden;
+}
+
+.mdc-extraction-empty strong {
+  color: #334155;
+}
+
+.mdc-extraction-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mdc-extraction-card,
+.mdc-extraction-json {
+  border: 1px solid #dbe3ee;
+  border-radius: 12px;
+  background: #fff;
+  padding: 14px;
+}
+
+.mdc-extraction-card__head {
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.mdc-extraction-card__head h4 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.mdc-extraction-data-grid {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+
+.mdc-extraction-data-grid div {
+  min-width: 0;
+}
+
+.mdc-extraction-data-grid dt,
+.mdc-extraction-financial-grid span {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.mdc-extraction-data-grid dd {
+  margin: 3px 0 0;
+  color: #0f172a;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.mdc-extraction-financial-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mdc-extraction-financial-grid article {
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  background: #f8fafc;
+  padding: 10px;
+}
+
+.mdc-extraction-financial-grid strong {
+  display: block;
+  margin-top: 4px;
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.mdc-extraction-note {
+  margin: 10px 0 0;
+  border-left: 3px solid #93c5fd;
+  background: #eff6ff;
+  color: #1e3a8a;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.mdc-extraction-movements {
+  min-width: 760px;
+}
+
+.mdc-extraction-json summary {
+  cursor: pointer;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.mdc-extraction-json pre {
+  max-height: 360px;
+  margin: 12px 0 0;
+  border-radius: 9px;
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 12px;
+  overflow: auto;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .mdc-pm-hero {
   margin: 0 0 12px;
   border: 1px solid #e7dcc5;
@@ -2246,6 +2522,14 @@
     grid-template-columns: repeat(1, minmax(0, 1fr));
   }
 
+  .mdc-extraction-modal {
+    width: min(96vw, 1100px);
+  }
+
+  .mdc-extraction-layout {
+    grid-template-columns: minmax(380px, 0.95fr) minmax(420px, 1.05fr);
+  }
+
   .mdc-donut-wrap {
     flex-direction: column;
     align-items: flex-start;
@@ -2310,6 +2594,35 @@
   .mdc-detail-progress,
   .mdc-detail-dl,
   .mdc-detail-score-grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+
+  .mdc-extraction-backdrop {
+    padding: 8px;
+  }
+
+  .mdc-extraction-modal {
+    width: 100%;
+    height: calc(100vh - 16px);
+    border-radius: 12px;
+  }
+
+  .mdc-extraction-layout {
+    display: block;
+    overflow-y: auto;
+  }
+
+  .mdc-extraction-pdf,
+  .mdc-extraction-result {
+    overflow: visible;
+  }
+
+  .mdc-extraction-iframe {
+    min-height: 62vh;
+  }
+
+  .mdc-extraction-data-grid,
+  .mdc-extraction-financial-grid {
     grid-template-columns: repeat(1, minmax(0, 1fr));
   }
 
