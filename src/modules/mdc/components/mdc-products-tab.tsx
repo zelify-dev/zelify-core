@@ -325,6 +325,7 @@ function ProductCard({
 }
 
 function MetricsModal({ product, onClose }: { product: MdcProduct; onClose: () => void }) {
+  const isDemoOrg = getStoredOrganization()?.id === "demo-bypass-org";
   const averageInterestRate = (product.configuration.interestRate.min + product.configuration.interestRate.max) / 2;
 
   const stats = useMemo(
@@ -355,11 +356,11 @@ function MetricsModal({ product, onClose }: { product: MdcProduct; onClose: () =
         </div>
 
         <div className="mdc-prod-summary-grid">
-          <MetricCard value={String(stats.activeClients)} label="Clientes activos" />
-          <MetricCard value={formatCurrency(stats.portfolio)} label="Valor cartera" />
-          <MetricCard value={`${stats.delinquencyRate.toFixed(1)}%`} label="Tasa morosidad" />
-          <MetricCard value={String(stats.defaultCredits)} label="Creditos en default (+90 dias)" />
-          <MetricCard value={formatCurrency(Math.round(stats.monthlyInterestIncome))} label="Intereses mensuales" />
+          <MetricCard value={isDemoOrg ? String(stats.activeClients) : "0"} label="Clientes activos" />
+          <MetricCard value={isDemoOrg ? formatCurrency(stats.portfolio) : "$0 MXN"} label="Valor cartera" />
+          <MetricCard value={isDemoOrg ? `${stats.delinquencyRate.toFixed(1)}%` : "0.0%"} label="Tasa morosidad" />
+          <MetricCard value={isDemoOrg ? String(stats.defaultCredits) : "0"} label="Creditos en default (+90 dias)" />
+          <MetricCard value={isDemoOrg ? formatCurrency(Math.round(stats.monthlyInterestIncome)) : "$0 MXN"} label="Intereses mensuales" />
         </div>
 
         <div className="mdc-prod-charts-grid">
@@ -769,19 +770,27 @@ function Field({
 }
 
 function PortfolioTrend() {
-  const points = [
-    { month: "Oct", value: 1900000 },
-    { month: "Nov", value: 1200000 },
-    { month: "Dic", value: 1500000 },
-    { month: "Ene", value: 1820000 },
-  ];
+  const isDemoOrg = getStoredOrganization()?.id === "demo-bypass-org";
+  const points = isDemoOrg
+    ? [
+        { month: "Oct", value: 1900000 },
+        { month: "Nov", value: 1200000 },
+        { month: "Dic", value: 1500000 },
+        { month: "Ene", value: 1820000 },
+      ]
+    : [
+        { month: "Oct", value: 0 },
+        { month: "Nov", value: 0 },
+        { month: "Dic", value: 0 },
+        { month: "Ene", value: 0 },
+      ];
   const max = Math.max(...points.map((p) => p.value));
 
   return (
     <div className="mdc-prod-bars">
       {points.map((point, idx) => {
         const previous = idx > 0 ? points[idx - 1].value : point.value;
-        const delta = ((point.value - previous) / previous) * 100;
+        const delta = previous === 0 ? 0 : ((point.value - previous) / previous) * 100;
         const positive = delta >= 0;
 
         return (
@@ -791,7 +800,7 @@ function PortfolioTrend() {
               <strong>{formatMdcNumber(point.value)}</strong>
             </div>
             <div className="mdc-prod-bars__track">
-              <div className="mdc-prod-bars__fill" style={{ width: `${(point.value / max) * 100}%` }} />
+              <div className="mdc-prod-bars__fill" style={{ width: `${max === 0 ? 0 : (point.value / max) * 100}%` }} />
             </div>
             <p className={positive ? "mdc-prod-bars__up" : "mdc-prod-bars__down"}>
               {idx === 0 ? "Inicio del periodo" : `${positive ? "+" : ""}${delta.toFixed(1)}% vs mes anterior`}
@@ -804,18 +813,25 @@ function PortfolioTrend() {
 }
 
 function ApprovalBreakdown() {
-  const periods = [
-    { label: "29-01-2026", approved: 24, rejected: 2 },
-    { label: "30-01-2026", approved: 29, rejected: 3 },
-    { label: "01-02-2026", approved: 20, rejected: 8 },
-  ];
+  const isDemoOrg = getStoredOrganization()?.id === "demo-bypass-org";
+  const periods = isDemoOrg
+    ? [
+        { label: "29-01-2026", approved: 24, rejected: 2 },
+        { label: "30-01-2026", approved: 29, rejected: 3 },
+        { label: "01-02-2026", approved: 20, rejected: 8 },
+      ]
+    : [
+        { label: "29-01-2026", approved: 0, rejected: 0 },
+        { label: "30-01-2026", approved: 0, rejected: 0 },
+        { label: "01-02-2026", approved: 0, rejected: 0 },
+      ];
 
   return (
     <div className="mdc-prod-bars">
       {periods.map((period) => {
         const total = period.approved + period.rejected;
-        const approvalPct = (period.approved / total) * 100;
-        const rejectPct = (period.rejected / total) * 100;
+        const approvalPct = total === 0 ? 0 : (period.approved / total) * 100;
+        const rejectPct = total === 0 ? 0 : (period.rejected / total) * 100;
 
         return (
           <div key={period.label} className="mdc-prod-bars__item">
