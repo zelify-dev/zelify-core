@@ -7,6 +7,7 @@ export type MdcApplicantMode = "natural" | "moral";
 export type Application = {
   id: string;
   appNo: string;
+  userId?: string | null;
   applicantId?: string;
   applicantName: string;
   applicantEmail: string;

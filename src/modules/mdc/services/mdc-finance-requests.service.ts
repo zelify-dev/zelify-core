@@ -10,8 +10,8 @@ export type RuleBreakdownCondition = {
   dataType?: string;
   operator?: string;
   operatorLabel?: string;
-  expectedValue?: any;
-  actualValue?: any;
+  expectedValue?: unknown;
+  actualValue?: unknown;
   passed?: boolean;
   message?: string;
 };
@@ -122,6 +122,11 @@ export type FinanceRequest = {
   firstName?: string;
   lastName?: string;
   businessName?: string;
+  identificationNumber?: string;
+  applicantId?: string;
+  user?: {
+    id?: string;
+  };
   email: string;
   product: string;
   amount: number;
@@ -137,6 +142,115 @@ export async function fetchFinanceRequests(orgId: string, personType?: string): 
   if (personType) params.set("personType", personType);
   const res = await customFetch(`${getBaseUrl()}/finance-requests?${params.toString()}`);
   if (!res.ok) throw new Error(`Failed to fetch finance requests (${res.status})`);
+  return res.json();
+}
+
+export async function fetchFinanceRequestById(id: string): Promise<FinanceRequest> {
+  const res = await customFetch(`${getBaseUrl()}/finance-requests/${id}`);
+  if (!res.ok) throw new Error(`Failed to fetch finance request detail (${res.status})`);
+  const payload = await res.json();
+  return payload?.data || payload;
+}
+
+export type FinancialDocumentStatus =
+  | "PROCESSING"
+  | "COMPLETED"
+  | "MANUAL_REVIEW_REQUIRED"
+  | "FAILED"
+  | "REJECTED";
+
+export type FinancialDocumentProgressDocument = {
+  documentId?: string;
+  analysisId?: string | null;
+  fileName?: string | null;
+  status?: FinancialDocumentStatus | string | null;
+};
+
+export type FinancialDocumentProgress = {
+  userId: string;
+  applicationId?: string;
+  applicantId?: string;
+  category: string;
+  required: number;
+  uploaded: number;
+  pendingUpload: number;
+  processing: number;
+  completed: number;
+  manualReview: number;
+  failed: number;
+  uploadComplete: boolean;
+  processingComplete: boolean;
+  complete: boolean;
+  documents: FinancialDocumentProgressDocument[];
+};
+
+export async function fetchFinancialDocumentProgress(userId: string, category: string): Promise<FinancialDocumentProgress> {
+  const res = await customFetch(`${getBaseUrl()}/financial-documents/${userId}/${category}/progress`);
+  if (!res.ok) throw new Error(`Failed to fetch document progress (${res.status})`);
+  return res.json();
+}
+
+export type UploadOneFinancialDocumentResponse = {
+  documentId?: string;
+  analysisId?: string | null;
+  applicationId?: string;
+  applicantId?: string;
+  category?: string;
+  fileName?: string;
+  status?: FinancialDocumentStatus | string;
+  reused?: boolean;
+  progress?: {
+    required: number;
+    uploaded: number;
+    pendingUpload: number;
+    uploadComplete: boolean;
+    processingComplete: boolean;
+    complete: boolean;
+  };
+};
+
+export async function uploadOneFinancialDocument(userId: string, category: string, file: File): Promise<UploadOneFinancialDocumentResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch(`${getBaseUrl()}/financial-documents/${userId}/${category}/upload-one`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.message || `Failed to upload document (${res.status})`);
+  }
+  return res.json();
+}
+
+export type FinancialDocumentProcessResponse = {
+  analysisId: string;
+  status: FinancialDocumentStatus | string;
+};
+
+export async function processFinancialDocumentAnalysis(analysisId: string): Promise<FinancialDocumentProcessResponse> {
+  const res = await fetch(`${getBaseUrl()}/financial-documents/${analysisId}/process`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.message || `Failed to process document analysis (${res.status})`);
+  }
+  return res.json();
+}
+
+export type FinancialDocumentExtractionResponse = {
+  processed?: boolean;
+  extraction?: unknown;
+  [key: string]: unknown;
+};
+
+export async function fetchFinancialDocumentExtraction(analysisId: string): Promise<FinancialDocumentExtractionResponse> {
+  const res = await customFetch(`${getBaseUrl()}/financial-documents/${analysisId}/extraction`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.message || `Failed to fetch document extraction (${res.status})`);
+  }
   return res.json();
 }
 
@@ -217,7 +331,7 @@ export async function deleteFinanceRequest(id: string): Promise<boolean> {
   return ok;
 }
 
-export async function uploadFinancialDocument(applicationId: string, applicantId: string, file: File): Promise<any> {
+export async function uploadFinancialDocument(applicationId: string, applicantId: string, file: File): Promise<unknown> {
   const formData = new FormData();
   formData.append("applicationId", applicationId);
   formData.append("applicantId", applicantId);

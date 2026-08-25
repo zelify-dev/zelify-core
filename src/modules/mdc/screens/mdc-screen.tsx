@@ -3577,6 +3577,10 @@ function AddApplicationModal({
   const [educationLevel, setEducationLevel] = useState("");
   const [product, setProduct] = useState<string>(products[0] ?? NATURAL_CREDIT_PRODUCTS[0]);
   const [amount, setAmount] = useState("12000");
+  const [tipoEmpleo, setTipoEmpleo] = useState("Jubilado Confianza");
+  const [edad, setEdad] = useState("10");
+  const [plazo, setPlazo] = useState("1000");
+  const [capacidadPago, setCapacidadPago] = useState("25.5");
   const [apiProducts, setApiProducts] = useState<FinanceProductOption[]>(localProductOptions);
   const [alertMsg, setAlertMsg] = useState<{ message: string, type: "error" | "success" } | null>(null);
   const isMoral = mode === "moral";
@@ -3797,11 +3801,12 @@ function AddApplicationModal({
 }
 
 function UploadModal({ app, onClose, onSuccess, onError }: { app: Application, onClose: () => void, onSuccess: (msg: string) => void, onError: (msg: string) => void }) {
-  const applicantId = app.applicantId && app.applicantId !== "N/A" ? app.applicantId : app.id;
+  const resolvedUserId = app.userId && app.userId !== "N/A" ? app.userId : null;
 
   return (
     <FinancialDocumentUploader
-      userId={applicantId}
+      userId={resolvedUserId}
+      financeRequestId={app.id}
       onClose={() => {
         onClose();
       }}
@@ -4452,6 +4457,7 @@ export function MdcScreen() {
         const mapped: Application[] = data.map((item: any) => ({
           id: item.id,
           appNo: `APP-${item.id.split("-")[0].toUpperCase()}`,
+          userId: item.user?.id || null,
           applicantId: item.user?.id || item.identificationNumber || item.applicantId || 'N/A',
           applicantName: item.personType === "natural"
             ? `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Desconocido'
@@ -5767,15 +5773,9 @@ export function MdcScreen() {
               console.warn("Failed to analyze finance request", analysisErr);
             }
 
-            const backendStatus =
-              analysisResult?.status === "Aprobado" || analysisResult?.status === "Aprobada" ? "Aprobada" :
-                analysisResult?.status === "Rechazado" || analysisResult?.status === "Rechazada" ? "Rechazada" :
-                  analysisResult?.status === "Revision" || analysisResult?.status === "Revision manual" ? "Revision manual" :
-                    "Pendiente";
-
             const response = await createFinanceRequest({
               ...analyzePayload,
-              status: backendStatus,
+              status: "Pendiente",
               riskLevel: analysisResult?.riskLevel || "Medio",
               riskScore: analysisResult?.status === "Rechazado" || analysisResult?.status === "Rechazada" ? 85 : 50,
             });
@@ -5786,9 +5786,9 @@ export function MdcScreen() {
 
             const item = response.data || response;
             const mappedStatus: ApplicationStatus =
-              analysisResult?.status === "Aprobado" || analysisResult?.status === "Aprobada" || item.status === "Aprobada" ? "approved" :
-                analysisResult?.status === "Rechazado" || analysisResult?.status === "Rechazada" || item.status === "Rechazada" ? "declined" :
-                  analysisResult?.status === "Revision" || analysisResult?.status === "Revision manual" || item.status === "Revision manual" ? "manualReview" :
+              item.status === "Aprobada" || item.status === "Aprobado" ? "approved" :
+                item.status === "Rechazada" || item.status === "Rechazado" ? "declined" :
+                  item.status === "Revision" || item.status === "Revision manual" ? "manualReview" :
                     item.status === "Override" ? "overridden" : "pending";
 
             const mappedRisk: RiskLevel =
@@ -5798,7 +5798,8 @@ export function MdcScreen() {
             const next: Application = {
               id: item.id || `local-${Date.now()}`,
               appNo: `APP-${(item.id || String(Date.now())).split("-")[0].toUpperCase()}`,
-              applicantId: item.orgId || 'N/A',
+              userId: item.user?.id || null,
+              applicantId: item.user?.id || item.applicantId || 'N/A',
               applicantName: applicantMode === "moral" ? (firstName.trim() || email) : `${firstName} ${lastName}`.trim() || email,
               applicantEmail: email,
               product,
