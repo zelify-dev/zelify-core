@@ -44,7 +44,7 @@ export async function fetchPayments(mode: "natural" | "moral"): Promise<PaymentS
     if (!res.ok) throw new Error("Failed to fetch payments");
     return res.json();
   } catch (error) {
-    console.error(error);
+    console.warn("No se pudieron consultar pagos desde el backend, usando fallback vacio.", error);
     return [];
   }
 }
@@ -72,7 +72,7 @@ export async function createPayment(data: PaymentSession): Promise<PaymentSessio
     }
     return created;
   } catch (error) {
-    console.error(error);
+    console.warn("No se pudo crear el pago.", error);
     return null;
   }
 }
@@ -99,7 +99,7 @@ export async function updatePayment(id: string, data: Partial<PaymentSession>): 
     }
     return updated;
   } catch (error) {
-    console.error(error);
+    console.warn("No se pudo actualizar el pago.", error);
     return null;
   }
 }
@@ -125,7 +125,7 @@ export async function deletePayment(id: string): Promise<boolean> {
     }
     return ok;
   } catch (error) {
-    console.error(error);
+    console.warn("No se pudo eliminar el pago.", error);
     return false;
   }
 }
@@ -164,7 +164,7 @@ export async function uploadPaymentsFile(file: File, orgId: string): Promise<{ s
     
     return { success: true, message: data.message || "Archivo subido exitosamente" };
   } catch (error) {
-    console.error(error);
+    console.warn("No se pudo subir el archivo de pagos.", error);
     return { success: false, message: "Error de red" };
   }
 }
@@ -207,7 +207,7 @@ export async function matchBankTransaction(id: string, userId: string): Promise<
     }
     return ok;
   } catch (error) {
-    console.error(error);
+    console.warn("No se pudo enlazar la transaccion bancaria.", error);
     return false;
   }
 }

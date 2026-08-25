@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronRight, X, Upload, FileSpreadsheet, CheckCircle2, AlertCircle } from "lucide-react";
-import { useMemo, useState, useEffect } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import type { MdcApplicantMode } from "@/modules/mdc/data/mdc-credit-mock";
 import { getStoredOrganization } from "@/lib/auth-api";
 import { fetchPayments, uploadPaymentsFile, type PaymentSession } from "@/modules/mdc/services/mdc-payments.service";
@@ -88,8 +88,10 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
   const [uploadError, setUploadError] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  useEffect(() => {
-    async function load() {
+  const fallbackSessions = mode === "moral" ? MORAL_SESSIONS : NATURAL_SESSIONS;
+
+  const loadSessions = useCallback(async () => {
+    try {
       const currentOrg = getStoredOrganization();
       const orgId = currentOrg?.id || "ORG-001";
       if (orgId === "demo-bypass-org") {
@@ -97,15 +99,25 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
         if (saved) {
           setSessions(JSON.parse(saved));
         } else {
-          setSessions(mode === "moral" ? MORAL_SESSIONS : NATURAL_SESSIONS);
+          setSessions(fallbackSessions);
         }
         return;
       }
+
       const realSessions = await fetchPayments(mode);
-      setSessions(realSessions);
+      setSessions(realSessions.length > 0 ? realSessions : fallbackSessions);
+    } catch {
+      setSessions(fallbackSessions);
     }
-    load();
-  }, [mode]);
+  }, [fallbackSessions, mode]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadSessions();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadSessions]);
 
   const handleCreateTestPayment = async () => {
     const isMoral = mode === "moral";
