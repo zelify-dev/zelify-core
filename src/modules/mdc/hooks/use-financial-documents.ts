@@ -3,25 +3,50 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  deleteFinancialDocument,
   fetchFinancialDocumentExtraction,
   fetchFinancialDocumentFileUrl,
   fetchFinancialDocumentProgress,
   processFinancialDocumentAnalysis,
+  reprocessFinancialDocumentAnalysis,
+  replaceFinancialDocument,
+  reviewFinancialDocumentAnalysis,
+  uploadOneFinancialDocument,
+  type FinancialDocumentManualReviewPayload,
 } from "@/modules/mdc/services/mdc-finance-requests.service";
 
 export const financialDocumentKeys = {
-  progress: (userId: string | null | undefined) => ["financial-documents", userId, "nomina", "progress"] as const,
+  progress: (userId: string | null | undefined, category = "nomina") => ["financial-documents", userId, category, "progress"] as const,
   extraction: (analysisId: string | null | undefined) => ["financial-documents", analysisId, "extraction"] as const,
   fileUrl: (documentId: string | null | undefined) => ["financial-documents", documentId, "file-url"] as const,
 };
 
-export function usePayrollProgress(userId: string | null, isOpen: boolean) {
+export function useDocumentProgress(userId: string | null, category: "nomina" | "extracto", enabled: boolean) {
   return useQuery({
-    queryKey: financialDocumentKeys.progress(userId),
-    queryFn: () => fetchFinancialDocumentProgress(userId as string, "nomina"),
-    enabled: isOpen && Boolean(userId),
+    queryKey: financialDocumentKeys.progress(userId, category),
+    queryFn: () => fetchFinancialDocumentProgress(userId as string, category),
+    enabled: enabled && Boolean(userId),
     staleTime: 10_000,
-    refetchInterval: (query) => (isOpen && (query.state.data?.processing ?? 0) > 0 ? 5_000 : false),
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+}
+
+export function usePayrollProgress(userId: string | null, isOpen: boolean) {
+  return useDocumentProgress(userId, "nomina", isOpen);
+}
+
+export function useUploadOneDocument(userId: string | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationKey: ["financial-documents", userId, "upload-one"],
+    mutationFn: ({ category, file }: { category: "nomina" | "extracto"; file: File }) =>
+      uploadOneFinancialDocument(userId as string, category, file),
+    onSuccess: async (_result, variables) => {
+      await queryClient.invalidateQueries({ queryKey: financialDocumentKeys.progress(userId, variables.category) });
+    },
   });
 }
 
@@ -33,8 +58,71 @@ export function useProcessAnalysis(userId: string | null) {
     mutationFn: (analysisId: string) => processFinancialDocumentAnalysis(analysisId),
     onSuccess: async (_result, analysisId) => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: financialDocumentKeys.progress(userId) }),
+        queryClient.invalidateQueries({ queryKey: ["financial-documents", userId] }),
         queryClient.invalidateQueries({ queryKey: financialDocumentKeys.extraction(analysisId) }),
+      ]);
+    },
+  });
+}
+
+export function useManualReviewAnalysis(userId: string | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationKey: ["financial-documents", "manual-review"],
+    mutationFn: ({ analysisId, payload }: { analysisId: string; payload: FinancialDocumentManualReviewPayload }) =>
+      reviewFinancialDocumentAnalysis(analysisId, payload),
+    onSuccess: async (_result, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["financial-documents", userId] }),
+        queryClient.invalidateQueries({ queryKey: financialDocumentKeys.extraction(variables.analysisId) }),
+      ]);
+    },
+  });
+}
+
+export function useReprocessAnalysis(userId: string | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationKey: ["financial-documents", "reprocess"],
+    mutationFn: (analysisId: string) => reprocessFinancialDocumentAnalysis(analysisId),
+    onSuccess: async (result) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["financial-documents", userId] }),
+        queryClient.invalidateQueries({ queryKey: financialDocumentKeys.extraction(result.previousAnalysisId) }),
+      ]);
+    },
+  });
+}
+
+export function useReplaceDocument(userId: string | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationKey: ["financial-documents", "replace"],
+    mutationFn: ({ documentId, file }: { documentId: string; category: "nomina" | "extracto"; file: File }) =>
+      replaceFinancialDocument(documentId, file),
+    onSuccess: async (_result, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: financialDocumentKeys.progress(userId, variables.category) }),
+        queryClient.removeQueries({ queryKey: financialDocumentKeys.fileUrl(variables.documentId) }),
+      ]);
+    },
+  });
+}
+
+export function useDeleteDocument(userId: string | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationKey: ["financial-documents", "delete"],
+    mutationFn: ({ documentId }: { documentId: string; category: "nomina" | "extracto" }) =>
+      deleteFinancialDocument(documentId),
+    onSuccess: async (_result, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: financialDocumentKeys.progress(userId, variables.category) }),
+        queryClient.removeQueries({ queryKey: financialDocumentKeys.fileUrl(variables.documentId) }),
       ]);
     },
   });

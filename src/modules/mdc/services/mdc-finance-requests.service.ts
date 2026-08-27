@@ -179,6 +179,9 @@ export type FinancialDocumentProgressDocument = {
   analysisId?: string | null;
   fileName?: string | null;
   status?: FinancialDocumentStatus | string | null;
+  manualDecision?: "APPROVED" | "REJECTED" | string | null;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
 };
 
 export type FinancialDocumentProgress = {
@@ -257,6 +260,97 @@ export async function processFinancialDocumentAnalysis(analysisId: string): Prom
   return res.json();
 }
 
+export type FinancialDocumentManualReviewPayload = {
+  decision: "APPROVED" | "REJECTED";
+  reason: string;
+  notes?: string;
+  reviewedBy: string;
+};
+
+export type FinancialDocumentManualReviewResponse = {
+  analysisId: string;
+  documentId: string;
+  status: FinancialDocumentStatus | string;
+  manualDecision: "APPROVED" | "REJECTED" | string;
+  reviewedBy: string;
+  reviewedAt: string;
+};
+
+export async function reviewFinancialDocumentAnalysis(
+  analysisId: string,
+  payload: FinancialDocumentManualReviewPayload,
+): Promise<FinancialDocumentManualReviewResponse> {
+  const res = await customFetch(`${getBaseUrl()}/financial-documents/${analysisId}/manual-review`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw buildApiError(`Failed to review document analysis (${res.status})`, err);
+  }
+  return res.json();
+}
+
+export type FinancialDocumentReprocessResponse = {
+  previousAnalysisId: string;
+  analysisId: string;
+  documentId: string;
+  status: FinancialDocumentStatus | string;
+};
+
+export async function reprocessFinancialDocumentAnalysis(analysisId: string): Promise<FinancialDocumentReprocessResponse> {
+  const res = await customFetch(`${getBaseUrl()}/financial-documents/${analysisId}/reprocess`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw buildApiError(`Failed to reprocess document analysis (${res.status})`, err);
+  }
+  return res.json();
+}
+
+export type FinancialDocumentReplaceResponse = {
+  previousDocumentId: string;
+  documentId: string;
+  analysisId: string;
+  category: string;
+  fileName: string;
+  status: FinancialDocumentStatus | string;
+  replaced: boolean;
+};
+
+export async function replaceFinancialDocument(documentId: string, file: File): Promise<FinancialDocumentReplaceResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await customFetch(`${getBaseUrl()}/financial-documents/${documentId}/replace`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw buildApiError(`Failed to replace document (${res.status})`, err);
+  }
+  return res.json();
+}
+
+export type FinancialDocumentDeleteResponse = {
+  documentId: string;
+  status: FinancialDocumentStatus | string;
+  deleted: boolean;
+};
+
+export async function deleteFinancialDocument(documentId: string): Promise<FinancialDocumentDeleteResponse> {
+  const res = await customFetch(`${getBaseUrl()}/financial-documents/${documentId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw buildApiError(`Failed to delete document (${res.status})`, err);
+  }
+  return res.json();
+}
+
 export type FinancialDocumentExtractionResponse = {
   analysisId?: string;
   documentId?: string;
@@ -316,6 +410,11 @@ export type FinancialDocumentExtractionResponse = {
   } | null;
   errorCode?: string | null;
   errorMessage?: string | null;
+  manualDecision?: "APPROVED" | "REJECTED" | string | null;
+  manualReason?: string | null;
+  manualNotes?: string | null;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
   updatedAt?: string | null;
   step?: string;
   detail?: string;

@@ -42,7 +42,7 @@ import {
   type FinancialDocumentProgress,
   type MdcApiError,
 } from "@/modules/mdc/services/mdc-finance-requests.service";
-import { getStoredOrganization } from "@/lib/auth-api";
+import { getStoredOrganization, getStoredUser } from "@/lib/auth-api";
 import { MdcProductsTab } from "@/modules/mdc/components/mdc-products-tab";
 import { MdcRequestsTab } from "@/modules/mdc/components/mdc-requests-tab";
 
@@ -67,9 +67,11 @@ import "./mdc-screen.css";
 import { FinancialDocumentUploader } from "@/components/upload/FinancialDocumentUploader";
 import {
   useAnalysisExtraction,
+  useManualReviewAnalysis,
+  useDocumentProgress,
   useDocumentFileUrl,
-  usePayrollProgress,
   useProcessAnalysis,
+  useReprocessAnalysis,
 } from "@/modules/mdc/hooks/use-financial-documents";
 
 type MdcTab = "overview" | "products" | "applications" | "rules" | "traceability" | "payments" | "collections" | "reports" | "configuration";
@@ -2314,6 +2316,8 @@ function formatDurationLabel(minutes: number) {
 
 type DetailDocumentStatus = "Pendiente" | "En proceso" | "Completado" | "Revisión manual" | "Con errores";
 type DetailDocError = { message: string; step?: string; detail?: string };
+type ManualReviewAction = "APPROVED" | "REJECTED" | "REPROCESS" | null;
+type DocumentActionFeedback = { type: "success" | "error"; message: string } | null;
 
 function isUuidLike(value?: string | null) {
   return Boolean(value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value));
@@ -2339,14 +2343,14 @@ function toDetailDocError(error: unknown, fallback: string): DetailDocError {
   return { message: fallback };
 }
 
-function deriveDocumentVisualStatus(progress: FinancialDocumentProgress | null): DetailDocumentStatus {
-  if (!progress) return "Pendiente";
-  if (progress.failed > 0) return "Con errores";
-  if (progress.manualReview > 0) return "Revisión manual";
-  if (progress.uploaded === 0) return "Pendiente";
-  if (progress.processingComplete === true) return "Completado";
-  if (progress.uploaded > 0) return "En proceso";
-  return "Pendiente";
+function deriveCombinedDocumentStatus(progresses: Array<FinancialDocumentProgress | null>): DetailDocumentStatus {
+  const available = progresses.filter((progress): progress is FinancialDocumentProgress => Boolean(progress));
+  if (available.length === 0) return "Pendiente";
+  if (available.some((progress) => progress.failed > 0)) return "Con errores";
+  if (available.some((progress) => progress.manualReview > 0)) return "Revisión manual";
+  if (available.reduce((total, progress) => total + progress.uploaded, 0) === 0) return "Pendiente";
+  if (available.every((progress) => progress.processingComplete)) return "Completado";
+  return "En proceso";
 }
 
 function documentStatusBadgeClass(status: DetailDocumentStatus) {
@@ -2364,13 +2368,16 @@ function documentStatusBadgeClass(status: DetailDocumentStatus) {
   }
 }
 
-function bdaStatusBadgeClass(status?: string | null) {
+function bdaStatusBadgeClass(status?: string | null, manualDecision?: string | null) {
+  if (manualDecision === "APPROVED") return "mdc-badge mdc-badge--ok";
+  if (manualDecision === "REJECTED") return "mdc-badge mdc-badge--bad";
   switch (status) {
     case "COMPLETED":
       return "mdc-badge mdc-badge--ok";
     case "MANUAL_REVIEW_REQUIRED":
       return "mdc-badge mdc-badge--warn";
     case "FAILED":
+    case "REJECTED":
       return "mdc-badge mdc-badge--bad";
     case "PROCESSING":
       return "mdc-badge mdc-badge--info";
@@ -2379,7 +2386,22 @@ function bdaStatusBadgeClass(status?: string | null) {
   }
 }
 
-function bdaResultLabel(status?: string | null, extraction?: FinancialDocumentExtractionResponse | null) {
+function bdaStatusLabel(status?: string | null, manualDecision?: string | null) {
+  if (manualDecision === "APPROVED") return "Aprobado manualmente";
+  if (manualDecision === "REJECTED") return "Rechazado manualmente";
+  switch (status) {
+    case "COMPLETED": return "Completado";
+    case "PROCESSING": return "Listo para procesar";
+    case "MANUAL_REVIEW_REQUIRED": return "Revisión manual";
+    case "FAILED": return "Fallido";
+    case "REJECTED": return "Rechazado";
+    default: return "Pendiente";
+  }
+}
+
+function bdaResultLabel(status?: string | null, extraction?: FinancialDocumentExtractionResponse | null, manualDecision?: string | null) {
+  if (manualDecision === "APPROVED") return "Validado por operador";
+  if (manualDecision === "REJECTED") return "Rechazado por operador";
   if (extraction?.processed === false) return "Sin extracción procesada";
   switch (status) {
     case "COMPLETED":
@@ -2417,6 +2439,221 @@ function formatExtractionDate(value: unknown) {
   const parsed = new Date(String(value));
   if (Number.isNaN(parsed.getTime())) return String(value);
   return new Intl.DateTimeFormat("es-MX", { dateStyle: "medium", timeStyle: "short" }).format(parsed);
+}
+
+function DocumentCategoryPanel({
+  title,
+  itemLabel,
+  progress,
+  loading,
+  error,
+  processingAnalysisId,
+  reprocessingAnalysisId,
+  extractionAnalysisId,
+  extractionData,
+  actionErrors,
+  onProcess,
+  onReprocess,
+  onViewExtraction,
+}: {
+  title: string;
+  itemLabel: (index: number) => string;
+  progress: FinancialDocumentProgress | null;
+  loading: boolean;
+  error: DetailDocError | null;
+  processingAnalysisId: string | null;
+  reprocessingAnalysisId: string | null;
+  extractionAnalysisId: string | null;
+  extractionData: FinancialDocumentExtractionResponse | null;
+  actionErrors: Record<string, DetailDocError | null>;
+  onProcess: (analysisId: string, rowKey: string) => void;
+  onReprocess: (analysisId: string, rowKey: string) => void;
+  onViewExtraction: (analysisId: string, documentId: string | null, label: string, fileName: string) => void;
+}) {
+  return (
+    <section className="mdc-document-category">
+      <header className="mdc-document-category__head">
+        <div>
+          <span>Sección documental</span>
+          <h5>{title}</h5>
+        </div>
+        <div className="mdc-document-category__summary">
+          <strong>{progress ? `${progress.uploaded}/${progress.required} archivos` : "Sin datos"}</strong>
+        </div>
+      </header>
+
+      {error ? (
+        <div className="mdc-document-error">
+          <strong>Documentación no disponible temporalmente</strong>
+          <span>{error.message}</span>
+        </div>
+      ) : null}
+
+      <div className="mdc-document-list">
+        {loading && !progress ? (
+          <div className="mdc-document-loading">Cargando documentación...</div>
+        ) : !progress || progress.documents.length === 0 ? (
+          <div className="mdc-document-empty">No hay documentos cargados en esta categoría.</div>
+        ) : (
+          progress.documents.map((doc, index) => {
+            const label = itemLabel(index);
+            const rowKey = doc.analysisId || doc.documentId || `${title}-${index}`;
+            const rowError = actionErrors[rowKey];
+            const canProcess = doc.status === "PROCESSING" && Boolean(doc.analysisId);
+            const canReprocess = (doc.status === "FAILED" || doc.status === "REJECTED") && Boolean(doc.analysisId);
+            const canViewExtraction = Boolean(doc.analysisId);
+            const extractionPreview = extractionAnalysisId === doc.analysisId ? extractionData : null;
+
+            return (
+              <article className="mdc-document-row" key={rowKey}>
+                <strong className="mdc-document-row__label">{label}</strong>
+                <span className="mdc-document-row__file">{doc.fileName || "Archivo sin nombre"}</span>
+                <span className={`${bdaStatusBadgeClass(doc.status, doc.manualDecision)} mdc-document-row__status`}>{bdaStatusLabel(doc.status, doc.manualDecision)}</span>
+                <span className="mdc-document-row__result">{bdaResultLabel(doc.status, extractionPreview, doc.manualDecision)}</span>
+                <div className="mdc-document-row__actions">
+                  {canProcess ? (
+                    <button
+                      type="button"
+                      className="mdc-btn mdc-btn--ghost mdc-btn--sm"
+                      onClick={() => onProcess(doc.analysisId as string, rowKey)}
+                      disabled={processingAnalysisId === doc.analysisId}
+                    >
+                      {processingAnalysisId === doc.analysisId ? "Procesando..." : "Procesar"}
+                    </button>
+                  ) : null}
+                  {canReprocess ? (
+                    <button
+                      type="button"
+                      className="mdc-btn mdc-btn--ghost mdc-btn--sm"
+                      onClick={() => onReprocess(doc.analysisId as string, rowKey)}
+                      disabled={reprocessingAnalysisId === doc.analysisId}
+                    >
+                      {reprocessingAnalysisId === doc.analysisId ? "Reprocesando..." : "Reprocesar"}
+                    </button>
+                  ) : null}
+                  {canViewExtraction ? (
+                    <button
+                      type="button"
+                      className="mdc-btn mdc-btn--ghost mdc-btn--sm"
+                      onClick={() => onViewExtraction(doc.analysisId as string, doc.documentId || null, label, doc.fileName || "Sin nombre")}
+                    >
+                      {doc.status === "FAILED" ? "Ver error" : "Ver extracción"}
+                    </button>
+                  ) : null}
+                </div>
+                {rowError ? (
+                  <details className="mdc-document-row__error">
+                    <summary>{rowError.message}</summary>
+                    {rowError.step ? <p>Paso: {rowError.step}</p> : null}
+                    {rowError.detail ? <p>Detalle: {rowError.detail}</p> : null}
+                  </details>
+                ) : null}
+              </article>
+            );
+          })
+        )}
+      </div>
+    </section>
+  );
+}
+
+function normalizeExtractionKey(key: string) {
+  return key.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function asExtractionRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function readExtractionValue(source: Record<string, unknown>, ...aliases: string[]) {
+  const aliasKeys = new Set(aliases.map(normalizeExtractionKey));
+  const match = Object.entries(source).find(([key]) => aliasKeys.has(normalizeExtractionKey(key)));
+  return match?.[1];
+}
+
+function formatBusinessDate(value: unknown) {
+  if (!value) return "N/D";
+  const raw = String(value);
+  const isoDate = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const parsed = isoDate
+    ? new Date(Date.UTC(Number(isoDate[1]), Number(isoDate[2]) - 1, Number(isoDate[3])))
+    : new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return raw;
+  return new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(parsed);
+}
+
+function BankStatementExtractionDetails({ data }: { data: FinancialDocumentExtractionResponse }) {
+  const extraction = asExtractionRecord(data.extraction);
+  const statementPeriod = asExtractionRecord(readExtractionValue(extraction, "statementPeriod", "statement_period", "periodoEstadoCuenta"));
+  const accountHolder = readExtractionValue(extraction, "accountHolder", "account_holder", "titularCuenta", "titular");
+  const rfc = readExtractionValue(extraction, "rfc");
+  const bankName = readExtractionValue(extraction, "bankName", "bank_name", "banco");
+  const accountNumber = readExtractionValue(extraction, "accountNumber", "account_number", "numeroCuenta");
+  const clabe = readExtractionValue(extraction, "clabe");
+  const customerNumber = readExtractionValue(extraction, "customerNumber", "customer_number", "numeroCliente");
+  const cutoffDate = readExtractionValue(extraction, "cutoffDate", "cutoff_date", "fechaCorte");
+  const currency = readExtractionValue(extraction, "currency", "moneda");
+  const periodFrom = readExtractionValue(statementPeriod, "from", "desde", "startDate", "fechaInicio");
+  const periodTo = readExtractionValue(statementPeriod, "to", "hasta", "endDate", "fechaFin");
+  const periodLabel = periodFrom && periodTo
+    ? `${formatBusinessDate(periodFrom)} — ${formatBusinessDate(periodTo)}`
+    : formatBusinessDate(periodFrom || periodTo);
+  const validationLabel = data.validation?.requiresManualReview
+    ? "Revisión manual"
+    : data.validation?.valid
+      ? "Válida"
+      : "N/D";
+
+  return (
+    <>
+      <section className="mdc-extraction-card">
+        <div className="mdc-extraction-card__head"><h4>Datos principales del extracto</h4></div>
+        <dl className="mdc-extraction-data-grid mdc-bank-primary-grid">
+          <div className="mdc-bank-primary-grid__holder"><dt>Titular de la cuenta</dt><dd>{displayValue(accountHolder)}</dd></div>
+          <div><dt>RFC</dt><dd>{displayValue(rfc)}</dd></div>
+          <div><dt>Número de cuenta</dt><dd>{displayValue(accountNumber)}</dd></div>
+          <div><dt>CLABE</dt><dd>{displayValue(clabe)}</dd></div>
+          <div><dt>Banco</dt><dd>{displayValue(bankName)}</dd></div>
+          <div><dt>Número de cliente</dt><dd>{displayValue(customerNumber)}</dd></div>
+        </dl>
+      </section>
+
+      <section className="mdc-extraction-card">
+        <div className="mdc-extraction-card__head"><h4>Información del estado de cuenta</h4></div>
+        <dl className="mdc-extraction-data-grid mdc-bank-statement-grid">
+          <div className="mdc-bank-statement-grid__period"><dt>Periodo del estado de cuenta</dt><dd>{periodLabel}</dd></div>
+          <div><dt>Fecha de corte</dt><dd>{formatBusinessDate(cutoffDate)}</dd></div>
+          <div><dt>Moneda</dt><dd>{displayValue(currency)}</dd></div>
+        </dl>
+      </section>
+
+      <section className="mdc-extraction-card">
+        <div className="mdc-extraction-card__head"><h4>Información del documento</h4></div>
+        <dl className="mdc-extraction-data-grid">
+          <div><dt>Tipo</dt><dd>Estado de cuenta bancario</dd></div>
+        </dl>
+      </section>
+
+      <details className="mdc-extraction-technical">
+        <summary>
+          <span>Detalles técnicos del procesamiento</span>
+          <span className={bdaStatusBadgeClass(data.status)}>{displayValue(data.status)}</span>
+        </summary>
+        <div className="mdc-extraction-technical__body">
+          <dl className="mdc-extraction-data-grid">
+            <div><dt>Estado</dt><dd>{displayValue(data.status)}</dd></div>
+            <div><dt>Tipo interno</dt><dd>{displayValue(data.documentType || readExtractionValue(extraction, "documentType", "document_type"))}</dd></div>
+            <div><dt>Procesado</dt><dd>{data.processed ? "Sí" : "No"}</dd></div>
+            <div><dt>Actualizado</dt><dd>{formatExtractionDate(data.updatedAt)}</dd></div>
+            <div><dt>Validación</dt><dd>{validationLabel}</dd></div>
+            <div><dt>Reason codes</dt><dd>{data.validation?.reasonCodes?.length ? data.validation.reasonCodes.join(", ") : "N/D"}</dd></div>
+            <div><dt>Error code</dt><dd>{displayValue(data.errorCode)}</dd></div>
+            <div><dt>Mensaje</dt><dd>{displayValue(data.errorMessage || data.validation?.message)}</dd></div>
+          </dl>
+        </div>
+      </details>
+    </>
+  );
 }
 
 type ApplicationFlowStep = {
@@ -2834,11 +3071,17 @@ function AppDetailModal({
   const [breakdown, setBreakdown] = useState<any[] | null>(app.rulesBreakdown || null);
   const [breakdownStatus, setBreakdownStatus] = useState<string | null>(app.rulesBreakdownStatus || app.analysis?.status || null);
   const [actionErrors, setActionErrors] = useState<Record<string, DetailDocError | null>>({});
+  const [manualReviewAction, setManualReviewAction] = useState<ManualReviewAction>(null);
+  const [manualReviewReason, setManualReviewReason] = useState("");
+  const [manualReviewNotes, setManualReviewNotes] = useState("");
+  const [documentActionFeedback, setDocumentActionFeedback] = useState<DocumentActionFeedback>(null);
+  const [reviewerEmail, setReviewerEmail] = useState("");
   const [extractionSelection, setExtractionSelection] = useState<{
     analysisId: string;
     documentId: string | null;
     title: string;
     fileName: string;
+    category: "nomina" | "extracto";
   } | null>(null);
 
   const suppliedUserId = app.userId && isUuidLike(app.userId) ? app.userId : null;
@@ -2849,22 +3092,49 @@ function AppDetailModal({
     staleTime: 30_000,
   });
   const resolvedUserId = suppliedUserId || (financeRequestDetailQuery.data ? extractFinanceRequestUserId(financeRequestDetailQuery.data) : null);
-  const documentProgressQuery = usePayrollProgress(resolvedUserId, !isMoralApplicant);
+  const documentProgressQuery = useDocumentProgress(resolvedUserId, "nomina", !isMoralApplicant);
+  const bankStatementProgressQuery = useDocumentProgress(resolvedUserId, "extracto", !isMoralApplicant);
   const processAnalysisMutation = useProcessAnalysis(resolvedUserId);
+  const manualReviewMutation = useManualReviewAnalysis(resolvedUserId);
+  const reprocessAnalysisMutation = useReprocessAnalysis(resolvedUserId);
   const extractionQuery = useAnalysisExtraction(extractionSelection?.analysisId || null, Boolean(extractionSelection));
   const fileUrlQuery = useDocumentFileUrl(extractionSelection?.documentId || null, Boolean(extractionSelection));
   const documentProgress = documentProgressQuery.data || null;
-  const documentLoading = financeRequestDetailQuery.isLoading || documentProgressQuery.isLoading;
-  const documentRefreshing = financeRequestDetailQuery.isFetching || documentProgressQuery.isFetching;
-  const documentErrorSource = financeRequestDetailQuery.error || documentProgressQuery.error;
+  const bankStatementProgress = bankStatementProgressQuery.data || null;
+  const documentLoading = financeRequestDetailQuery.isLoading || documentProgressQuery.isLoading || bankStatementProgressQuery.isLoading;
+  const documentRefreshing = financeRequestDetailQuery.isFetching || documentProgressQuery.isFetching || bankStatementProgressQuery.isFetching;
+  const documentErrorSource = financeRequestDetailQuery.error || documentProgressQuery.error || bankStatementProgressQuery.error;
   const documentError = documentErrorSource
     ? toDetailDocError(documentErrorSource, "Documentación no disponible temporalmente")
     : financeRequestDetailQuery.isSuccess && !resolvedUserId
       ? { message: "No fue posible resolver el userId real del solicitante." }
     : null;
+  const payrollDocumentError = documentProgressQuery.error
+    ? toDetailDocError(documentProgressQuery.error, "No fue posible cargar nómina.")
+    : financeRequestDetailQuery.error || (financeRequestDetailQuery.isSuccess && !resolvedUserId)
+      ? documentError
+      : null;
+  const bankStatementDocumentError = bankStatementProgressQuery.error
+    ? toDetailDocError(bankStatementProgressQuery.error, "No fue posible cargar el extracto bancario.")
+    : financeRequestDetailQuery.error || (financeRequestDetailQuery.isSuccess && !resolvedUserId)
+      ? documentError
+      : null;
   const processingAnalysisId = processAnalysisMutation.isPending ? processAnalysisMutation.variables : null;
+  const reprocessingAnalysisId = reprocessAnalysisMutation.isPending ? reprocessAnalysisMutation.variables : null;
   const extractionData = extractionQuery.data || null;
+  const extractionManualDecision = extractionData?.manualDecision || null;
+  const extractionRequiresManualReview = !extractionManualDecision && (extractionData?.status === "MANUAL_REVIEW_REQUIRED" || Boolean(extractionData?.validation?.requiresManualReview));
   const extractionAnalysisId = extractionSelection?.analysisId || null;
+
+  useEffect(() => {
+    setReviewerEmail(getStoredUser()?.email || "");
+  }, []);
+
+  useEffect(() => {
+    setManualReviewAction(null);
+    setManualReviewReason("");
+    setManualReviewNotes("");
+  }, [extractionSelection?.analysisId]);
 
   useEffect(() => {
     if (app.rulesBreakdown && app.rulesBreakdown.length > 0) {
@@ -2982,13 +3252,7 @@ function AppDetailModal({
     "credit.maxDaysPastDue": maxDaysPastDue > maxDaysPastDueAllowed,
     "credit.historyMonths": creditHistoryMonths < historyMinMonths,
   };
-  const documentVisualStatus = deriveDocumentVisualStatus(documentProgress);
-  const documentStatusTone = documentStatusBadgeClass(documentVisualStatus);
-  const documentProgressSummary = documentProgress
-    ? `${documentProgress.completed} completados · ${documentProgress.processing} procesando · ${documentProgress.pendingUpload} pendientes`
-    : documentLoading
-      ? "Cargando documentación..."
-      : "Documentación no disponible temporalmente";
+  const documentVisualStatus = deriveCombinedDocumentStatus([documentProgress, bankStatementProgress]);
   const documentStageState =
     documentVisualStatus === "Con errores"
       ? "failed"
@@ -3175,7 +3439,7 @@ function AppDetailModal({
       await financeRequestDetailQuery.refetch();
       return;
     }
-    await documentProgressQuery.refetch();
+    await Promise.all([documentProgressQuery.refetch(), bankStatementProgressQuery.refetch()]);
   };
 
   const handleProcessDocument = async (analysisId: string, rowKey: string) => {
@@ -3189,12 +3453,80 @@ function AppDetailModal({
     }
   };
 
-  const handleViewExtraction = (analysisId: string, documentId: string | null, label: string, fileName: string) => {
+  const handleReprocessFromRow = async (analysisId: string, rowKey: string) => {
+    setActionErrors((current) => ({ ...current, [rowKey]: null }));
+    try {
+      await reprocessAnalysisMutation.mutateAsync(analysisId);
+      setFeedback("Se creó una nueva invocación BDA para el documento.");
+    } catch (error: unknown) {
+      setActionErrors((current) => ({ ...current, [rowKey]: toDetailDocError(error, "No fue posible reprocesar el documento.") }));
+    }
+  };
+
+  const startManualReview = (decision: "APPROVED" | "REJECTED") => {
+    setDocumentActionFeedback(null);
+    setManualReviewAction(decision);
+    setManualReviewReason(
+      decision === "APPROVED"
+        ? "Información validada contra el documento original"
+        : "El documento no cumple con la validación manual",
+    );
+    setManualReviewNotes("");
+  };
+
+  const handleManualReview = async () => {
+    if (!extractionAnalysisId || (manualReviewAction !== "APPROVED" && manualReviewAction !== "REJECTED")) return;
+    if (!reviewerEmail) {
+      setDocumentActionFeedback({ type: "error", message: "No fue posible identificar el correo del operador autenticado." });
+      return;
+    }
+    if (!manualReviewReason.trim()) {
+      setDocumentActionFeedback({ type: "error", message: "El motivo de la decisión es obligatorio." });
+      return;
+    }
+
+    setDocumentActionFeedback(null);
+    try {
+      await manualReviewMutation.mutateAsync({
+        analysisId: extractionAnalysisId,
+        payload: {
+          decision: manualReviewAction,
+          reason: manualReviewReason.trim(),
+          notes: manualReviewNotes.trim(),
+          reviewedBy: reviewerEmail,
+        },
+      });
+      setManualReviewAction(null);
+      setDocumentActionFeedback({
+        type: "success",
+        message: manualReviewAction === "APPROVED" ? "Documento aprobado manualmente." : "Documento rechazado manualmente.",
+      });
+    } catch (error: unknown) {
+      setDocumentActionFeedback({ type: "error", message: toDetailDocError(error, "No fue posible registrar la revisión manual.").message });
+    }
+  };
+
+  const handleReprocessDocument = async () => {
+    if (!extractionAnalysisId) return;
+    setDocumentActionFeedback(null);
+    try {
+      const result = await reprocessAnalysisMutation.mutateAsync(extractionAnalysisId);
+      setExtractionSelection((current) => current ? { ...current, analysisId: result.analysisId } : current);
+      setManualReviewAction(null);
+      setDocumentActionFeedback({ type: "success", message: "Se creó una nueva invocación BDA para el documento." });
+    } catch (error: unknown) {
+      setDocumentActionFeedback({ type: "error", message: toDetailDocError(error, "No fue posible reprocesar el documento.").message });
+    }
+  };
+
+  const handleViewExtraction = (analysisId: string, documentId: string | null, label: string, fileName: string, category: "nomina" | "extracto") => {
+    setDocumentActionFeedback(null);
     setExtractionSelection({
       analysisId,
       documentId,
       title: `${label} · ${fileName}`,
       fileName,
+      category,
     });
   };
 
@@ -3223,27 +3555,42 @@ function AppDetailModal({
             <div key={stage.id} className="mdc-stage-card">
               <span className={`mdc-stage-dot mdc-stage-dot--${stage.state}`} />
               <strong>{stage.label}</strong>
-              <em>{stage.id === "docs" ? documentLoading ? "Cargando documentación..." : documentError ? "No disponible" : documentVisualStatus : stage.state === "done" ? "Completado" : stage.state === "current" ? "En proceso" : "Con observacion"}</em>
+              {stage.id === "docs" ? (
+                documentLoading ? <em>Cargando documentación...</em> : documentError ? <em>No disponible</em> : (
+                  <div className="mdc-stage-document-lines">
+                    <span>
+                      <b>Nómina</b>
+                      <em>{documentProgress?.uploaded ?? 0}/{documentProgress?.required ?? 5}</em>
+                      <small>{documentProgress?.completed ?? 0} {(documentProgress?.completed ?? 0) === 1 ? "procesado" : "procesados"}</small>
+                    </span>
+                    <span>
+                      <b>Extracto</b>
+                      <em>{bankStatementProgress?.uploaded ?? 0}/{bankStatementProgress?.required ?? 1}</em>
+                      <small>{bankStatementProgress?.completed ?? 0} {(bankStatementProgress?.completed ?? 0) === 1 ? "procesado" : "procesados"}</small>
+                    </span>
+                  </div>
+                )
+              ) : (
+                <em>{stage.state === "done" ? "Completado" : stage.state === "current" ? "En proceso" : "Con observacion"}</em>
+              )}
             </div>
           ))}
         </div>
 
         <div className="mdc-detail-layout">
           <div className="mdc-detail-main">
-            <section className="mdc-detail-card">
+            <section className="mdc-detail-card mdc-detail-card--summary">
               <h4>{isMoralApplicant ? "Empresa solicitante" : "Solicitante"}</h4>
-              <dl className="mdc-detail-dl">
+              <dl className="mdc-detail-dl mdc-detail-dl--compact">
                 <div><dt>Nombre</dt><dd>{app.applicantName}</dd></div>
                 <div><dt>Email</dt><dd>{app.applicantEmail}</dd></div>
-                <div><dt>Fecha envio</dt><dd>{shortDate(app.submittedAt)}</dd></div>
-                <div><dt>Score buró estimado</dt><dd>{bureauScoreEstimated} ({RISK_LABELS[appRiskLevel]})</dd></div>
-                <div><dt>Indice interno de riesgo</dt><dd>{app.riskScore}/100</dd></div>
+                <div><dt>Fecha de envío</dt><dd>{shortDate(app.submittedAt)}</dd></div>
               </dl>
             </section>
 
-            <section className="mdc-detail-card">
+            <section className="mdc-detail-card mdc-detail-card--summary">
               <h4>Producto y condiciones</h4>
-              <dl className="mdc-detail-dl">
+              <dl className="mdc-detail-dl mdc-detail-dl--compact">
                 <div><dt>Producto</dt><dd>{app.product}</dd></div>
                 <div><dt>Monto solicitado</dt><dd>{money(app.requestedAmount)}</dd></div>
                 <div><dt>Tasa anual estimada</dt><dd>{interestRate.toFixed(1)}%</dd></div>
@@ -3255,127 +3602,44 @@ function AppDetailModal({
 
             <section className="mdc-detail-card">
               <div className="mdc-detail-card__head">
-                <h4>Validacion documental</h4>
-                <span className={documentStatusTone}>{documentVisualStatus}</span>
-              </div>
-              <div style={{ display: "grid", gap: "1rem" }}>
-                <article style={{ border: "1px solid #e2e8f0", borderRadius: "1rem", padding: "1rem", background: "#f8fafc" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", alignItems: "flex-start", flexWrap: "wrap" }}>
-                    <div>
-                      <strong style={{ display: "block", marginBottom: "0.3rem", color: "#0f172a" }}>Expediente documental</strong>
-                      <p style={{ margin: 0, color: "#64748b", fontSize: "0.92rem" }}>Resumen real de documentos y procesamiento BDA para esta solicitud.</p>
-                    </div>
-                    <button type="button" className="mdc-btn mdc-btn--ghost mdc-btn--sm" onClick={handleRefreshDocumentProgress} disabled={documentRefreshing || !resolvedUserId}>
-                      {documentRefreshing ? "Actualizando..." : "Actualizar"}
-                    </button>
-                  </div>
-
-                  {documentError ? (
-                    <div className="mdc-document-error">
-                      <strong style={{ display: "block", marginBottom: "0.2rem" }}>Documentación no disponible temporalmente</strong>
-                      <span style={{ fontSize: "0.9rem" }}>{documentError.message}</span>
-                      <button type="button" className="mdc-btn mdc-btn--ghost mdc-btn--sm" onClick={handleRefreshDocumentProgress}>
-                        Reintentar
-                      </button>
-                    </div>
-                  ) : null}
-
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.75rem", marginTop: "1rem" }}>
-                    <article style={{ borderRadius: "0.9rem", background: "#fff", border: "1px solid #e2e8f0", padding: "0.9rem" }}>
-                      <strong style={{ display: "block", color: "#0f172a", marginBottom: "0.2rem" }}>Nómina</strong>
-                      <p style={{ margin: 0, color: "#334155", fontWeight: 600 }}>{documentProgress ? `${documentProgress.uploaded}/${documentProgress.required} archivos` : "Sin datos"}</p>
-                      <span style={{ display: "block", marginTop: "0.35rem", color: "#64748b", fontSize: "0.88rem" }}>{documentProgressSummary}</span>
-                      <span className={documentStatusTone} style={{ marginTop: "0.55rem", display: "inline-flex" }}>{documentVisualStatus}</span>
-                    </article>
-                    <article style={{ borderRadius: "0.9rem", background: "#fff", border: "1px solid #e2e8f0", padding: "0.9rem" }}>
-                      <strong style={{ display: "block", color: "#0f172a", marginBottom: "0.2rem" }}>Extractos bancarios</strong>
-                      <p style={{ margin: 0, color: "#334155", fontWeight: 600 }}>Pendiente de configuración</p>
-                      <span style={{ display: "block", marginTop: "0.35rem", color: "#64748b", fontSize: "0.88rem" }}>Sin consumo de endpoint por ahora.</span>
-                    </article>
-                    <article style={{ borderRadius: "0.9rem", background: "#fff", border: "1px solid #e2e8f0", padding: "0.9rem" }}>
-                      <strong style={{ display: "block", color: "#0f172a", marginBottom: "0.2rem" }}>Domicilio</strong>
-                      <p style={{ margin: 0, color: "#334155", fontWeight: 600 }}>Pendiente</p>
-                      <span style={{ display: "block", marginTop: "0.35rem", color: "#64748b", fontSize: "0.88rem" }}>Placeholder visual solamente.</span>
-                    </article>
-                  </div>
-                </article>
-
-                <div className="mdc-table-wrap">
-                  <table className="mdc-table mdc-table--detail">
-                    <thead>
-                      <tr>
-                        <th>Documento</th>
-                        <th>Archivo</th>
-                        <th>Estado BDA</th>
-                        <th>Confianza</th>
-                        <th>Resultado</th>
-                        <th>Acción</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {documentLoading && !documentProgress ? (
-                        <tr>
-                          <td colSpan={6} className="mdc-document-loading">Cargando documentación...</td>
-                        </tr>
-                      ) : !documentProgress || documentProgress.documents.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} style={{ textAlign: "center", padding: "1.5rem", color: "#94a3b8" }}>Todavía no hay nóminas subidas para esta solicitud.</td>
-                        </tr>
-                      ) : (
-                        documentProgress.documents.map((doc, index) => {
-                          const rowKey = doc.analysisId || doc.documentId || `nomina-${index}`;
-                          const rowError = actionErrors[rowKey];
-                          const canRefresh = (doc.status === "PROCESSING" || doc.status === "FAILED") && Boolean(doc.analysisId);
-                          const canViewExtraction = Boolean(doc.analysisId);
-                          const extractionPreview = extractionAnalysisId === doc.analysisId ? extractionData : null;
-                          return (
-                            <tr key={rowKey}>
-                              <td>{`Nómina ${index + 1}`}</td>
-                              <td>{doc.fileName || "Sin nombre"}</td>
-                              <td><span className={bdaStatusBadgeClass(doc.status)}>{doc.status || "PENDIENTE"}</span></td>
-                              <td>{extractionPreview ? formatConfidence(extractionPreview.confidence) : "N/D"}</td>
-                              <td>{bdaResultLabel(doc.status, extractionPreview)}</td>
-                              <td>
-                                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                                  {canRefresh ? (
-                                    <button
-                                      type="button"
-                                      className="mdc-btn mdc-btn--ghost mdc-btn--sm"
-                                      onClick={() => handleProcessDocument(doc.analysisId as string, rowKey)}
-                                      disabled={processingAnalysisId === doc.analysisId}
-                                    >
-                                      {processingAnalysisId === doc.analysisId ? "Actualizando..." : "Actualizar"}
-                                    </button>
-                                  ) : null}
-                                  {canViewExtraction ? (
-                                    <button
-                                      type="button"
-                                      className="mdc-btn mdc-btn--ghost mdc-btn--sm"
-                                      onClick={() => handleViewExtraction(doc.analysisId as string, doc.documentId || null, `Nómina ${index + 1}`, doc.fileName || "Sin nombre")}
-                                    >
-                                      {doc.status === "FAILED" ? "Ver error" : "Ver extracción"}
-                                    </button>
-                                  ) : null}
-                                  {!canRefresh && !canViewExtraction ? <span style={{ color: "#94a3b8", fontSize: "0.85rem" }}>Sin acción</span> : null}
-                                </div>
-                                {rowError ? (
-                                  <details style={{ marginTop: "0.5rem" }}>
-                                    <summary style={{ cursor: "pointer", color: "#b91c1c", fontSize: "0.84rem" }}>{rowError.message}</summary>
-                                    <div style={{ marginTop: "0.35rem", fontSize: "0.82rem", color: "#64748b" }}>
-                                      {rowError.step ? <p style={{ margin: 0 }}>Paso: {rowError.step}</p> : null}
-                                      {rowError.detail ? <p style={{ margin: "0.2rem 0 0" }}>Detalle: {rowError.detail}</p> : null}
-                                    </div>
-                                  </details>
-                                ) : null}
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
+                <h4>Validación documental</h4>
+                <div className="mdc-document-card-actions">
+                  <button type="button" className="mdc-btn mdc-btn--ghost mdc-btn--sm" onClick={handleRefreshDocumentProgress} disabled={documentRefreshing || !resolvedUserId}>
+                    {documentRefreshing ? "Actualizando..." : "Actualizar"}
+                  </button>
                 </div>
               </div>
+              <DocumentCategoryPanel
+                title="Comprobantes de nómina"
+                itemLabel={(index) => `Nómina ${index + 1}`}
+                progress={documentProgress}
+                loading={financeRequestDetailQuery.isLoading || documentProgressQuery.isLoading}
+                error={payrollDocumentError}
+                processingAnalysisId={processingAnalysisId}
+                reprocessingAnalysisId={reprocessingAnalysisId}
+                extractionAnalysisId={extractionAnalysisId}
+                extractionData={extractionData}
+                actionErrors={actionErrors}
+                onProcess={handleProcessDocument}
+                onReprocess={handleReprocessFromRow}
+                onViewExtraction={(analysisId, documentId, label, fileName) => handleViewExtraction(analysisId, documentId, label, fileName, "nomina")}
+              />
+
+              <DocumentCategoryPanel
+                title="Extracto bancario"
+                itemLabel={() => "Extracto"}
+                progress={bankStatementProgress}
+                loading={financeRequestDetailQuery.isLoading || bankStatementProgressQuery.isLoading}
+                error={bankStatementDocumentError}
+                processingAnalysisId={processingAnalysisId}
+                reprocessingAnalysisId={reprocessingAnalysisId}
+                extractionAnalysisId={extractionAnalysisId}
+                extractionData={extractionData}
+                actionErrors={actionErrors}
+                onProcess={handleProcessDocument}
+                onReprocess={handleReprocessFromRow}
+                onViewExtraction={(analysisId, documentId, label, fileName) => handleViewExtraction(analysisId, documentId, label, fileName, "extracto")}
+              />
             </section>
 
             <section className="mdc-detail-card">
@@ -3527,8 +3791,8 @@ function AppDetailModal({
                   <p>Extracción documental</p>
                   <div className="mdc-extraction-head__title">
                     <h3>{extractionSelection.title}</h3>
-                    <span className={bdaStatusBadgeClass(extractionQuery.error ? "FAILED" : extractionData?.status)}>
-                      {extractionQuery.isLoading ? "CARGANDO" : extractionQuery.error ? "ERROR" : extractionData?.status || "N/D"}
+                    <span className={bdaStatusBadgeClass(extractionQuery.error ? "FAILED" : extractionData?.status, extractionData?.manualDecision)}>
+                      {extractionQuery.isLoading ? "Cargando" : extractionQuery.error ? "Error" : bdaStatusLabel(extractionData?.status, extractionData?.manualDecision)}
                     </span>
                   </div>
                 </div>
@@ -3567,8 +3831,8 @@ function AppDetailModal({
                 <section className="mdc-extraction-result">
                   <div className="mdc-extraction-result__head">
                     <div>
-                      <span>Resultado BDA</span>
-                      <strong>Datos normalizados del análisis</strong>
+                      <span>Resultado del documento</span>
+                      <strong>Datos extraídos y normalizados</strong>
                     </div>
                     {extractionAnalysisId && extractionData?.processed === false ? (
                       <button
@@ -3577,7 +3841,7 @@ function AppDetailModal({
                         onClick={() => handleProcessDocument(extractionAnalysisId, extractionAnalysisId)}
                         disabled={processingAnalysisId === extractionAnalysisId}
                       >
-                        {processingAnalysisId === extractionAnalysisId ? "Actualizando..." : "Actualizar análisis"}
+                        {processingAnalysisId === extractionAnalysisId ? "Procesando..." : "Procesar análisis"}
                       </button>
                     ) : null}
                   </div>
@@ -3592,36 +3856,74 @@ function AppDetailModal({
                     </div>
                   ) : extractionData ? (
                     <div className="mdc-extraction-sections">
-                      <section className="mdc-extraction-card">
-                        <div className="mdc-extraction-card__head">
-                          <h4>Estado del análisis</h4>
-                          <span className={bdaStatusBadgeClass(extractionData.status)}>{displayValue(extractionData.status)}</span>
-                        </div>
-                        <dl className="mdc-extraction-data-grid">
-                          <div><dt>Procesado</dt><dd>{extractionData.processed ? "Sí" : "No"}</dd></div>
-                          <div><dt>Tipo de documento</dt><dd>{displayValue(extractionData.documentType)}</dd></div>
-                          <div><dt>Actualizado</dt><dd>{formatExtractionDate(extractionData.updatedAt)}</dd></div>
-                          <div><dt>Confianza</dt><dd>{formatConfidence(extractionData.confidence)}</dd></div>
-                        </dl>
-                        {!extractionData.processed ? <p className="mdc-extraction-note">El análisis todavía no tiene extracción procesada.</p> : null}
-                      </section>
+                      {documentActionFeedback ? <p className={`mdc-document-action-feedback mdc-document-action-feedback--${documentActionFeedback.type}`}>{documentActionFeedback.message}</p> : null}
+                      {extractionManualDecision ? (
+                        <section className={`mdc-manual-decision mdc-manual-decision--${extractionManualDecision === "APPROVED" ? "approved" : "rejected"}`}>
+                          <div>
+                            <span>Decisión del operador</span>
+                            <strong>{extractionManualDecision === "APPROVED" ? "Aprobado manualmente" : "Rechazado manualmente"}</strong>
+                          </div>
+                          <dl>
+                            <div><dt>Operador</dt><dd>{displayValue(extractionData.reviewedBy)}</dd></div>
+                            <div><dt>Fecha</dt><dd>{formatExtractionDate(extractionData.reviewedAt)}</dd></div>
+                            <div><dt>Motivo</dt><dd>{displayValue(extractionData.manualReason)}</dd></div>
+                            <div><dt>Notas</dt><dd>{displayValue(extractionData.manualNotes)}</dd></div>
+                          </dl>
+                        </section>
+                      ) : extractionRequiresManualReview ? (
+                        <section className="mdc-manual-review-panel">
+                          <div className="mdc-manual-review-panel__head">
+                            <div>
+                              <span>Revisión del operador</span>
+                              <strong>Este documento requiere una decisión manual</strong>
+                            </div>
+                            <small>{reviewerEmail || "Operador no identificado"}</small>
+                          </div>
+                          <p>{displayValue(extractionData.validation?.message || extractionData.errorMessage || "Revisa los datos extraídos contra el documento original antes de tomar una decisión.")}</p>
+                          <div className="mdc-manual-review-panel__actions">
+                            <button type="button" className="mdc-btn mdc-btn--ghost" onClick={() => setManualReviewAction("REPROCESS")} disabled={reprocessAnalysisMutation.isPending || manualReviewMutation.isPending}>
+                              Reprocesar análisis
+                            </button>
+                            <button type="button" className="mdc-btn mdc-btn--danger" onClick={() => startManualReview("REJECTED")} disabled={reprocessAnalysisMutation.isPending || manualReviewMutation.isPending}>
+                              Rechazar
+                            </button>
+                            <button type="button" className="mdc-btn mdc-btn--primary" onClick={() => startManualReview("APPROVED")} disabled={reprocessAnalysisMutation.isPending || manualReviewMutation.isPending || !reviewerEmail}>
+                              Aprobar manualmente
+                            </button>
+                          </div>
 
-                      <section className="mdc-extraction-card">
-                        <div className="mdc-extraction-card__head">
-                          <h4>Validación</h4>
-                          <span className={extractionData.validation?.requiresManualReview ? "mdc-badge mdc-badge--warn" : extractionData.validation?.valid ? "mdc-badge mdc-badge--ok" : "mdc-badge mdc-badge--neutral"}>
-                            {extractionData.validation?.requiresManualReview ? "Revisión manual" : extractionData.validation?.valid ? "Válida" : "N/D"}
-                          </span>
-                        </div>
-                        <dl className="mdc-extraction-data-grid">
-                          <div><dt>Estado de salida</dt><dd>{displayValue(extractionData.validation?.customOutputStatus)}</dd></div>
-                          <div><dt>Reason codes</dt><dd>{extractionData.validation?.reasonCodes?.length ? extractionData.validation.reasonCodes.join(", ") : "N/D"}</dd></div>
-                          <div><dt>Error code</dt><dd>{displayValue(extractionData.errorCode)}</dd></div>
-                          <div><dt>Mensaje</dt><dd>{displayValue(extractionData.errorMessage || extractionData.validation?.message)}</dd></div>
-                        </dl>
-                      </section>
-
-                      {extractionData.errorMessage ? (
+                          {manualReviewAction === "REPROCESS" ? (
+                            <div className="mdc-manual-review-form">
+                              <strong>Confirmar reprocesamiento</strong>
+                              <p>Se creará una nueva invocación BDA para este mismo PDF y el análisis actual quedará como antecedente.</p>
+                              <div className="mdc-manual-review-form__actions">
+                                <button type="button" className="mdc-btn mdc-btn--ghost" onClick={() => setManualReviewAction(null)} disabled={reprocessAnalysisMutation.isPending}>Cancelar</button>
+                                <button type="button" className="mdc-btn mdc-btn--primary" onClick={handleReprocessDocument} disabled={reprocessAnalysisMutation.isPending}>
+                                  {reprocessAnalysisMutation.isPending ? "Reprocesando..." : "Confirmar reproceso"}
+                                </button>
+                              </div>
+                            </div>
+                          ) : manualReviewAction ? (
+                            <div className="mdc-manual-review-form">
+                              <strong>{manualReviewAction === "APPROVED" ? "Aprobar documento manualmente" : "Rechazar documento manualmente"}</strong>
+                              <label>
+                                <span>Motivo</span>
+                                <input value={manualReviewReason} onChange={(event) => setManualReviewReason(event.target.value)} placeholder="Describe el motivo de la decisión" />
+                              </label>
+                              <label>
+                                <span>Notas</span>
+                                <textarea value={manualReviewNotes} onChange={(event) => setManualReviewNotes(event.target.value)} rows={2} placeholder="Información adicional para auditoría" />
+                              </label>
+                              <div className="mdc-manual-review-form__actions">
+                                <button type="button" className="mdc-btn mdc-btn--ghost" onClick={() => setManualReviewAction(null)} disabled={manualReviewMutation.isPending}>Cancelar</button>
+                                <button type="button" className={manualReviewAction === "APPROVED" ? "mdc-btn mdc-btn--primary" : "mdc-btn mdc-btn--danger"} onClick={handleManualReview} disabled={manualReviewMutation.isPending || !manualReviewReason.trim() || !reviewerEmail}>
+                                  {manualReviewMutation.isPending ? "Guardando decisión..." : manualReviewAction === "APPROVED" ? "Confirmar aprobación" : "Confirmar rechazo"}
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+                        </section>
+                      ) : extractionData.errorMessage ? (
                         <div className="mdc-document-error">
                           <strong>{extractionData.errorMessage}</strong>
                           {extractionData.step ? <span>Paso: {extractionData.step}</span> : null}
@@ -3629,65 +3931,111 @@ function AppDetailModal({
                         </div>
                       ) : null}
 
-                      <section className="mdc-extraction-card">
-                        <div className="mdc-extraction-card__head"><h4>Resumen financiero</h4></div>
-                        <div className="mdc-extraction-financial-grid">
-                          <article><span>Percepciones</span><strong>{formatDocumentMoney(extractionData.extraction?.resumen_financiero?.total_percepciones)}</strong></article>
-                          <article><span>Deducciones</span><strong>{formatDocumentMoney(extractionData.extraction?.resumen_financiero?.total_deducciones)}</strong></article>
-                          <article><span>Neto a pagar</span><strong>{formatDocumentMoney(extractionData.extraction?.resumen_financiero?.neto_pagar)}</strong></article>
-                          <article><span>ISR</span><strong>{formatDocumentMoney(extractionData.extraction?.resumen_financiero?.isr)}</strong></article>
-                          <article><span>Ingresos gravables</span><strong>{formatDocumentMoney(extractionData.extraction?.resumen_financiero?.ingresos_gravables)}</strong></article>
-                        </div>
-                      </section>
+                      {extractionSelection.category === "extracto" ? (
+                        <>
+                          <BankStatementExtractionDetails data={extractionData} />
 
-                      <section className="mdc-extraction-card">
-                        <div className="mdc-extraction-card__head"><h4>Datos del trabajador / pensionado</h4></div>
-                        <dl className="mdc-extraction-data-grid">
-                          <div><dt>Nombre completo</dt><dd>{displayValue(extractionData.extraction?.nombre_completo)}</dd></div>
-                          <div><dt>RFC</dt><dd>{displayValue(extractionData.extraction?.rfc)}</dd></div>
-                          <div><dt>CURP</dt><dd>{displayValue(extractionData.extraction?.curp)}</dd></div>
-                          <div><dt>Sexo</dt><dd>{displayValue(extractionData.extraction?.sexo)}</dd></div>
-                          <div><dt>Emisor</dt><dd>{displayValue(extractionData.extraction?.nombre_emisor)}</dd></div>
-                          <div><dt>Tipo de documento</dt><dd>{displayValue(extractionData.extraction?.tipo_documento)}</dd></div>
-                          <div><dt>Periodo</dt><dd>{displayValue(extractionData.extraction?.periodo_pago)}</dd></div>
-                          <div><dt>Fecha expedición</dt><dd>{displayValue(extractionData.extraction?.fecha_expedicion)}</dd></div>
-                          <div><dt>Fecha de pago</dt><dd>{displayValue(extractionData.extraction?.fecha_pago_liquidacion)}</dd></div>
-                          <div><dt>Número de recibo</dt><dd>{displayValue(extractionData.extraction?.numero_recibo)}</dd></div>
-                          <div><dt>Ficha</dt><dd>{displayValue(extractionData.extraction?.numero_empleado_ficha)}</dd></div>
-                          <div><dt>Centro de trabajo</dt><dd>{displayValue(extractionData.extraction?.centro_trabajo)}</dd></div>
-                          <div><dt>Régimen laboral</dt><dd>{displayValue(extractionData.extraction?.regimen_laboral)}</dd></div>
-                          <div><dt>Conducto de pago</dt><dd>{displayValue(extractionData.extraction?.conducto_pago)}</dd></div>
-                        </dl>
-                      </section>
+                          <details className="mdc-extraction-json">
+                            <summary>JSON completo</summary>
+                            <pre>{JSON.stringify(extractionData, null, 2)}</pre>
+                          </details>
+                        </>
+                      ) : (
+                        <>
+                          <section className="mdc-extraction-card">
+                            <div className="mdc-extraction-card__head"><h4>Datos requeridos para la solicitud</h4></div>
+                            <dl className="mdc-extraction-data-grid mdc-extraction-required-grid">
+                              <div>
+                                <dt>Ficha / ID adicional</dt>
+                                <dd>{displayValue(extractionData.extraction?.numero_empleado_ficha)}</dd>
+                                <small>{extractionData.extraction?.numero_empleado_ficha ? "Extraído" : "No disponible"}</small>
+                              </div>
+                              <div>
+                                <dt>RFC</dt>
+                                <dd>{displayValue(extractionData.extraction?.rfc)}</dd>
+                                <small>{extractionData.extraction?.rfc ? "Extraído" : "No disponible"}</small>
+                              </div>
+                            </dl>
+                          </section>
 
-                      <section className="mdc-extraction-card">
-                        <div className="mdc-extraction-card__head"><h4>Movimientos de nómina</h4></div>
-                        {extractionData.extraction?.movimientos_nomina?.length ? (
-                          <div className="mdc-table-wrap">
-                            <table className="mdc-table mdc-extraction-movements">
-                              <thead><tr><th>Clave</th><th>Concepto</th><th>Días</th><th>Percepciones</th><th>Deducciones</th><th>Saldo adeudo</th><th>Referencia</th></tr></thead>
-                              <tbody>
-                                {extractionData.extraction.movimientos_nomina.map((movement, index) => (
-                                  <tr key={`${movement.clave || "movimiento"}-${index}`}>
-                                    <td>{displayValue(movement.clave)}</td>
-                                    <td>{displayValue(movement.concepto)}</td>
-                                    <td>{displayValue(movement.dias)}</td>
-                                    <td>{formatDocumentMoney(movement.percepciones)}</td>
-                                    <td>{formatDocumentMoney(movement.deducciones)}</td>
-                                    <td>{formatDocumentMoney(movement.saldo_adeudo)}</td>
-                                    <td>{displayValue(movement.referencia)}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        ) : <p className="mdc-extraction-note">Sin movimientos detectados.</p>}
-                      </section>
+                          <section className="mdc-extraction-card">
+                            <div className="mdc-extraction-card__head"><h4>Datos del trabajador / pensionado</h4></div>
+                            <dl className="mdc-extraction-data-grid">
+                              <div><dt>Nombre completo</dt><dd>{displayValue(extractionData.extraction?.nombre_completo)}</dd></div>
+                              <div><dt>CURP</dt><dd>{displayValue(extractionData.extraction?.curp)}</dd></div>
+                              <div><dt>Sexo</dt><dd>{displayValue(extractionData.extraction?.sexo)}</dd></div>
+                              <div><dt>Emisor</dt><dd>{displayValue(extractionData.extraction?.nombre_emisor)}</dd></div>
+                              <div><dt>Tipo de documento</dt><dd>{displayValue(extractionData.extraction?.tipo_documento)}</dd></div>
+                              <div><dt>Periodo</dt><dd>{displayValue(extractionData.extraction?.periodo_pago)}</dd></div>
+                              <div><dt>Fecha expedición</dt><dd>{displayValue(extractionData.extraction?.fecha_expedicion)}</dd></div>
+                              <div><dt>Fecha de pago</dt><dd>{displayValue(extractionData.extraction?.fecha_pago_liquidacion)}</dd></div>
+                              <div><dt>Número de recibo</dt><dd>{displayValue(extractionData.extraction?.numero_recibo)}</dd></div>
+                              <div><dt>Centro de trabajo</dt><dd>{displayValue(extractionData.extraction?.centro_trabajo)}</dd></div>
+                              <div><dt>Régimen laboral</dt><dd>{displayValue(extractionData.extraction?.regimen_laboral)}</dd></div>
+                              <div><dt>Conducto de pago</dt><dd>{displayValue(extractionData.extraction?.conducto_pago)}</dd></div>
+                            </dl>
+                          </section>
 
-                      <details className="mdc-extraction-json">
-                        <summary>JSON completo</summary>
-                        <pre>{JSON.stringify(extractionData, null, 2)}</pre>
-                      </details>
+                          <section className="mdc-extraction-card">
+                            <div className="mdc-extraction-card__head"><h4>Resumen financiero</h4></div>
+                            <div className="mdc-extraction-financial-grid">
+                              <article><span>Percepciones</span><strong>{formatDocumentMoney(extractionData.extraction?.resumen_financiero?.total_percepciones)}</strong></article>
+                              <article><span>Deducciones</span><strong>{formatDocumentMoney(extractionData.extraction?.resumen_financiero?.total_deducciones)}</strong></article>
+                              <article><span>Neto a pagar</span><strong>{formatDocumentMoney(extractionData.extraction?.resumen_financiero?.neto_pagar)}</strong></article>
+                              <article><span>ISR</span><strong>{formatDocumentMoney(extractionData.extraction?.resumen_financiero?.isr)}</strong></article>
+                              <article><span>Ingresos gravables</span><strong>{formatDocumentMoney(extractionData.extraction?.resumen_financiero?.ingresos_gravables)}</strong></article>
+                            </div>
+                          </section>
+
+                          <section className="mdc-extraction-card">
+                            <div className="mdc-extraction-card__head"><h4>Movimientos de nómina</h4></div>
+                            {extractionData.extraction?.movimientos_nomina?.length ? (
+                              <div className="mdc-table-wrap">
+                                <table className="mdc-table mdc-extraction-movements">
+                                  <thead><tr><th>Clave</th><th>Concepto</th><th>Días</th><th>Percepciones</th><th>Deducciones</th><th>Saldo adeudo</th><th>Referencia</th></tr></thead>
+                                  <tbody>
+                                    {extractionData.extraction.movimientos_nomina.map((movement, index) => (
+                                      <tr key={`${movement.clave || "movimiento"}-${index}`}>
+                                        <td>{displayValue(movement.clave)}</td>
+                                        <td>{displayValue(movement.concepto)}</td>
+                                        <td>{displayValue(movement.dias)}</td>
+                                        <td>{formatDocumentMoney(movement.percepciones)}</td>
+                                        <td>{formatDocumentMoney(movement.deducciones)}</td>
+                                        <td>{formatDocumentMoney(movement.saldo_adeudo)}</td>
+                                        <td>{displayValue(movement.referencia)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            ) : <p className="mdc-extraction-note">Sin movimientos detectados.</p>}
+                          </section>
+
+                          <details className="mdc-extraction-technical">
+                            <summary>
+                              <span>Detalles técnicos del análisis</span>
+                              <span className={bdaStatusBadgeClass(extractionData.status)}>{displayValue(extractionData.status)}</span>
+                            </summary>
+                            <div className="mdc-extraction-technical__body">
+                              <dl className="mdc-extraction-data-grid">
+                                <div><dt>Procesado</dt><dd>{extractionData.processed ? "Sí" : "No"}</dd></div>
+                                <div><dt>Estado de salida</dt><dd>{displayValue(extractionData.validation?.customOutputStatus)}</dd></div>
+                                <div><dt>Tipo de documento</dt><dd>{displayValue(extractionData.documentType)}</dd></div>
+                                <div><dt>Confianza</dt><dd>{formatConfidence(extractionData.confidence)}</dd></div>
+                                <div><dt>Reason codes</dt><dd>{extractionData.validation?.reasonCodes?.length ? extractionData.validation.reasonCodes.join(", ") : "N/D"}</dd></div>
+                                <div><dt>Error code</dt><dd>{displayValue(extractionData.errorCode)}</dd></div>
+                                <div><dt>Fecha de procesamiento</dt><dd>{formatExtractionDate(extractionData.updatedAt)}</dd></div>
+                                <div><dt>Mensaje</dt><dd>{displayValue(extractionData.errorMessage || extractionData.validation?.message)}</dd></div>
+                              </dl>
+                              {!extractionData.processed ? <p className="mdc-extraction-note">El análisis todavía no tiene extracción procesada.</p> : null}
+                              <details className="mdc-extraction-json">
+                                <summary>JSON completo</summary>
+                                <pre>{JSON.stringify(extractionData, null, 2)}</pre>
+                              </details>
+                            </div>
+                          </details>
+                        </>
+                      )}
                     </div>
                   ) : null}
                 </section>
