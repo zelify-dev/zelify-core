@@ -230,6 +230,29 @@ export type UploadOneFinancialDocumentResponse = {
   };
 };
 
+export type UploadConsolidatedPayrollResponse = {
+  applicationId?: string;
+  applicantId?: string;
+  category?: string;
+  analysisIds?: string[];
+  analyses?: Array<{
+    pageNumber?: number;
+    documentId?: string;
+    analysisId?: string;
+    fileName?: string;
+    status?: FinancialDocumentStatus | string;
+    reused?: boolean;
+  }>;
+  progress?: {
+    required: number;
+    uploaded: number;
+    pendingUpload: number;
+    uploadComplete: boolean;
+    processingComplete: boolean;
+    complete: boolean;
+  };
+};
+
 export async function uploadOneFinancialDocument(userId: string, category: string, file: File): Promise<UploadOneFinancialDocumentResponse> {
   const formData = new FormData();
   formData.append("file", file);
@@ -240,6 +263,20 @@ export async function uploadOneFinancialDocument(userId: string, category: strin
   if (!res.ok) {
     const err = await res.json().catch(() => null);
     throw buildApiError(`Failed to upload document (${res.status})`, err);
+  }
+  return res.json();
+}
+
+export async function uploadConsolidatedPayroll(userId: string, file: File): Promise<UploadConsolidatedPayrollResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch(`${getBaseUrl()}/financial-documents/${userId}/nomina/upload-consolidated`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw buildApiError(`Failed to upload consolidated payroll (${res.status})`, err);
   }
   return res.json();
 }

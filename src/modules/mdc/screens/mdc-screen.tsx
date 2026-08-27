@@ -3260,9 +3260,9 @@ function AppDetailModal({
         ? "done"
         : "current";
   const stages = [
-    { id: "onboarding", label: "Onboarding", state: "done" },
-    { id: "docs", label: "Documentos", state: documentStageState },
+    { id: "request", label: "Solicitud", state: "done", description: "Solicitud levantada" },
     { id: "kyc", label: "KYC / KYB", state: app.status === "pending" ? "current" : app.riskScore >= 80 ? "failed" : "done" },
+    { id: "docs", label: "Documentos", state: documentStageState },
     { id: "rules", label: "Reglas de decision", state: app.status === "pending" ? "current" : "done" },
     { id: "decision", label: "Decision final", state: app.status === "pending" ? "current" : app.status === "declined" ? "failed" : "done" },
   ] as const;
@@ -3571,7 +3571,7 @@ function AppDetailModal({
                   </div>
                 )
               ) : (
-                <em>{stage.state === "done" ? "Completado" : stage.state === "current" ? "En proceso" : "Con observacion"}</em>
+                <em>{"description" in stage ? stage.description : stage.state === "done" ? "Completado" : stage.state === "current" ? "En proceso" : "Con observacion"}</em>
               )}
             </div>
           ))}

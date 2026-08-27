@@ -9,7 +9,7 @@ import {
   type FinancialDocumentProgressDocument,
   type MdcApiError,
 } from "@/modules/mdc/services/mdc-finance-requests.service";
-import { useDeleteDocument, useDocumentProgress, useReplaceDocument, useUploadOneDocument } from "@/modules/mdc/hooks/use-financial-documents";
+import { useDeleteDocument, useDocumentProgress, useReplaceDocument, useUploadConsolidatedPayroll, useUploadOneDocument } from "@/modules/mdc/hooks/use-financial-documents";
 
 interface FinancialDocumentUploaderProps {
   userId?: string | null;
@@ -19,7 +19,8 @@ interface FinancialDocumentUploaderProps {
 
 type AlertState = { message: string; type: "error" | "success" | "info"; step?: string; detail?: string } | null;
 type DocumentCategory = "nomina" | "extracto";
-type UploadTarget = { category: DocumentCategory; slotIndex: number; mode: "upload" | "replace"; documentId?: string };
+type PayrollUploadMode = "individual" | "consolidated";
+type UploadTarget = { category: DocumentCategory; slotIndex: number; mode: "upload" | "replace"; documentId?: string } | { category: "nomina"; slotIndex: 0; mode: "consolidated" };
 type DeleteTarget = { category: DocumentCategory; documentId: string; label: string } | null;
 
 type NominaSlot = {
@@ -129,11 +130,14 @@ export function FinancialDocumentUploader({ userId, financeRequestId, onClose }:
   const [selectedUploadTarget, setSelectedUploadTarget] = useState<UploadTarget | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
   const [openDocumentMenuId, setOpenDocumentMenuId] = useState<string | null>(null);
+  const [payrollUploadMode, setPayrollUploadMode] = useState<PayrollUploadMode>("individual");
+  const [consolidatedPayrollFile, setConsolidatedPayrollFile] = useState<File | null>(null);
   const [processingAnalysisId, setProcessingAnalysisId] = useState<string | null>(null);
   const [alert, setAlert] = useState<AlertState>(null);
   const nominaProgressQuery = useDocumentProgress(resolvedUserId, "nomina", true);
   const extractoProgressQuery = useDocumentProgress(resolvedUserId, "extracto", true);
   const uploadMutation = useUploadOneDocument(resolvedUserId);
+  const consolidatedPayrollMutation = useUploadConsolidatedPayroll(resolvedUserId);
   const replaceMutation = useReplaceDocument(resolvedUserId);
   const deleteMutation = useDeleteDocument(resolvedUserId);
   const nominaProgress = nominaProgressQuery.data || null;
@@ -204,6 +208,12 @@ export function FinancialDocumentUploader({ userId, financeRequestId, onClose }:
     fileInputRef.current?.click();
   };
 
+  const openFilePickerForConsolidatedPayroll = () => {
+    setAlert(null);
+    setSelectedUploadTarget({ category: "nomina", slotIndex: 0, mode: "consolidated" });
+    fileInputRef.current?.click();
+  };
+
   const openFilePickerForReplacement = (category: DocumentCategory, slotIndex: number, documentId: string) => {
     setAlert(null);
     setOpenDocumentMenuId(null);
@@ -216,6 +226,12 @@ export function FinancialDocumentUploader({ userId, financeRequestId, onClose }:
 
     if (file.type !== "application/pdf") {
       setAlert({ message: "El archivo debe estar en formato PDF.", type: "error" });
+      setSelectedUploadTarget(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    if (target.mode === "consolidated") {
+      setConsolidatedPayrollFile(file);
       setSelectedUploadTarget(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
@@ -254,6 +270,19 @@ export function FinancialDocumentUploader({ userId, financeRequestId, onClose }:
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
+    }
+  };
+
+  const handleUploadConsolidatedPayroll = async () => {
+    if (!consolidatedPayrollFile || !resolvedUserId) return;
+    try {
+      setAlert(null);
+      await consolidatedPayrollMutation.mutateAsync(consolidatedPayrollFile);
+      setConsolidatedPayrollFile(null);
+      setAlert({ message: "PDF consolidado enviado. El progreso de nómina se actualizó desde backend.", type: "success" });
+    } catch (err: unknown) {
+      const parsed = getDocumentError(err, "No fue posible procesar el PDF consolidado.");
+      setAlert({ ...parsed, type: "error" });
     }
   };
 
@@ -401,8 +430,58 @@ export function FinancialDocumentUploader({ userId, financeRequestId, onClose }:
                     </div>
                   ) : null}
 
-                  <div className="space-y-1.5">
-                    {nominaSlots.map((slot) => {
+                  <div className="mb-3 grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
+                    <div className="rounded-lg bg-slate-50 px-3 py-2">
+                      <span className="block font-semibold text-slate-400">Completados</span>
+                      <strong className="text-sm text-slate-800">{nominaProgress?.completed ?? 0}</strong>
+                    </div>
+                    <div className="rounded-lg bg-slate-50 px-3 py-2">
+                      <span className="block font-semibold text-slate-400">Listos para procesar</span>
+                      <strong className="text-sm text-slate-800">{nominaProgress?.processing ?? 0}</strong>
+                    </div>
+                    <div className="rounded-lg bg-slate-50 px-3 py-2">
+                      <span className="block font-semibold text-slate-400">Revisión manual</span>
+                      <strong className="text-sm text-slate-800">{nominaProgress?.manualReview ?? 0}</strong>
+                    </div>
+                    <div className="rounded-lg bg-slate-50 px-3 py-2">
+                      <span className="block font-semibold text-slate-400">Con errores</span>
+                      <strong className="text-sm text-slate-800">{nominaProgress?.failed ?? 0}</strong>
+                    </div>
+                  </div>
+
+                  <fieldset className="mb-3">
+                    <legend className="mb-2 text-xs font-bold text-slate-900">¿Cómo deseas cargar los comprobantes de nómina?</legend>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <label className={`cursor-pointer rounded-lg border px-3 py-2 transition ${payrollUploadMode === "individual" ? "border-slate-900 bg-slate-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}>
+                        <input
+                          type="radio"
+                          name="payroll-upload-mode"
+                          value="individual"
+                          checked={payrollUploadMode === "individual"}
+                          onChange={() => setPayrollUploadMode("individual")}
+                          className="sr-only"
+                        />
+                        <span className="block text-xs font-bold text-slate-900">Uno por uno</span>
+                        <span className="mt-0.5 block text-[11px] font-medium text-slate-500">Sube cada recibo individualmente.</span>
+                      </label>
+                      <label className={`cursor-pointer rounded-lg border px-3 py-2 transition ${payrollUploadMode === "consolidated" ? "border-slate-900 bg-slate-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}>
+                        <input
+                          type="radio"
+                          name="payroll-upload-mode"
+                          value="consolidated"
+                          checked={payrollUploadMode === "consolidated"}
+                          onChange={() => setPayrollUploadMode("consolidated")}
+                          className="sr-only"
+                        />
+                        <span className="block text-xs font-bold text-slate-900">PDF consolidado</span>
+                        <span className="mt-0.5 block text-[11px] font-medium text-slate-500">Un PDF con las 5 nóminas.</span>
+                      </label>
+                    </div>
+                  </fieldset>
+
+                  {payrollUploadMode === "individual" ? (
+                    <div className="space-y-1.5">
+                      {nominaSlots.map((slot) => {
                       const doc = slot.document;
                       const status = doc?.status ?? null;
                       const canUpload = !doc;
@@ -508,8 +587,142 @@ export function FinancialDocumentUploader({ userId, financeRequestId, onClose }:
                           ) : null}
                         </article>
                       );
-                    })}
-                  </div>
+                      })}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <h4 className="text-xs font-bold text-slate-900">PDF consolidado de nómina</h4>
+                            <p className="mt-1 text-[11px] font-medium leading-5 text-slate-500">
+                              Sube un PDF con exactamente 5 páginas. Cada página debe contener un recibo completo de nómina del mismo solicitante.
+                            </p>
+                            {consolidatedPayrollFile ? (
+                              <p className="mt-2 truncate text-[11px] font-semibold text-slate-700">{consolidatedPayrollFile.name}</p>
+                            ) : null}
+                          </div>
+                          <div className="flex shrink-0 flex-wrap items-center gap-2">
+                            {consolidatedPayrollFile ? (
+                              <button
+                                type="button"
+                                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+                                onClick={() => setConsolidatedPayrollFile(null)}
+                                disabled={consolidatedPayrollMutation.isPending}
+                              >
+                                Cancelar
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                              onClick={openFilePickerForConsolidatedPayroll}
+                              disabled={uploadMutation.isPending || replaceMutation.isPending || deleteMutation.isPending || consolidatedPayrollMutation.isPending || !resolvedUserId}
+                            >
+                              Seleccionar PDF
+                            </button>
+                            <button
+                              type="button"
+                              className="appearance-none border-0 shadow-none outline-none ring-0 flex items-center gap-1.5 rounded-lg bg-[#000016] px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-black disabled:opacity-60"
+                              onClick={handleUploadConsolidatedPayroll}
+                              disabled={!consolidatedPayrollFile || consolidatedPayrollMutation.isPending || !resolvedUserId}
+                            >
+                              {consolidatedPayrollMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />}
+                              {consolidatedPayrollMutation.isPending ? "Procesando PDF consolidado..." : "Enviar consolidado"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {(nominaProgress?.documents?.length ?? 0) > 0 ? (
+                        <div className="space-y-1.5">
+                          {nominaSlots.map((slot) => {
+                            const doc = slot.document;
+                            if (!doc) return null;
+                            const status = doc.status ?? null;
+                            const canProcess = status === "PROCESSING" && Boolean(doc.analysisId);
+                            const isUploadingSlot =
+                              replaceMutation.isPending &&
+                              selectedUploadTarget?.category === "nomina" &&
+                              selectedUploadTarget.mode === "replace" &&
+                              selectedUploadTarget.slotIndex === slot.index;
+                            const isConfirmingDelete = deleteTarget?.documentId === doc.documentId;
+
+                            return (
+                              <article
+                                key={`consolidated-${slot.label}`}
+                                className="flex min-h-[44px] flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg bg-slate-100/70 px-3 py-2 transition hover:bg-slate-200/60"
+                              >
+                                <h4 className="w-[108px] shrink-0 text-xs font-bold text-slate-800">{slot.label}</h4>
+                                <p className="flex min-w-[150px] flex-1 items-center gap-2 text-[11px] font-medium text-slate-500">
+                                  <FileIcon size={13} className="shrink-0 text-slate-400" />
+                                  <span className="truncate">{doc.fileName || "Archivo sin nombre"}</span>
+                                </p>
+                                <span className={`inline-flex h-7 w-[150px] shrink-0 items-center justify-center whitespace-nowrap rounded-md px-2 text-center text-[9.5px] font-semibold tracking-wide ${statusClassName(status, doc.manualDecision)}`}>
+                                  {statusLabel(status, doc.manualDecision)}
+                                </span>
+                                <div className="flex shrink-0 items-center gap-2">
+                                  {canProcess ? (
+                                    <button
+                                      type="button"
+                                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                                      onClick={() => handleProcessAnalysis(doc.analysisId as string, "nomina")}
+                                      disabled={processingAnalysisId === doc.analysisId}
+                                    >
+                                      {processingAnalysisId === doc.analysisId ? "Procesando..." : "Procesar"}
+                                    </button>
+                                  ) : null}
+                                  {doc.documentId ? (
+                                    <div className="relative">
+                                      <button
+                                        type="button"
+                                        className="flex h-8 w-8 items-center justify-center border-0 bg-transparent text-slate-500 shadow-none outline-none ring-0 transition hover:text-slate-800 disabled:opacity-60"
+                                        onClick={() => setOpenDocumentMenuId(openDocumentMenuId === doc.documentId ? null : doc.documentId as string)}
+                                        disabled={uploadMutation.isPending || replaceMutation.isPending || deleteMutation.isPending}
+                                        aria-label={`Abrir opciones de ${slot.label}`}
+                                      >
+                                        <MoreHorizontal size={16} />
+                                      </button>
+                                      {openDocumentMenuId === doc.documentId ? (
+                                        <div className="absolute right-0 top-9 z-20 w-40 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-[11px]">
+                                          <button
+                                            type="button"
+                                            className="block w-full px-3 py-2 text-left font-semibold text-slate-700 transition hover:bg-slate-50"
+                                            onClick={() => openFilePickerForReplacement("nomina", slot.index, doc.documentId as string)}
+                                          >
+                                            {isUploadingSlot ? "Reemplazando..." : "Reemplazar"}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="block w-full px-3 py-2 text-left font-semibold text-red-600 transition hover:bg-red-50"
+                                            onClick={() => {
+                                              setOpenDocumentMenuId(null);
+                                              setDeleteTarget({ category: "nomina", documentId: doc.documentId as string, label: slot.label });
+                                            }}
+                                          >
+                                            Eliminar
+                                          </button>
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  ) : null}
+                                </div>
+                                {isConfirmingDelete ? (
+                                  <div className="flex w-full items-center justify-end gap-2 border-t border-slate-200 pt-2 text-[11px] text-slate-600">
+                                    <span className="mr-auto">El documento quedará eliminado del expediente activo.</span>
+                                    <button type="button" className="rounded-md px-2.5 py-1 font-semibold text-slate-600 hover:bg-white" onClick={() => setDeleteTarget(null)} disabled={deleteMutation.isPending}>Cancelar</button>
+                                    <button type="button" className="rounded-md bg-red-600 px-2.5 py-1 font-semibold text-white disabled:opacity-60" onClick={handleDeleteDocument} disabled={deleteMutation.isPending}>
+                                      {deleteMutation.isPending ? "Eliminando..." : "Confirmar eliminación"}
+                                    </button>
+                                  </div>
+                                ) : null}
+                              </article>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
 
                   <div className="mt-3 flex justify-end">
                     <button

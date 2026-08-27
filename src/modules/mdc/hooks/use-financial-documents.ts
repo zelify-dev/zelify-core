@@ -11,6 +11,7 @@ import {
   reprocessFinancialDocumentAnalysis,
   replaceFinancialDocument,
   reviewFinancialDocumentAnalysis,
+  uploadConsolidatedPayroll,
   uploadOneFinancialDocument,
   type FinancialDocumentManualReviewPayload,
 } from "@/modules/mdc/services/mdc-finance-requests.service";
@@ -46,6 +47,18 @@ export function useUploadOneDocument(userId: string | null) {
       uploadOneFinancialDocument(userId as string, category, file),
     onSuccess: async (_result, variables) => {
       await queryClient.invalidateQueries({ queryKey: financialDocumentKeys.progress(userId, variables.category) });
+    },
+  });
+}
+
+export function useUploadConsolidatedPayroll(userId: string | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationKey: ["financial-documents", userId, "nomina", "upload-consolidated"],
+    mutationFn: (file: File) => uploadConsolidatedPayroll(userId as string, file),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: financialDocumentKeys.progress(userId, "nomina") });
     },
   });
 }
