@@ -387,7 +387,7 @@ export function FinancialDocumentUploader({ userId, financeRequestId, onClose }:
             </div>
             <button
               onClick={onClose}
-              className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 hover:text-slate-800"
+              className="flex size-8 shrink-0 appearance-none items-center justify-center rounded-full border-0 bg-slate-100 text-slate-500 shadow-none outline-none ring-0 transition hover:bg-slate-200 hover:text-slate-800"
               aria-label="Cerrar"
             >
               <X size={16} />
@@ -449,7 +449,7 @@ export function FinancialDocumentUploader({ userId, financeRequestId, onClose }:
                     </div>
                   </div>
 
-                  <fieldset className="mb-3">
+                  <fieldset className="mb-3 border-0 p-0">
                     <legend className="mb-2 text-xs font-bold text-slate-900">¿Cómo deseas cargar los comprobantes de nómina?</legend>
                     <div className="grid gap-2 sm:grid-cols-2">
                       <label className={`cursor-pointer rounded-lg border px-3 py-2 transition ${payrollUploadMode === "individual" ? "border-slate-900 bg-slate-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}>
@@ -490,7 +490,7 @@ export function FinancialDocumentUploader({ userId, financeRequestId, onClose }:
                         (uploadMutation.isPending || replaceMutation.isPending) &&
                         selectedUploadTarget?.category === "nomina" &&
                         selectedUploadTarget.slotIndex === slot.index;
-                      const isConfirmingDelete = deleteTarget?.documentId === doc?.documentId;
+                      const isConfirmingDelete = Boolean(deleteTarget && doc?.documentId && deleteTarget.documentId === doc.documentId);
 
                       return (
                         <article
@@ -579,8 +579,8 @@ export function FinancialDocumentUploader({ userId, financeRequestId, onClose }:
                           {isConfirmingDelete ? (
                             <div className="flex w-full items-center justify-end gap-2 border-t border-slate-200 pt-2 text-[11px] text-slate-600">
                               <span className="mr-auto">El documento quedará eliminado del expediente activo.</span>
-                              <button type="button" className="rounded-md px-2.5 py-1 font-semibold text-slate-600 hover:bg-white" onClick={() => setDeleteTarget(null)} disabled={deleteMutation.isPending}>Cancelar</button>
-                              <button type="button" className="rounded-md bg-red-600 px-2.5 py-1 font-semibold text-white disabled:opacity-60" onClick={handleDeleteDocument} disabled={deleteMutation.isPending}>
+                              <button type="button" className="appearance-none rounded-md border-0 bg-transparent px-2.5 py-1 font-semibold text-slate-600 shadow-none hover:bg-white" onClick={() => setDeleteTarget(null)} disabled={deleteMutation.isPending}>Cancelar</button>
+                              <button type="button" className="appearance-none rounded-md border-0 bg-red-50 px-2.5 py-1 font-semibold text-red-700 shadow-none disabled:opacity-60" onClick={handleDeleteDocument} disabled={deleteMutation.isPending}>
                                 {deleteMutation.isPending ? "Eliminando..." : "Confirmar eliminación"}
                               </button>
                             </div>
@@ -646,7 +646,7 @@ export function FinancialDocumentUploader({ userId, financeRequestId, onClose }:
                               selectedUploadTarget?.category === "nomina" &&
                               selectedUploadTarget.mode === "replace" &&
                               selectedUploadTarget.slotIndex === slot.index;
-                            const isConfirmingDelete = deleteTarget?.documentId === doc.documentId;
+                            const isConfirmingDelete = Boolean(deleteTarget && doc.documentId && deleteTarget.documentId === doc.documentId);
 
                             return (
                               <article
@@ -710,8 +710,8 @@ export function FinancialDocumentUploader({ userId, financeRequestId, onClose }:
                                 {isConfirmingDelete ? (
                                   <div className="flex w-full items-center justify-end gap-2 border-t border-slate-200 pt-2 text-[11px] text-slate-600">
                                     <span className="mr-auto">El documento quedará eliminado del expediente activo.</span>
-                                    <button type="button" className="rounded-md px-2.5 py-1 font-semibold text-slate-600 hover:bg-white" onClick={() => setDeleteTarget(null)} disabled={deleteMutation.isPending}>Cancelar</button>
-                                    <button type="button" className="rounded-md bg-red-600 px-2.5 py-1 font-semibold text-white disabled:opacity-60" onClick={handleDeleteDocument} disabled={deleteMutation.isPending}>
+                                    <button type="button" className="appearance-none rounded-md border-0 bg-transparent px-2.5 py-1 font-semibold text-slate-600 shadow-none hover:bg-white" onClick={() => setDeleteTarget(null)} disabled={deleteMutation.isPending}>Cancelar</button>
+                                    <button type="button" className="appearance-none rounded-md border-0 bg-red-50 px-2.5 py-1 font-semibold text-red-700 shadow-none disabled:opacity-60" onClick={handleDeleteDocument} disabled={deleteMutation.isPending}>
                                       {deleteMutation.isPending ? "Eliminando..." : "Confirmar eliminación"}
                                     </button>
                                   </div>
@@ -840,11 +840,11 @@ export function FinancialDocumentUploader({ userId, financeRequestId, onClose }:
                         ) : null}
                       </div>
 
-                      {deleteTarget?.documentId === extractoDocument?.documentId ? (
+                      {deleteTarget && extractoDocument?.documentId && deleteTarget.documentId === extractoDocument.documentId ? (
                         <div className="flex w-full items-center justify-end gap-2 border-t border-slate-200 pt-2 text-[11px] text-slate-600">
                           <span className="mr-auto">El documento quedará eliminado del expediente activo.</span>
-                          <button type="button" className="rounded-md px-2.5 py-1 font-semibold text-slate-600 hover:bg-white" onClick={() => setDeleteTarget(null)} disabled={deleteMutation.isPending}>Cancelar</button>
-                          <button type="button" className="rounded-md bg-red-600 px-2.5 py-1 font-semibold text-white disabled:opacity-60" onClick={handleDeleteDocument} disabled={deleteMutation.isPending}>
+                          <button type="button" className="appearance-none rounded-md border-0 bg-transparent px-2.5 py-1 font-semibold text-slate-600 shadow-none hover:bg-white" onClick={() => setDeleteTarget(null)} disabled={deleteMutation.isPending}>Cancelar</button>
+                          <button type="button" className="appearance-none rounded-md border-0 bg-red-50 px-2.5 py-1 font-semibold text-red-700 shadow-none disabled:opacity-60" onClick={handleDeleteDocument} disabled={deleteMutation.isPending}>
                             {deleteMutation.isPending ? "Eliminando..." : "Confirmar eliminación"}
                           </button>
                         </div>
