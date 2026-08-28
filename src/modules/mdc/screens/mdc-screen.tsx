@@ -2656,6 +2656,119 @@ function BankStatementExtractionDetails({ data }: { data: FinancialDocumentExtra
   );
 }
 
+function ProofOfAddressExtractionDetails({ data }: { data: FinancialDocumentExtractionResponse }) {
+  const extraction = asExtractionRecord(data.extraction);
+  const explainability = asExtractionRecord(readExtractionValue(extraction, "explainability"));
+  const holder = readExtractionValue(extraction, "nombreTitular", "nombre_titular", "titular", "accountHolder");
+  const street = readExtractionValue(extraction, "calle", "street");
+  const exteriorNumber = readExtractionValue(extraction, "numeroExterior", "numero_exterior", "exteriorNumber");
+  const interiorNumber = readExtractionValue(extraction, "numeroInterior", "numero_interior", "interiorNumber");
+  const neighborhood = readExtractionValue(extraction, "colonia", "neighborhood");
+  const postalCode = readExtractionValue(extraction, "codigoPostal", "codigo_postal", "postalCode", "zipCode");
+  const municipality = readExtractionValue(extraction, "municipio", "alcaldia", "delegacion", "municipality");
+  const state = readExtractionValue(extraction, "estado", "state");
+  const city = readExtractionValue(extraction, "ciudad", "city");
+  const issuer = readExtractionValue(extraction, "emisor", "issuer", "nombreEmisor", "nombre_emisor");
+  const serviceType = readExtractionValue(extraction, "tipoServicio", "tipo_servicio", "serviceType");
+  const issueDate = readExtractionValue(extraction, "fechaEmision", "fecha_emision", "issueDate");
+  const addressParts = [street, exteriorNumber, interiorNumber ? `Int. ${interiorNumber}` : null]
+    .filter(Boolean)
+    .map(String)
+    .join(" ");
+  const locationParts = [neighborhood, municipality || city, state, postalCode ? `C.P. ${postalCode}` : null]
+    .filter(Boolean)
+    .map(String)
+    .join(", ");
+  const confidenceEntries = Object.entries(explainability)
+    .map(([field, value]) => {
+      const details = asExtractionRecord(value);
+      return {
+        field,
+        value: readExtractionValue(details, "value", "valor") ?? details.value,
+        confidence: readExtractionValue(details, "confidence", "confianza"),
+        success: readExtractionValue(details, "success", "exitoso"),
+      };
+    })
+    .filter((entry) => entry.value !== undefined || entry.confidence !== undefined);
+  const validationLabel = data.validation?.requiresManualReview
+    ? "Revisión manual"
+    : data.validation?.valid
+      ? "Válida"
+      : "N/D";
+
+  return (
+    <>
+      <section className="mdc-extraction-card">
+        <div className="mdc-extraction-card__head"><h4>Datos principales del domicilio</h4></div>
+        <dl className="mdc-extraction-data-grid mdc-bank-primary-grid">
+          <div className="mdc-bank-primary-grid__holder"><dt>Titular</dt><dd>{displayValue(holder)}</dd></div>
+          <div><dt>Calle y número</dt><dd>{displayValue(addressParts)}</dd></div>
+          <div><dt>Colonia / zona</dt><dd>{displayValue(neighborhood)}</dd></div>
+          <div><dt>Código postal</dt><dd>{displayValue(postalCode)}</dd></div>
+          <div><dt>Municipio / ciudad</dt><dd>{displayValue(municipality || city)}</dd></div>
+          <div><dt>Estado</dt><dd>{displayValue(state)}</dd></div>
+        </dl>
+      </section>
+
+      <section className="mdc-extraction-card">
+        <div className="mdc-extraction-card__head"><h4>Dirección normalizada</h4></div>
+        <dl className="mdc-extraction-data-grid">
+          <div><dt>Domicilio</dt><dd>{displayValue(addressParts)}</dd></div>
+          <div><dt>Ubicación</dt><dd>{displayValue(locationParts)}</dd></div>
+        </dl>
+      </section>
+
+      <section className="mdc-extraction-card">
+        <div className="mdc-extraction-card__head"><h4>Información del documento</h4></div>
+        <dl className="mdc-extraction-data-grid">
+          <div><dt>Tipo</dt><dd>Comprobante de domicilio</dd></div>
+          <div><dt>Emisor</dt><dd>{displayValue(issuer)}</dd></div>
+          <div><dt>Servicio</dt><dd>{displayValue(serviceType)}</dd></div>
+          <div><dt>Fecha de emisión</dt><dd>{formatBusinessDate(issueDate)}</dd></div>
+        </dl>
+      </section>
+
+      {confidenceEntries.length ? (
+        <section className="mdc-extraction-card">
+          <div className="mdc-extraction-card__head"><h4>Confianza por campo</h4></div>
+          <dl className="mdc-extraction-data-grid">
+            {confidenceEntries.map((entry) => (
+              <div key={entry.field}>
+                <dt>{entry.field}</dt>
+                <dd>{displayValue(entry.value)}</dd>
+                <small>{formatConfidence(entry.confidence)} · {entry.success === false ? "No confirmado" : "Detectado"}</small>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ) : null}
+
+      <details className="mdc-extraction-technical">
+        <summary>
+          <span>Detalles técnicos del procesamiento</span>
+          <span className={bdaStatusBadgeClass(data.status)}>{displayValue(data.status)}</span>
+        </summary>
+        <div className="mdc-extraction-technical__body">
+          <dl className="mdc-extraction-data-grid">
+            <div><dt>Estado</dt><dd>{displayValue(data.status)}</dd></div>
+            <div><dt>Tipo interno</dt><dd>{displayValue(data.documentType || readExtractionValue(extraction, "documentType", "document_type"))}</dd></div>
+            <div><dt>Procesado</dt><dd>{data.processed ? "Sí" : "No"}</dd></div>
+            <div><dt>Actualizado</dt><dd>{formatExtractionDate(data.updatedAt)}</dd></div>
+            <div><dt>Validación</dt><dd>{validationLabel}</dd></div>
+            <div><dt>Reason codes</dt><dd>{data.validation?.reasonCodes?.length ? data.validation.reasonCodes.join(", ") : "N/D"}</dd></div>
+            <div><dt>Error code</dt><dd>{displayValue(data.errorCode)}</dd></div>
+            <div><dt>Mensaje</dt><dd>{displayValue(data.errorMessage || data.validation?.message)}</dd></div>
+          </dl>
+          <details className="mdc-extraction-json">
+            <summary>JSON completo</summary>
+            <pre>{JSON.stringify(data, null, 2)}</pre>
+          </details>
+        </div>
+      </details>
+    </>
+  );
+}
+
 type ApplicationFlowStep = {
   id: string;
   label: string;
@@ -3081,7 +3194,7 @@ function AppDetailModal({
     documentId: string | null;
     title: string;
     fileName: string;
-    category: "nomina" | "extracto";
+    category: "nomina" | "extracto" | "comprobante_domicilio";
   } | null>(null);
 
   const suppliedUserId = app.userId && isUuidLike(app.userId) ? app.userId : null;
@@ -3094,6 +3207,7 @@ function AppDetailModal({
   const resolvedUserId = suppliedUserId || (financeRequestDetailQuery.data ? extractFinanceRequestUserId(financeRequestDetailQuery.data) : null);
   const documentProgressQuery = useDocumentProgress(resolvedUserId, "nomina", !isMoralApplicant);
   const bankStatementProgressQuery = useDocumentProgress(resolvedUserId, "extracto", !isMoralApplicant);
+  const addressProgressQuery = useDocumentProgress(resolvedUserId, "comprobante_domicilio", !isMoralApplicant);
   const processAnalysisMutation = useProcessAnalysis(resolvedUserId);
   const manualReviewMutation = useManualReviewAnalysis(resolvedUserId);
   const reprocessAnalysisMutation = useReprocessAnalysis(resolvedUserId);
@@ -3101,9 +3215,10 @@ function AppDetailModal({
   const fileUrlQuery = useDocumentFileUrl(extractionSelection?.documentId || null, Boolean(extractionSelection));
   const documentProgress = documentProgressQuery.data || null;
   const bankStatementProgress = bankStatementProgressQuery.data || null;
-  const documentLoading = financeRequestDetailQuery.isLoading || documentProgressQuery.isLoading || bankStatementProgressQuery.isLoading;
-  const documentRefreshing = financeRequestDetailQuery.isFetching || documentProgressQuery.isFetching || bankStatementProgressQuery.isFetching;
-  const documentErrorSource = financeRequestDetailQuery.error || documentProgressQuery.error || bankStatementProgressQuery.error;
+  const addressProgress = addressProgressQuery.data || null;
+  const documentLoading = financeRequestDetailQuery.isLoading || documentProgressQuery.isLoading || bankStatementProgressQuery.isLoading || addressProgressQuery.isLoading;
+  const documentRefreshing = financeRequestDetailQuery.isFetching || documentProgressQuery.isFetching || bankStatementProgressQuery.isFetching || addressProgressQuery.isFetching;
+  const documentErrorSource = financeRequestDetailQuery.error || documentProgressQuery.error || bankStatementProgressQuery.error || addressProgressQuery.error;
   const documentError = documentErrorSource
     ? toDetailDocError(documentErrorSource, "Documentación no disponible temporalmente")
     : financeRequestDetailQuery.isSuccess && !resolvedUserId
@@ -3116,6 +3231,11 @@ function AppDetailModal({
       : null;
   const bankStatementDocumentError = bankStatementProgressQuery.error
     ? toDetailDocError(bankStatementProgressQuery.error, "No fue posible cargar el extracto bancario.")
+    : financeRequestDetailQuery.error || (financeRequestDetailQuery.isSuccess && !resolvedUserId)
+      ? documentError
+      : null;
+  const addressDocumentError = addressProgressQuery.error
+    ? toDetailDocError(addressProgressQuery.error, "No fue posible cargar el comprobante de domicilio.")
     : financeRequestDetailQuery.error || (financeRequestDetailQuery.isSuccess && !resolvedUserId)
       ? documentError
       : null;
@@ -3252,7 +3372,7 @@ function AppDetailModal({
     "credit.maxDaysPastDue": maxDaysPastDue > maxDaysPastDueAllowed,
     "credit.historyMonths": creditHistoryMonths < historyMinMonths,
   };
-  const documentVisualStatus = deriveCombinedDocumentStatus([documentProgress, bankStatementProgress]);
+  const documentVisualStatus = deriveCombinedDocumentStatus([documentProgress, bankStatementProgress, addressProgress]);
   const documentStageState =
     documentVisualStatus === "Con errores"
       ? "failed"
@@ -3439,7 +3559,7 @@ function AppDetailModal({
       await financeRequestDetailQuery.refetch();
       return;
     }
-    await Promise.all([documentProgressQuery.refetch(), bankStatementProgressQuery.refetch()]);
+    await Promise.all([documentProgressQuery.refetch(), bankStatementProgressQuery.refetch(), addressProgressQuery.refetch()]);
   };
 
   const handleProcessDocument = async (analysisId: string, rowKey: string) => {
@@ -3519,7 +3639,7 @@ function AppDetailModal({
     }
   };
 
-  const handleViewExtraction = (analysisId: string, documentId: string | null, label: string, fileName: string, category: "nomina" | "extracto") => {
+  const handleViewExtraction = (analysisId: string, documentId: string | null, label: string, fileName: string, category: "nomina" | "extracto" | "comprobante_domicilio") => {
     setDocumentActionFeedback(null);
     setExtractionSelection({
       analysisId,
@@ -3567,6 +3687,11 @@ function AppDetailModal({
                       <b>Extracto</b>
                       <em>{bankStatementProgress?.uploaded ?? 0}/{bankStatementProgress?.required ?? 1}</em>
                       <small>{bankStatementProgress?.completed ?? 0} {(bankStatementProgress?.completed ?? 0) === 1 ? "procesado" : "procesados"}</small>
+                    </span>
+                    <span>
+                      <b>Domicilio</b>
+                      <em>{addressProgress?.uploaded ?? 0}/{addressProgress?.required ?? 1}</em>
+                      <small>{addressProgress?.completed ?? 0} {(addressProgress?.completed ?? 0) === 1 ? "procesado" : "procesados"}</small>
                     </span>
                   </div>
                 )
@@ -3639,6 +3764,22 @@ function AppDetailModal({
                 onProcess={handleProcessDocument}
                 onReprocess={handleReprocessFromRow}
                 onViewExtraction={(analysisId, documentId, label, fileName) => handleViewExtraction(analysisId, documentId, label, fileName, "extracto")}
+              />
+
+              <DocumentCategoryPanel
+                title="Comprobante de domicilio"
+                itemLabel={() => "Domicilio"}
+                progress={addressProgress}
+                loading={financeRequestDetailQuery.isLoading || addressProgressQuery.isLoading}
+                error={addressDocumentError}
+                processingAnalysisId={processingAnalysisId}
+                reprocessingAnalysisId={reprocessingAnalysisId}
+                extractionAnalysisId={extractionAnalysisId}
+                extractionData={extractionData}
+                actionErrors={actionErrors}
+                onProcess={handleProcessDocument}
+                onReprocess={handleReprocessFromRow}
+                onViewExtraction={(analysisId, documentId, label, fileName) => handleViewExtraction(analysisId, documentId, label, fileName, "comprobante_domicilio")}
               />
             </section>
 
@@ -3940,6 +4081,8 @@ function AppDetailModal({
                             <pre>{JSON.stringify(extractionData, null, 2)}</pre>
                           </details>
                         </>
+                      ) : extractionSelection.category === "comprobante_domicilio" ? (
+                        <ProofOfAddressExtractionDetails data={extractionData} />
                       ) : (
                         <>
                           <section className="mdc-extraction-card">

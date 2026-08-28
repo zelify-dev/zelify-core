@@ -18,7 +18,7 @@ interface FinancialDocumentUploaderProps {
 }
 
 type AlertState = { message: string; type: "error" | "success" | "info"; step?: string; detail?: string } | null;
-type DocumentCategory = "nomina" | "extracto";
+type DocumentCategory = "nomina" | "extracto" | "comprobante_domicilio";
 type PayrollUploadMode = "individual" | "consolidated";
 type UploadTarget = { category: DocumentCategory; slotIndex: number; mode: "upload" | "replace"; documentId?: string } | { category: "nomina"; slotIndex: 0; mode: "consolidated" };
 type DeleteTarget = { category: DocumentCategory; documentId: string; label: string } | null;
@@ -136,13 +136,15 @@ export function FinancialDocumentUploader({ userId, financeRequestId, onClose }:
   const [alert, setAlert] = useState<AlertState>(null);
   const nominaProgressQuery = useDocumentProgress(resolvedUserId, "nomina", true);
   const extractoProgressQuery = useDocumentProgress(resolvedUserId, "extracto", true);
+  const addressProgressQuery = useDocumentProgress(resolvedUserId, "comprobante_domicilio", true);
   const uploadMutation = useUploadOneDocument(resolvedUserId);
   const consolidatedPayrollMutation = useUploadConsolidatedPayroll(resolvedUserId);
   const replaceMutation = useReplaceDocument(resolvedUserId);
   const deleteMutation = useDeleteDocument(resolvedUserId);
   const nominaProgress = nominaProgressQuery.data || null;
   const extractoProgress = extractoProgressQuery.data || null;
-  const isBootstrapping = isResolvingUser || nominaProgressQuery.isLoading || extractoProgressQuery.isLoading;
+  const addressProgress = addressProgressQuery.data || null;
+  const isBootstrapping = isResolvingUser || nominaProgressQuery.isLoading || extractoProgressQuery.isLoading || addressProgressQuery.isLoading;
 
   useEffect(() => {
     let cancelled = false;
@@ -200,6 +202,10 @@ export function FinancialDocumentUploader({ userId, financeRequestId, onClose }:
   const extractoDocument = extractoProgress?.documents?.[0];
   const extractoSubtext = extractoProgress
     ? `${extractoProgress.completed} completado${extractoProgress.completed === 1 ? "" : "s"} · ${extractoProgress.processing} procesando · ${extractoProgress.pendingUpload} pendiente${extractoProgress.pendingUpload === 1 ? "" : "s"}`
+    : "Cargando progreso real...";
+  const addressDocument = addressProgress?.documents?.[0];
+  const addressSubtext = addressProgress
+    ? `${addressProgress.completed} completado${addressProgress.completed === 1 ? "" : "s"} · ${addressProgress.processing} procesando · ${addressProgress.pendingUpload} pendiente${addressProgress.pendingUpload === 1 ? "" : "s"}`
     : "Cargando progreso real...";
 
   const openFilePickerForSlot = (category: DocumentCategory, slotIndex: number) => {
@@ -311,10 +317,10 @@ export function FinancialDocumentUploader({ userId, financeRequestId, onClose }:
           message: "BDA aún está procesando, intenta nuevamente en unos segundos",
           type: "info",
         });
-        await (category === "nomina" ? nominaProgressQuery.refetch() : extractoProgressQuery.refetch());
+        await (category === "nomina" ? nominaProgressQuery.refetch() : category === "extracto" ? extractoProgressQuery.refetch() : addressProgressQuery.refetch());
         return;
       }
-      await (category === "nomina" ? nominaProgressQuery.refetch() : extractoProgressQuery.refetch());
+      await (category === "nomina" ? nominaProgressQuery.refetch() : category === "extracto" ? extractoProgressQuery.refetch() : addressProgressQuery.refetch());
       setAlert({
         message: `Estado actualizado: ${statusLabel(response.status)}`,
         type: "success",
@@ -864,16 +870,128 @@ export function FinancialDocumentUploader({ userId, financeRequestId, onClose }:
                   </section>
 
                   <section className="rounded-2xl border border-slate-100 bg-white p-4">
-                    <div className="mb-3">
-                      <span className="block text-[9.5px] font-semibold uppercase tracking-widest text-slate-400">
-                        Placeholder
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <span className="block text-[9.5px] font-semibold uppercase tracking-widest text-slate-400">
+                          Categoría activa
+                        </span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-sm font-bold text-slate-900">Comprobante de domicilio</h3>
+                          <span className={`rounded-lg px-2 py-1 text-[10px] font-semibold ${categoryStatusClassName(addressProgress)}`}>
+                            {categoryStatus(addressProgress)}
+                          </span>
+                        </div>
+                        <p className="mt-0.5 text-[11px] font-medium text-slate-500">{addressSubtext}</p>
+                      </div>
+                      <span className="inline-flex min-w-[88px] items-center justify-center rounded-lg bg-slate-100 px-3 py-2 text-center text-xs leading-4 font-semibold text-slate-700">
+                        {addressProgress?.uploaded ?? 0} / {addressProgress?.required ?? 1} archivo
                       </span>
-                      <h3 className="text-sm font-bold text-slate-900">Comprobante de Domicilio / Servicio Básico</h3>
-                      <p className="mt-0.5 text-[11px] font-medium text-slate-500">No se implementa todavía en este modal.</p>
                     </div>
-                    <div className="rounded-2xl bg-slate-100/70 px-4 py-4 text-center text-slate-400">
-                      <p className="text-[11px] font-semibold text-slate-600">Próxima categoría</p>
-                      <p className="mt-1 text-[11px] font-medium">Se activará cuando se defina el flujo documental correspondiente.</p>
+
+                    {addressProgressQuery.error ? (
+                      <div className="mb-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2.5 text-xs text-red-700">
+                        <strong className="block">No fue posible cargar el comprobante de domicilio.</strong>
+                        <span>{getErrorMessage(addressProgressQuery.error, "Error consultando la categoría.")}</span>
+                      </div>
+                    ) : null}
+
+                    <article className="flex min-h-[44px] flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg bg-slate-100/70 px-3 py-2 transition hover:bg-slate-200/60">
+                      <h4 className="w-[108px] shrink-0 text-xs font-bold text-slate-800">Domicilio</h4>
+
+                      {addressDocument ? (
+                        <p className="flex min-w-[150px] flex-1 items-center gap-2 text-[11px] font-medium text-slate-500">
+                          <FileIcon size={13} className="shrink-0 text-slate-400" />
+                          <span className="truncate">{addressDocument.fileName || "Archivo sin nombre"}</span>
+                        </p>
+                      ) : (
+                        <p className="min-w-[150px] flex-1 text-[11px] font-medium text-slate-400">Pendiente de carga · 1 PDF requerido</p>
+                      )}
+
+                      <span className={`inline-flex h-7 w-[150px] shrink-0 items-center justify-center whitespace-nowrap rounded-md px-2 text-center text-[9.5px] font-semibold tracking-wide ${statusClassName(addressDocument?.status, addressDocument?.manualDecision)}`}>
+                        {statusLabel(addressDocument?.status, addressDocument?.manualDecision)}
+                      </span>
+
+                      <div className="flex shrink-0 items-center gap-2">
+                        {addressDocument?.status === "PROCESSING" && addressDocument.analysisId ? (
+                          <button
+                            type="button"
+                            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                            onClick={() => handleProcessAnalysis(addressDocument.analysisId as string, "comprobante_domicilio")}
+                            disabled={processingAnalysisId === addressDocument.analysisId}
+                          >
+                            {processingAnalysisId === addressDocument.analysisId ? "Procesando..." : "Procesar"}
+                          </button>
+                        ) : null}
+
+                        {!addressDocument && (addressProgress?.uploaded ?? 0) < (addressProgress?.required ?? 1) ? (
+                          <button
+                            type="button"
+                            className="appearance-none border-0 shadow-none outline-none ring-0 flex items-center gap-1.5 rounded-lg bg-[#000016] px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-black active:scale-95 disabled:opacity-60"
+                            onClick={() => openFilePickerForSlot("comprobante_domicilio", 0)}
+                            disabled={uploadMutation.isPending || replaceMutation.isPending || deleteMutation.isPending || !resolvedUserId}
+                          >
+                            {uploadMutation.isPending && selectedUploadTarget?.category === "comprobante_domicilio" ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />}
+                            Subir PDF
+                          </button>
+                        ) : null}
+
+                        {addressDocument?.documentId ? (
+                          <div className="relative">
+                            <button
+                              type="button"
+                              className="flex h-8 w-8 items-center justify-center border-0 bg-transparent text-slate-500 shadow-none outline-none ring-0 transition hover:text-slate-800 disabled:opacity-60"
+                              onClick={() => setOpenDocumentMenuId(openDocumentMenuId === addressDocument.documentId ? null : addressDocument.documentId as string)}
+                              disabled={uploadMutation.isPending || replaceMutation.isPending || deleteMutation.isPending}
+                              aria-label="Abrir opciones del comprobante de domicilio"
+                            >
+                              <MoreHorizontal size={16} />
+                            </button>
+
+                            {openDocumentMenuId === addressDocument.documentId ? (
+                              <div className="absolute right-0 top-9 z-20 w-40 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-[11px]">
+                                <button
+                                  type="button"
+                                  className="block w-full px-3 py-2 text-left font-semibold text-slate-700 transition hover:bg-slate-50"
+                                  onClick={() => openFilePickerForReplacement("comprobante_domicilio", 0, addressDocument.documentId as string)}
+                                >
+                                  {replaceMutation.isPending && selectedUploadTarget?.category === "comprobante_domicilio" ? "Reemplazando..." : "Reemplazar"}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="block w-full px-3 py-2 text-left font-semibold text-red-600 transition hover:bg-red-50"
+                                  onClick={() => {
+                                    setOpenDocumentMenuId(null);
+                                    setDeleteTarget({ category: "comprobante_domicilio", documentId: addressDocument.documentId as string, label: "Domicilio" });
+                                  }}
+                                >
+                                  Eliminar
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+
+                      {deleteTarget && addressDocument?.documentId && deleteTarget.documentId === addressDocument.documentId ? (
+                        <div className="flex w-full items-center justify-end gap-2 border-t border-slate-200 pt-2 text-[11px] text-slate-600">
+                          <span className="mr-auto">El documento quedará eliminado del expediente activo.</span>
+                          <button type="button" className="appearance-none rounded-md border-0 bg-transparent px-2.5 py-1 font-semibold text-slate-600 shadow-none hover:bg-white" onClick={() => setDeleteTarget(null)} disabled={deleteMutation.isPending}>Cancelar</button>
+                          <button type="button" className="appearance-none rounded-md border-0 bg-red-50 px-2.5 py-1 font-semibold text-red-700 shadow-none disabled:opacity-60" onClick={handleDeleteDocument} disabled={deleteMutation.isPending}>
+                            {deleteMutation.isPending ? "Eliminando..." : "Confirmar eliminación"}
+                          </button>
+                        </div>
+                      ) : null}
+                    </article>
+
+                    <div className="mt-3 flex justify-end">
+                      <button
+                        type="button"
+                        className="text-[11px] font-semibold text-slate-500 transition hover:text-slate-700 disabled:opacity-60"
+                        onClick={() => addressProgressQuery.refetch()}
+                        disabled={!resolvedUserId || addressProgressQuery.isFetching}
+                      >
+                        {addressProgressQuery.isFetching ? "Actualizando progreso..." : "Actualizar progreso"}
+                      </button>
                     </div>
                   </section>
                 </div>

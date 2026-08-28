@@ -22,7 +22,9 @@ export const financialDocumentKeys = {
   fileUrl: (documentId: string | null | undefined) => ["financial-documents", documentId, "file-url"] as const,
 };
 
-export function useDocumentProgress(userId: string | null, category: "nomina" | "extracto", enabled: boolean) {
+export type FinancialDocumentCategory = "nomina" | "extracto" | "comprobante_domicilio";
+
+export function useDocumentProgress(userId: string | null, category: FinancialDocumentCategory, enabled: boolean) {
   return useQuery({
     queryKey: financialDocumentKeys.progress(userId, category),
     queryFn: () => fetchFinancialDocumentProgress(userId as string, category),
@@ -43,7 +45,7 @@ export function useUploadOneDocument(userId: string | null) {
 
   return useMutation({
     mutationKey: ["financial-documents", userId, "upload-one"],
-    mutationFn: ({ category, file }: { category: "nomina" | "extracto"; file: File }) =>
+    mutationFn: ({ category, file }: { category: FinancialDocumentCategory; file: File }) =>
       uploadOneFinancialDocument(userId as string, category, file),
     onSuccess: async (_result, variables) => {
       await queryClient.invalidateQueries({ queryKey: financialDocumentKeys.progress(userId, variables.category) });
@@ -114,7 +116,7 @@ export function useReplaceDocument(userId: string | null) {
 
   return useMutation({
     mutationKey: ["financial-documents", "replace"],
-    mutationFn: ({ documentId, file }: { documentId: string; category: "nomina" | "extracto"; file: File }) =>
+    mutationFn: ({ documentId, file }: { documentId: string; category: FinancialDocumentCategory; file: File }) =>
       replaceFinancialDocument(documentId, file),
     onSuccess: async (_result, variables) => {
       await Promise.all([
@@ -130,7 +132,7 @@ export function useDeleteDocument(userId: string | null) {
 
   return useMutation({
     mutationKey: ["financial-documents", "delete"],
-    mutationFn: ({ documentId }: { documentId: string; category: "nomina" | "extracto" }) =>
+    mutationFn: ({ documentId }: { documentId: string; category: FinancialDocumentCategory }) =>
       deleteFinancialDocument(documentId),
     onSuccess: async (_result, variables) => {
       await Promise.all([
