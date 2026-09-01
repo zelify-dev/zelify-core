@@ -18,17 +18,29 @@ jobs:
 
       - name: Iniciar sesión en Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: actions/amazon-ecr-login@v2
+
+      - name: Obtener variables públicas desde AWS Secrets Manager
+        id: fetch-secrets
+        run: |
+          # Extraemos el secreto de AWS Secrets Manager y lo parseamos de forma segura en memoria
+          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id "zelify/core/production" --query "SecretString" --output text)
+          
+          # Asignamos las variables de entorno para el paso de compilación actual
+          echo "NEXT_PUBLIC_API_URL=$(echo $SECRET_JSON | jq -r .NEXT_PUBLIC_API_URL)" >> $GITHUB_ENV
+          # Repite la línea anterior si tienes más variables NEXT_PUBLIC_
 
       - name: Construir y empujar imagen a ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          # IMPORTANTE: Este repositorio debe existir previamente en la consola de AWS ECR
           ECR_REPOSITORY: zelify-core
           IMAGE_TAG: ${{ github.sha }}
+          NEXT_PUBLIC_API_URL: ${{ env.NEXT_PUBLIC_API_URL }}
         run: |
-          echo "Construyendo imagen Docker..."
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          echo "Construyendo imagen Docker con variables inyectadas de forma segura..."
+          docker build \
+            --build-arg NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL" \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           
           echo "Empujando tag específico: $IMAGE_TAG"
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
@@ -43,7 +55,7 @@ jobs:
           echo "Espacio antes de limpiar:"
           df -h / || true
           
-          # Limpieza profunda y agresiva de Docker (imágenes, contenedores detenidos, volúmenes, cachés)
+          # Limpieza profunda de Docker
           docker system prune -af --volumes
           
           # Limpiar archivos locales residuales del runner
