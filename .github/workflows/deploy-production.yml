@@ -18,7 +18,7 @@ jobs:
 
       - name: Iniciar sesión en Amazon ECR
         id: login-ecr
-        uses: actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Obtener variables públicas desde AWS Secrets Manager
         id: fetch-secrets
