@@ -13,6 +13,13 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# Declarar y exponer variables públicas para Next.js en build-time
+ARG NEXT_PUBLIC_AUTH_API_URL
+ARG NEXT_PUBLIC_MDC_API_URL
+ENV NEXT_PUBLIC_AUTH_API_URL=$NEXT_PUBLIC_AUTH_API_URL
+ENV NEXT_PUBLIC_MDC_API_URL=$NEXT_PUBLIC_MDC_API_URL
+
 RUN npm run build
 
 # Fase de ejecución
