@@ -1,0 +1,54 @@
+name: Deploy Production - Zelify Core
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    name: Build & Push to ECR
+    runs-on: [self-hosted, production]
+    environment: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Iniciar sesión en Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Construir y empujar imagen a ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          # IMPORTANTE: Este repositorio debe existir previamente en la consola de AWS ECR
+          ECR_REPOSITORY: zelify-core
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          echo "Construyendo imagen Docker..."
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          
+          echo "Empujando tag específico: $IMAGE_TAG"
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          
+          echo "Etiquetando y empujando tag: latest"
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      - name: Cleanup workspace and Docker disk space
+        if: always()
+        run: |
+          echo "Espacio antes de limpiar:"
+          df -h / || true
+          
+          # Limpieza profunda y agresiva de Docker (imágenes, contenedores detenidos, volúmenes, cachés)
+          docker system prune -af --volumes
+          
+          # Limpiar archivos locales residuales del runner
+          rm -rf node_modules .next .npm dist
+          rm -rf "${RUNNER_TEMP:-/tmp}"/npm-cache* 2>/dev/null || true
+          
+          echo "Espacio después de limpiar:"
+          df -h / || true
