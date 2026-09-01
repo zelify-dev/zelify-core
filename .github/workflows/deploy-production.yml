@@ -24,7 +24,7 @@ jobs:
         id: fetch-secrets
         run: |
           # Extraemos el secreto de AWS Secrets Manager y lo parseamos de forma segura en memoria
-          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id "zelify/core/production" --query "SecretString" --output text)
+          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id "prod/zelify-core" --query "SecretString" --output text)
           
           # Asignamos las variables de entorno para el paso de compilación actual
           echo "NEXT_PUBLIC_API_URL=$(echo $SECRET_JSON | jq -r .NEXT_PUBLIC_API_URL)" >> $GITHUB_ENV
