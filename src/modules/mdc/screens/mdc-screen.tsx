@@ -26,7 +26,7 @@ import {
   type RiskLevel,
 } from "@/modules/mdc/data/mdc-credit-mock";
 import { CREDIT_RULES_BY_MODE, type CreditRuleRow, type RuleDataType, type RuleOperator, type RuleProduct, type RuleSeverity } from "@/modules/mdc/data/mdc-rules-mock";
-import { fetchRules, createRule, updateRule, deleteRule } from "@/modules/mdc/services/mdc-rules.service";
+import { fetchRules, fetchFinanceProducts, createRule, updateRule, deleteRule } from "@/modules/mdc/services/mdc-rules.service";
 import { createTraceabilityLog, fetchTraceabilityLogs } from "@/modules/mdc/services/mdc-traceability.service";
 
 import {
@@ -40,6 +40,7 @@ import {
   type AnalyzeFinanceRequestResponse,
   type FinancialDocumentExtractionResponse,
   type FinancialDocumentProgress,
+  type FinanceRequestDetail,
   type MdcApiError,
 } from "@/modules/mdc/services/mdc-finance-requests.service";
 import { getStoredOrganization, getStoredUser } from "@/lib/auth-api";
@@ -2323,11 +2324,11 @@ function isUuidLike(value?: string | null) {
   return Boolean(value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value));
 }
 
-function extractFinanceRequestUserId(payload: { user?: { id?: string }; data?: { user?: { id?: string } } }): string | null {
+function extractFinanceRequestUserId(payload: FinanceRequestDetail): string | null {
+  const directUserId = payload?.userId;
   const direct = payload?.user?.id;
-  const nested = payload?.data?.user?.id;
+  if (isUuidLike(directUserId)) return directUserId || null;
   if (isUuidLike(direct)) return direct || null;
-  if (isUuidLike(nested)) return nested || null;
   return null;
 }
 
@@ -3346,7 +3347,10 @@ function AppDetailModal({
     Math.round(isAutomotriz ? app.requestedAmount / 70 : app.requestedAmount / 28),
   );
   const estimatedAge = 20 + (quickHash(`${app.id}-age`) % 28);
-  const bureauScoreEstimated = bureauScoreFromRiskIndex(app.riskScore);
+  const backendBureauScore = financeRequestDetailQuery.data?.buroScore ?? financeRequestDetailQuery.data?.buro_score;
+  const bureauScoreEstimated = Number.isFinite(backendBureauScore)
+    ? Number(backendBureauScore)
+    : bureauScoreFromRiskIndex(app.riskScore);
   const maxDaysPastDue = Math.max(
     0,
     Math.min(120, Math.round(app.riskScore * 1.15 + (quickHash(`${app.id}-dpd`) % 21) - 8)),
@@ -3863,6 +3867,9 @@ function AppDetailModal({
                 <div>
                   <span>Score Buró</span>
                   <strong>{bureauScoreEstimated}</strong>
+                  {financeRequestDetailQuery.data?.lastConsulteBuro ? (
+                    <small>Consulta: {shortDate(financeRequestDetailQuery.data.lastConsulteBuro)}</small>
+                  ) : null}
                 </div>
                 <div>
                   <span>Indice de riesgo</span>
@@ -5275,9 +5282,7 @@ export function MdcScreen() {
       return;
     }
 
-    // Using the same URL logic as RequestsTab (no orgId filter) to ensure products load
-    fetch(process.env.NEXT_PUBLIC_MDC_API_URL ? `${process.env.NEXT_PUBLIC_MDC_API_URL}/finance-products` : `http://127.0.0.1:3000/finance-products`)
-      .then(res => res.json())
+    fetchFinanceProducts(orgId)
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
           setProductDetails(data);
