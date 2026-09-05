@@ -3202,7 +3202,8 @@ function AppDetailModal({
   const financeRequestDetailQuery = useQuery({
     queryKey: ["finance-request", app.id],
     queryFn: () => fetchFinanceRequestById(app.id),
-    enabled: !isMoralApplicant && !suppliedUserId,
+    // Buró score is supplied by the request-detail endpoint, independently of userId.
+    enabled: !isMoralApplicant,
     staleTime: 30_000,
   });
   const resolvedUserId = suppliedUserId || (financeRequestDetailQuery.data ? extractFinanceRequestUserId(financeRequestDetailQuery.data) : null);
