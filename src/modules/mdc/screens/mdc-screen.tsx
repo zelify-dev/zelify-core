@@ -3198,13 +3198,14 @@ function AppDetailModal({
     category: "nomina" | "extracto" | "comprobante_domicilio";
   } | null>(null);
 
+  const isDemoOrganization = getStoredOrganization()?.id === "demo-bypass-org";
   const suppliedUserId = app.userId && isUuidLike(app.userId) ? app.userId : null;
   const financeRequestDetailQuery = useQuery({
     queryKey: ["finance-request", app.id],
     queryFn: () => fetchFinanceRequestById(app.id),
-    // Buró score is supplied by the request-detail endpoint, independently of userId.
-    enabled: !isMoralApplicant,
-    staleTime: 30_000,
+    enabled: !isMoralApplicant && !isDemoOrganization,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
   const resolvedUserId = suppliedUserId || (financeRequestDetailQuery.data ? extractFinanceRequestUserId(financeRequestDetailQuery.data) : null);
   const documentProgressQuery = useDocumentProgress(resolvedUserId, "nomina", !isMoralApplicant);
@@ -3348,10 +3349,9 @@ function AppDetailModal({
     Math.round(isAutomotriz ? app.requestedAmount / 70 : app.requestedAmount / 28),
   );
   const estimatedAge = 20 + (quickHash(`${app.id}-age`) % 28);
-  const backendBureauScore = financeRequestDetailQuery.data?.buroScore ?? financeRequestDetailQuery.data?.buro_score;
-  const bureauScoreEstimated = Number.isFinite(backendBureauScore)
-    ? Number(backendBureauScore)
-    : bureauScoreFromRiskIndex(app.riskScore);
+  const backendBureauScore = financeRequestDetailQuery.data?.buro_score;
+  const bureauScoreFromApi = Number.isFinite(backendBureauScore) ? Number(backendBureauScore) : null;
+  const bureauScoreEstimated = bureauScoreFromApi ?? (isDemoOrganization ? bureauScoreFromRiskIndex(app.riskScore) : 0);
   const maxDaysPastDue = Math.max(
     0,
     Math.min(120, Math.round(app.riskScore * 1.15 + (quickHash(`${app.id}-dpd`) % 21) - 8)),
@@ -3867,7 +3867,7 @@ function AppDetailModal({
               <div className="mdc-detail-score-grid">
                 <div>
                   <span>Score Buró</span>
-                  <strong>{bureauScoreEstimated}</strong>
+                  <strong>{isDemoOrganization ? bureauScoreEstimated : financeRequestDetailQuery.isLoading ? "..." : bureauScoreFromApi ?? ""}</strong>
                   {financeRequestDetailQuery.data?.lastConsulteBuro ? (
                     <small>Consulta: {shortDate(financeRequestDetailQuery.data.lastConsulteBuro)}</small>
                   ) : null}
