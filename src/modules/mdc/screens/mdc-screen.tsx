@@ -26,7 +26,7 @@ import {
   type RiskLevel,
 } from "@/modules/mdc/data/mdc-credit-mock";
 import { CREDIT_RULES_BY_MODE, type CreditRuleRow, type RuleDataType, type RuleOperator, type RuleProduct, type RuleSeverity } from "@/modules/mdc/data/mdc-rules-mock";
-import { fetchRules, fetchFinanceProducts, createRule, updateRule, deleteRule } from "@/modules/mdc/services/mdc-rules.service";
+import { evaluateDecisionRule, fetchRules, fetchFinanceProducts, createRule, updateRule, deleteRule } from "@/modules/mdc/services/mdc-rules.service";
 import { createTraceabilityLog, fetchTraceabilityLogs } from "@/modules/mdc/services/mdc-traceability.service";
 
 import {
@@ -3179,11 +3179,13 @@ function AppDetailModal({
   onClose: () => void;
 }) {
   const isMoralApplicant = mode === "moral";
+  const isDemoOrganization = getStoredOrganization()?.id === "demo-bypass-org";
   const [feedback, setFeedback] = useState("");
   const [overrideChoice, setOverrideChoice] = useState<ApplicationStatus>("manualReview");
   const [overrideReason, setOverrideReason] = useState("");
-  const [breakdown, setBreakdown] = useState<any[] | null>(app.rulesBreakdown || null);
-  const [breakdownStatus, setBreakdownStatus] = useState<string | null>(app.rulesBreakdownStatus || app.analysis?.status || null);
+  const [breakdown, setBreakdown] = useState<any[] | null>(isDemoOrganization ? app.rulesBreakdown || null : null);
+  const [breakdownStatus, setBreakdownStatus] = useState<string | null>(isDemoOrganization ? app.rulesBreakdownStatus || app.analysis?.status || null : null);
+  const [isEvaluatingRules, setIsEvaluatingRules] = useState(false);
   const [actionErrors, setActionErrors] = useState<Record<string, DetailDocError | null>>({});
   const [manualReviewAction, setManualReviewAction] = useState<ManualReviewAction>(null);
   const [manualReviewReason, setManualReviewReason] = useState("");
@@ -3198,7 +3200,6 @@ function AppDetailModal({
     category: "nomina" | "extracto" | "comprobante_domicilio";
   } | null>(null);
 
-  const isDemoOrganization = getStoredOrganization()?.id === "demo-bypass-org";
   const suppliedUserId = app.userId && isUuidLike(app.userId) ? app.userId : null;
   const financeRequestDetailQuery = useQuery({
     queryKey: ["finance-request", app.id],
@@ -3260,6 +3261,12 @@ function AppDetailModal({
   }, [extractionSelection?.analysisId]);
 
   useEffect(() => {
+    if (!isDemoOrganization) {
+      setBreakdown(null);
+      setBreakdownStatus(null);
+      return;
+    }
+
     if (app.rulesBreakdown && app.rulesBreakdown.length > 0) {
       setBreakdown(app.rulesBreakdown);
       setBreakdownStatus(app.rulesBreakdownStatus || app.analysis?.status || null);
@@ -3290,7 +3297,7 @@ function AppDetailModal({
       .catch((err) => {
         console.debug("Rules breakdown fetch fallback", err);
       });
-  }, [app, mode]);
+  }, [app, isDemoOrganization, mode]);
 
   if (isMoralApplicant) {
     return <MoralApplicantDetailModal app={app} rules={rules} onClose={onClose} />;
@@ -3559,6 +3566,45 @@ function AppDetailModal({
     setFeedback(`Override aplicado: ${STATUS_LABELS[overrideChoice]}. Queda registrado en Trazabilidad.`);
   };
 
+  const handleEvaluateRules = async () => {
+    const orgId = getStoredOrganization()?.id;
+    const userId = resolvedUserId;
+    const ruleIds = [...new Set(rules.filter((rule) => rule.status === "active").map((rule) => rule.id))];
+
+    if (!orgId || orgId === "demo-bypass-org") {
+      setFeedback("La ejecución de reglas está disponible para solicitudes reales.");
+      return;
+    }
+    if (!userId) {
+      setFeedback("No fue posible identificar al solicitante para ejecutar las reglas.");
+      return;
+    }
+    if (ruleIds.length === 0) {
+      setFeedback("No hay reglas activas para el producto de esta solicitud.");
+      return;
+    }
+
+    setIsEvaluatingRules(true);
+    setFeedback("");
+    try {
+      const evaluations = await Promise.all(ruleIds.map((ruleId) => evaluateDecisionRule(ruleId, { orgId, userId })));
+      const evaluatedBreakdown = evaluations.flatMap((evaluation) => evaluation.rulesBreakdown || []);
+      const finalStatus = evaluations.some((evaluation) => /rechaz/i.test(evaluation.status))
+        ? "Rechazado"
+        : evaluations.some((evaluation) => /revision/i.test(evaluation.status))
+          ? "Revision manual"
+          : evaluations[evaluations.length - 1]?.status || "Pendiente";
+
+      setBreakdown(evaluatedBreakdown);
+      setBreakdownStatus(finalStatus);
+      setFeedback("Reglas ejecutadas correctamente.");
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "No fue posible ejecutar las reglas.");
+    } finally {
+      setIsEvaluatingRules(false);
+    }
+  };
+
   const handleRefreshDocumentProgress = async () => {
     if (!resolvedUserId) {
       await financeRequestDetailQuery.refetch();
@@ -3791,14 +3837,19 @@ function AppDetailModal({
             <section className="mdc-detail-card">
               <div className="mdc-detail-card__head">
                 <h4>Desglose de reglas</h4>
-                <span className={
-                  breakdownStatus === "Aprobada" || breakdownStatus === "Aprobado" ? "mdc-badge mdc-badge--ok" :
-                    breakdownStatus === "Rechazada" || breakdownStatus === "Rechazado" ? "mdc-badge mdc-badge--bad" :
-                      breakdownStatus === "Revision manual" || breakdownStatus === "Revision" ? "mdc-badge mdc-badge--warn" :
-                        ruleSummaryBadgeClass
-                }>
-                  {breakdownStatus || ruleSummaryLabel}
-                </span>
+                <div className="mdc-document-card-actions">
+                  <button type="button" className="mdc-btn mdc-btn--primary mdc-btn--sm" onClick={handleEvaluateRules} disabled={isEvaluatingRules}>
+                    {isEvaluatingRules ? "Ejecutando..." : "Ejecutar reglas"}
+                  </button>
+                  {breakdownStatus ? <span className={
+                    breakdownStatus === "Aprobada" || breakdownStatus === "Aprobado" ? "mdc-badge mdc-badge--ok" :
+                      breakdownStatus === "Rechazada" || breakdownStatus === "Rechazado" ? "mdc-badge mdc-badge--bad" :
+                        breakdownStatus === "Revision manual" || breakdownStatus === "Revision" ? "mdc-badge mdc-badge--warn" :
+                          ruleSummaryBadgeClass
+                  }>
+                    {breakdownStatus}
+                  </span> : null}
+                </div>
               </div>
               <div className="mdc-detail-rule-list">
                 {breakdown && breakdown.length > 0 ? (
@@ -3840,7 +3891,7 @@ function AppDetailModal({
                       </article>
                     );
                   })
-                ) : (
+                ) : isDemoOrganization ? (
                   activeRules.map((rule) => (
                     <article key={rule.id} className="mdc-detail-rule">
                       <div>
@@ -3851,7 +3902,7 @@ function AppDetailModal({
                         {ruleResultLabel[rule.result]}
                       </span>
                     </article>
-                  ))
+                  )) : null
                 )}
               </div>
             </section>
@@ -5302,13 +5353,15 @@ export function MdcScreen() {
   const defaultRules = useMemo(() => CREDIT_RULES_BY_MODE[applicantMode], [applicantMode]);
   const [apps, setApps] = useState<Application[]>([]);
   const [appsLoading, setAppsLoading] = useState(true);
-  const [rules, setRules] = useState<CreditRuleRow[]>(() =>
-    mergeRulesWithDefaults(
+  const [rules, setRules] = useState<CreditRuleRow[]>(() => {
+    const orgId = getStoredOrganization()?.id;
+    if (orgId !== "demo-bypass-org") return [];
+    return mergeRulesWithDefaults(
       readStoredJson<CreditRuleRow[]>(MODE_STORAGE_KEYS.natural.rules, []),
       CREDIT_PRODUCTS_BY_MODE.natural as readonly RuleProduct[],
       CREDIT_RULES_BY_MODE.natural,
-    ),
-  );
+    );
+  });
 
   const [showAddApplication, setShowAddApplication] = useState(false);
   const [detailApp, setDetailApp] = useState<Application | null>(null);
@@ -5328,32 +5381,42 @@ export function MdcScreen() {
   const [ruleModalState, setRuleModalState] = useState<RuleFormState>(defaultRuleForm(CREDIT_PRODUCTS_BY_MODE.natural as readonly RuleProduct[]));
   const [ruleProductFilter, setRuleProductFilter] = useState<RuleProduct>((CREDIT_PRODUCTS_BY_MODE.natural[0] ?? NATURAL_CREDIT_PRODUCTS[0]) as RuleProduct);
   const [rangeFilter, setRangeFilter] = useState<RangePreset>("7d");
+  const productNamesById = useMemo(() => {
+    return new Map(
+      productDetails
+        .filter((product) => typeof product?.id === "string" && typeof product?.financialProduct === "string")
+        .map((product) => [product.id, product.financialProduct]),
+    );
+  }, [productDetails]);
   const normalizedRules = useMemo(() => {
     return rules.map(rule => {
+      let productReferences: string[] = [];
       let finProd = "Credito simple";
       if (Array.isArray(rule.products) && rule.products.length > 0) {
-        finProd = rule.products[0];
+        productReferences = rule.products.map(String);
       } else if (typeof rule.products === "string") {
         try {
           const parsed = JSON.parse(rule.products);
-          if (Array.isArray(parsed) && parsed.length > 0) finProd = parsed[0];
-          else finProd = rule.products;
+          productReferences = Array.isArray(parsed) ? parsed.map(String) : [rule.products];
         } catch {
-          finProd = rule.products;
+          productReferences = [rule.products];
         }
       } else if ((rule as any).product) {
-        finProd = (rule as any).product;
+        productReferences = [String((rule as any).product)];
       }
+      const products = productReferences.map((reference) => productNamesById.get(reference) ?? reference);
+      finProd = products[0] ?? finProd;
 
       return {
         ...rule,
+        products: products as RuleProduct[],
         financialProduct: finProd,
         fieldEvaluated: rule.field || "custom.field",
         operator: rule.operator || "gte",
         thresholdValue: rule.value || "0"
       };
     });
-  }, [rules]);
+  }, [rules, productNamesById]);
 
   const isDemoOrg = getStoredOrganization()?.id === "demo-bypass-org";
 
@@ -5369,17 +5432,22 @@ export function MdcScreen() {
 
   const policiesByProduct = useMemo(() => {
     const map = new Map<string, CreditRuleRow[]>();
-    activeProducts.forEach(p => map.set(p, []));
+    if (isDemoOrg) {
+      activeProducts.forEach(p => map.set(p, []));
+    }
     normalizedRules.forEach(r => {
-      if (!map.has(r.financialProduct)) map.set(r.financialProduct, []);
-      map.get(r.financialProduct)!.push(r);
+      const ruleProducts = r.products.length > 0 ? r.products : [r.financialProduct];
+      ruleProducts.forEach((product) => {
+        if (!map.has(product)) map.set(product, []);
+        map.get(product)!.push(r);
+      });
     });
     return Array.from(map.entries()).map(([product, productRules]) => ({
       product,
       rules: productRules,
       activeCount: productRules.filter(r => r.status === 'active').length,
     }));
-  }, [normalizedRules, activeProducts]);
+  }, [normalizedRules, activeProducts, isDemoOrg]);
 
   const filteredPolicies = policiesByProduct.filter((policy) => {
     if (ruleProductFilter && ruleProductFilter !== "all" && policy.product !== ruleProductFilter) return false;

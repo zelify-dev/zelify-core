@@ -52,6 +52,44 @@ export const fetchFinanceProducts = async (orgId: string): Promise<Record<string
   return response.json();
 };
 
+export type DecisionRuleEvaluationResponse = {
+  decision: string;
+  status: string;
+  riskLevel: string;
+  reasons?: string[];
+  summary?: {
+    totalRules: number;
+    evaluatedRules: number;
+    approvedRules: number;
+    reviewRules: number;
+    rejectedRules: number;
+    passedRules: number;
+    failedRules: number;
+  };
+  rulesBreakdown?: Array<{
+    id: string;
+    name: string;
+    status: string;
+    passed?: boolean;
+    reason?: string;
+  }>;
+};
+
+export async function evaluateDecisionRule(ruleId: string, payload: { orgId: string; userId: string }): Promise<DecisionRuleEvaluationResponse> {
+  const response = await customFetch(`${getBaseUrl()}/decision-rules/${encodeURIComponent(ruleId)}/evaluate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.message || `No fue posible ejecutar la regla (${response.status}).`);
+  }
+
+  return response.json();
+}
+
 export const createRule = async (rule: Partial<CreditRuleRow>, orgId: string): Promise<CreditRuleRow | null> => {
   if (orgId === "demo-bypass-org") {
     const newRule = { ...rule, id: `cr-mock-${Date.now()}` } as CreditRuleRow;
