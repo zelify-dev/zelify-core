@@ -3349,7 +3349,7 @@ function AppDetailModal({
     Math.round(isAutomotriz ? app.requestedAmount / 70 : app.requestedAmount / 28),
   );
   const estimatedAge = 20 + (quickHash(`${app.id}-age`) % 28);
-  const backendBureauScore = financeRequestDetailQuery.data?.buro_score;
+  const backendBureauScore = financeRequestDetailQuery.data?.buroScore;
   const bureauScoreFromApi = Number.isFinite(backendBureauScore) ? Number(backendBureauScore) : null;
   const bureauScoreEstimated = bureauScoreFromApi ?? (isDemoOrganization ? bureauScoreFromRiskIndex(app.riskScore) : 0);
   const maxDaysPastDue = Math.max(
@@ -3868,9 +3868,6 @@ function AppDetailModal({
                 <div>
                   <span>Score Buró</span>
                   <strong>{isDemoOrganization ? bureauScoreEstimated : financeRequestDetailQuery.isLoading ? "..." : bureauScoreFromApi ?? ""}</strong>
-                  {financeRequestDetailQuery.data?.lastConsulteBuro ? (
-                    <small>Consulta: {shortDate(financeRequestDetailQuery.data.lastConsulteBuro)}</small>
-                  ) : null}
                 </div>
                 <div>
                   <span>Indice de riesgo</span>
