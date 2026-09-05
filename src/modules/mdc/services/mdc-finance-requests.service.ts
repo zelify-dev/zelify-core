@@ -165,7 +165,6 @@ export type FinanceRequestDetail = {
   user?: {
     id?: string;
   };
-  buroScore?: number;
   buro_score?: number;
   lastConsulteBuro?: string;
 };
