@@ -152,6 +152,24 @@ export type FinanceRequest = {
   updatedAt: string;
 };
 
+// The detail endpoint returns a reduced payload while the list endpoint keeps
+// the complete request shape used by the applications table.
+export type FinanceRequestDetail = {
+  id: string;
+  orgId: string;
+  identificationNumber?: string;
+  firstName?: string;
+  lastName?: string;
+  status: string;
+  userId?: string;
+  user?: {
+    id?: string;
+  };
+  buroScore?: number;
+  buro_score?: number;
+  lastConsulteBuro?: string;
+};
+
 export async function fetchFinanceRequests(orgId: string, personType?: string): Promise<FinanceRequest[]> {
   const params = new URLSearchParams({ orgId });
   if (personType) params.set("personType", personType);
@@ -160,7 +178,7 @@ export async function fetchFinanceRequests(orgId: string, personType?: string): 
   return res.json();
 }
 
-export async function fetchFinanceRequestById(id: string): Promise<FinanceRequest> {
+export async function fetchFinanceRequestById(id: string): Promise<FinanceRequestDetail> {
   const res = await customFetch(`${getBaseUrl()}/finance-requests/${id}`);
   if (!res.ok) throw new Error(`Failed to fetch finance request detail (${res.status})`);
   const payload = await res.json();
