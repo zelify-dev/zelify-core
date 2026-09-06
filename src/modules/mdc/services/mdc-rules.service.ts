@@ -35,21 +35,53 @@ export const fetchRules = async (mode: "natural" | "moral", orgId: string): Prom
   return response.json();
 };
 
+function extractFinanceProductsPayload(payload: unknown): Record<string, unknown>[] {
+  if (Array.isArray(payload)) return payload as Record<string, unknown>[];
+  if (payload && typeof payload === "object") {
+    const record = payload as Record<string, unknown>;
+    for (const key of ["data", "items", "products", "result"]) {
+      if (Array.isArray(record[key])) return record[key] as Record<string, unknown>[];
+    }
+  }
+  return [];
+}
+
 export const fetchFinanceProducts = async (orgId: string): Promise<Record<string, unknown>[]> => {
-  if (orgId === "demo-bypass-org") return [];
-  const url = `${getBaseUrl()}/finance-products?orgId=${orgId}`;
+  if (orgId === "demo-bypass-org") {
+    console.log("[MDC][products] fetchFinanceProducts demo-bypass-org → []");
+    return [];
+  }
+  const url = `${getBaseUrl()}/finance-products?orgId=${encodeURIComponent(orgId)}`;
+  console.log("[MDC][products] GET", url);
   const response = await customFetch(url, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
     },
   });
-
+  const rawText = await response.text();
+  let payload: unknown = rawText;
+  try {
+    payload = rawText ? JSON.parse(rawText) : null;
+  } catch {
+    payload = rawText;
+  }
+  const items = extractFinanceProductsPayload(payload);
+  console.log("[MDC][products] response", {
+    ok: response.ok,
+    status: response.status,
+    statusText: response.statusText,
+    url,
+    rawText,
+    payload,
+    extractedCount: items.length,
+    extracted: items,
+  });
   if (!response.ok) {
-    console.warn("Failed to fetch finance products", response.statusText);
+    console.warn("[MDC][products] Failed to fetch finance products", response.status, response.statusText);
     return [];
   }
-  return response.json();
+  return items;
 };
 
 export type DecisionRuleEvaluationResponse = {

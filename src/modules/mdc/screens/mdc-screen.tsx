@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Eye, Plus, Settings, Trash2, AlertTriangle } from "lucide-react";
 import { seedScotiaCreditStorage, useCreditDemoStore } from "@/modules/cortex/hooks/use-credit-demo-store";
@@ -56,6 +56,7 @@ import {
   type ZelifyKycSessionStatus,
 } from "@/modules/mdc/services/zelify-kyc-onboarding.service";
 import { getStoredOrganization, getStoredUser } from "@/lib/auth-api";
+import { writeApplicationDetailSession, writeRuleFormSession } from "@/modules/mdc/lib/mdc-form-session";
 import { MdcProductsTab } from "@/modules/mdc/components/mdc-products-tab";
 import { MdcRequestsTab } from "@/modules/mdc/components/mdc-requests-tab";
 
@@ -95,7 +96,7 @@ type FinanceProductOption = {
   maximumAmount?: number;
 };
 
-type RuleFormState = {
+export type RuleFormState = {
   name: string;
   product: RuleProduct;
   field: string;
@@ -1133,7 +1134,7 @@ function hasExactTaxComplianceBands(rule?: CreditRuleRow) {
   );
 }
 
-function buildDecisionBands(form: RuleFormState) {
+export function buildDecisionBands(form: RuleFormState) {
   if (form.evaluationMode !== "bands") return undefined;
   const decisionBands = {
     approveMin: parseOptionalNumber(form.approveMin),
@@ -1835,14 +1836,16 @@ function SegmentedBar({ data }: { data: { label: string; value: number; color: s
   );
 }
 
-function MoralApplicantDetailModal({
+export function MoralApplicantDetailModal({
   app,
   rules,
   onClose,
+  layout = "modal",
 }: {
   app: Application;
   rules: CreditRuleRow[];
   onClose: () => void;
+  layout?: "modal" | "page";
 }) {
   const [feedback, setFeedback] = useState("");
   const [overrideChoice, setOverrideChoice] = useState<ApplicationStatus>("manualReview");
@@ -2010,13 +2013,15 @@ function MoralApplicantDetailModal({
     }`;
 
   return (
-    <div className="mdc-modal-backdrop" onClick={onClose}>
+    <div className={layout === "page" ? "mdc-modal mdc-modal--page" : "mdc-modal-backdrop"} onClick={layout === "page" ? undefined : onClose}>
       <div className="mdc-modal mdc-modal--detail" onClick={(e) => e.stopPropagation()}>
         <header className="mdc-detail-head">
           <div className="mdc-detail-head__title">
+            {layout === "page" ? null : (
             <button type="button" className="mdc-link-btn" onClick={onClose}>
               ← Volver a solicitudes
             </button>
+            )}
             <div className="mdc-detail-head__line">
               <h3>Detalle de empresa</h3>
               <span className={classForStatus(app.status)}>{STATUS_LABELS[app.status]}</span>
@@ -3164,18 +3169,20 @@ function ApplicationFlowModal({
   );
 }
 
-function AppDetailModal({
+export function AppDetailModal({
   app,
   rules,
   mode,
   creditStore,
   onClose,
+  layout = "modal",
 }: {
   app: Application;
   rules: CreditRuleRow[];
   mode: MdcApplicantMode;
   creditStore: ReturnType<typeof useCreditDemoStore>;
   onClose: () => void;
+  layout?: "modal" | "page";
 }) {
   const isMoralApplicant = mode === "moral";
   const isDemoOrganization = getStoredOrganization()?.id === "demo-bypass-org";
@@ -3403,7 +3410,7 @@ function AppDetailModal({
 
 
   if (isMoralApplicant) {
-    return <MoralApplicantDetailModal app={app} rules={rules} onClose={onClose} />;
+    return <MoralApplicantDetailModal app={app} rules={rules} onClose={onClose} layout={layout} />;
   }
   const isAutomotriz = app.product === "Credito automotriz";
   const interestRate = isAutomotriz ? 13.8 : 21.2;
@@ -3802,13 +3809,15 @@ function AppDetailModal({
   };
 
   return (
-    <div className="mdc-modal-backdrop" onClick={onClose}>
+    <div className={layout === "page" ? "mdc-modal mdc-modal--page" : "mdc-modal-backdrop"} onClick={layout === "page" ? undefined : onClose}>
       <div className="mdc-modal mdc-modal--detail" onClick={(e) => e.stopPropagation()}>
         <header className="mdc-detail-head">
           <div className="mdc-detail-head__title">
+            {layout === "page" ? null : (
             <button type="button" className="mdc-link-btn" onClick={onClose}>
               ← Volver a solicitudes
             </button>
+            )}
             <div className="mdc-detail-head__line">
               <h3>Detalle de solicitud</h3>
               <span className={classForStatus(app.status)}>{STATUS_LABELS[app.status]}</span>
@@ -5054,7 +5063,7 @@ const FORM_CONFIG = [
   { id: "capacidadPago", type: "number", label: "Liquido restante (Resguardo)", field: "income.remainingLiquid" }
 ];
 
-function RuleModal({
+export function RuleModal({
   open,
   onClose,
   initial,
@@ -5065,6 +5074,7 @@ function RuleModal({
   onSave,
   onDelete,
   initialBulkRules,
+  layout = "modal",
 }: {
   open: boolean;
   onClose: () => void;
@@ -5076,6 +5086,7 @@ function RuleModal({
   initialBulkRules?: CreditRuleRow[];
   onSave: (form: RuleFormState, duplicateToProduct?: RuleProduct) => void;
   onDelete?: () => void;
+  layout?: "modal" | "page";
 }) {
   const isDemoOrg = getStoredOrganization()?.id === "demo-bypass-org";
   const [form, setForm] = useState<RuleFormState>(() => initial);
@@ -5155,16 +5166,8 @@ function RuleModal({
 
   if (!open) return null;
 
-  return (
-    <div className="mdc-modal-backdrop" onClick={onClose}>
-      <div className="mdc-modal" onClick={(e) => e.stopPropagation()}>
-        <header className="mdc-modal-head">
-          <div>
-            <p>Regla de credito</p>
-            <h3>{isEditing ? "Editar regla" : "Nueva regla"}</h3>
-          </div>
-          <button type="button" className="mdc-icon-btn" onClick={onClose}>×</button>
-        </header>
+  const formBody = (
+    <>
         <div className="mdc-form-grid">
           <label>
             <span>Nombre</span>
@@ -5524,6 +5527,24 @@ function RuleModal({
               {isEditing ? "Actualizar" : "Guardar"}
             </button>
         </footer>
+    </>
+  );
+
+  if (layout === "page") {
+    return formBody;
+  }
+
+  return (
+    <div className="mdc-modal-backdrop" onClick={onClose}>
+      <div className="mdc-modal" onClick={(e) => e.stopPropagation()}>
+        <header className="mdc-modal-head">
+          <div>
+            <p>Regla de credito</p>
+            <h3>{isEditing ? "Editar regla" : "Nueva regla"}</h3>
+          </div>
+          <button type="button" className="mdc-icon-btn" onClick={onClose}>×</button>
+        </header>
+        {formBody}
       </div>
     </div>
   );
@@ -5536,13 +5557,40 @@ export function MdcScreen({ variant = "full" }: { variant?: MdcScreenVariant }) 
   const [globalAlert, setGlobalAlert] = useState<{ message: string, type: "error" | "success" } | null>(null);
   const [kycPrompt, setKycPrompt] = useState<{ requestId: string; webviewUrl: string; expiresAt?: string } | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const creditStore = useCreditDemoStore();
   const [applicantMode, setApplicantMode] = useState<MdcApplicantMode>("natural");
   const [activeTab, setActiveTabState] = useState<MdcTab>(lockedTab ?? "overview");
+  const syncMdcQuery = (tab: MdcTab, mode: MdcApplicantMode) => {
+    if (lockedTab || variant !== "full") return;
+    const params = new URLSearchParams();
+    params.set("tab", tab);
+    params.set("mode", mode);
+    router.replace(`/mdc?${params.toString()}`, { scroll: false });
+  };
   const setActiveTab = (tab: MdcTab) => {
     if (lockedTab) return;
     setActiveTabState(tab);
+    syncMdcQuery(tab, applicantMode);
   };
+  const setApplicantModeAndQuery = (mode: MdcApplicantMode) => {
+    setApplicantMode(mode);
+    if (!lockedTab) syncMdcQuery(activeTab, mode);
+  };
+
+  useEffect(() => {
+    if (lockedTab) return;
+    const tab = searchParams.get("tab") as MdcTab | null;
+    const mode = searchParams.get("mode") as MdcApplicantMode | null;
+    if (tab && (TABS.some((item) => item.id === tab) || tab === "configuration")) {
+      setActiveTabState(tab);
+    }
+    if (mode === "natural" || mode === "moral") {
+      setApplicantMode(mode);
+    }
+    // Solo hidratar desde la URL al montar / cuando vuelve de otra ruta.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const [activeProducts, setActiveProducts] = useState<readonly RuleProduct[]>(() => {
     return [] as readonly RuleProduct[];
   });
@@ -5560,6 +5608,12 @@ export function MdcScreen({ variant = "full" }: { variant?: MdcScreenVariant }) 
 
     fetchFinanceProducts(orgId)
       .then(data => {
+        console.log("[MDC][products] screen catalog", {
+          orgId,
+          applicantMode,
+          count: Array.isArray(data) ? data.length : 0,
+          data,
+        });
         if (Array.isArray(data) && data.length > 0) {
           setProductDetails(data);
           setActiveProducts(data.map(d => d.financialProduct) as readonly RuleProduct[]);
@@ -5569,7 +5623,7 @@ export function MdcScreen({ variant = "full" }: { variant?: MdcScreenVariant }) 
         }
       })
       .catch(err => {
-        console.error("Error fetching rules products", err);
+        console.error("[MDC][products] Error fetching rules products", err);
         setProductDetails([]);
         setActiveProducts([] as readonly RuleProduct[]);
       });
@@ -6027,7 +6081,19 @@ export function MdcScreen({ variant = "full" }: { variant?: MdcScreenVariant }) 
         product: policy.product as RuleProduct,
       });
     }
-    setShowRuleModal(true);
+    writeRuleFormSession({
+      initial: baseRule
+        ? ruleToFormState(baseRule, policy.product as RuleProduct)
+        : { ...defaultRuleForm(activeProducts), product: policy.product as RuleProduct },
+      isEditing: Boolean(baseRule),
+      editingRuleId: baseRule?.id || null,
+      initialBulkRules: policy.rules,
+      mode: applicantMode,
+      availableFields: getRuleFieldsForProduct(policy.product as RuleProduct),
+      products: activeProducts,
+      productDetails,
+    });
+    router.push(`/mdc/rules/form`);
   };
 
   const openEditRule = (rule: CreditRuleRow) => {
@@ -6035,7 +6101,17 @@ export function MdcScreen({ variant = "full" }: { variant?: MdcScreenVariant }) 
     setRuleProductFilter(activeProduct);
     setEditingRuleId(rule.id);
     setRuleModalState(ruleToFormState(rule, activeProduct));
-    setShowRuleModal(true);
+    writeRuleFormSession({
+      initial: ruleToFormState(rule, activeProduct),
+      isEditing: true,
+      editingRuleId: rule.id,
+      initialBulkRules: [rule],
+      mode: applicantMode,
+      availableFields: getRuleFieldsForProduct(activeProduct),
+      products: activeProducts,
+      productDetails,
+    });
+    router.push(`/mdc/rules/form`);
   };
 
   const activeTraceability = useMemo<MdcTraceabilityEntry[]>(
@@ -6095,22 +6171,25 @@ export function MdcScreen({ variant = "full" }: { variant?: MdcScreenVariant }) 
       (r) => r.financialProduct === selectedProd || (Array.isArray(r.products) && r.products.includes(selectedProd as any))
     );
 
-    if (existingRulesForProduct.length > 0) {
-      const baseRule = existingRulesForProduct[0];
-      setEditingRuleId(baseRule.id);
-      setEditingPolicyRules(existingRulesForProduct);
-      setRuleModalState(ruleToFormState(baseRule, selectedProd as RuleProduct));
-    } else {
-      setEditingRuleId(null);
-      setEditingPolicyRules([]);
-      setRuleModalState({
-        ...defaultRuleForm(activeProducts),
-        name: `Regla - ${selectedProd}`,
-        product: selectedProd as RuleProduct,
-        field: (PRODUCT_RULE_FIELDS[selectedProd as RuleProduct] || FALLBACK_RULE_FIELDS)[0] ?? "",
-      });
-    }
-    setShowRuleModal(true);
+    const initial = existingRulesForProduct.length > 0
+      ? ruleToFormState(existingRulesForProduct[0], selectedProd as RuleProduct)
+      : {
+          ...defaultRuleForm(activeProducts),
+          name: `Regla - ${selectedProd}`,
+          product: selectedProd as RuleProduct,
+          field: (PRODUCT_RULE_FIELDS[selectedProd as RuleProduct] || FALLBACK_RULE_FIELDS)[0] ?? "",
+        };
+    writeRuleFormSession({
+      initial,
+      isEditing: existingRulesForProduct.length > 0,
+      editingRuleId: existingRulesForProduct[0]?.id || null,
+      initialBulkRules: existingRulesForProduct,
+      mode: applicantMode,
+      availableFields: getRuleFieldsForProduct(selectedProd as RuleProduct),
+      products: activeProducts,
+      productDetails,
+    });
+    router.push("/mdc/rules/form");
   };
 
   const [viewingPolicy, setViewingPolicy] = useState<{ product: string; rules: CreditRuleRow[]; activeCount: number } | null>(null);
@@ -6228,7 +6307,7 @@ export function MdcScreen({ variant = "full" }: { variant?: MdcScreenVariant }) 
                     key={option.id}
                     type="button"
                     className={`mdc-persona-switch__btn${applicantMode === option.id ? " mdc-persona-switch__btn--active" : ""}`}
-                    onClick={() => setApplicantMode(option.id)}
+                    onClick={() => setApplicantModeAndQuery(option.id)}
                   >
                     {option.label}
                   </button>
@@ -6507,7 +6586,14 @@ export function MdcScreen({ variant = "full" }: { variant?: MdcScreenVariant }) 
                                 <button
                                   type="button"
                                   className="mdc-btn mdc-btn--xs mdc-btn--icon"
-                                  onClick={() => setDetailApp(app)}
+                                  onClick={() => {
+                                    writeApplicationDetailSession({
+                                      app,
+                                      mode: applicantMode,
+                                      rules: normalizedRules.filter((rule) => rule.products.includes(app.product as RuleProduct)),
+                                    });
+                                    router.push(`/mdc/applications/${app.id}?mode=${applicantMode}`);
+                                  }}
                                   aria-label={`Ver detalle de ${app.appNo}`}
                                   title="Ver detalle"
                                 >

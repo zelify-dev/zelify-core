@@ -3,6 +3,7 @@ import { createTraceabilityLog } from "@/modules/mdc/services/mdc-traceability.s
 
 import { BarChart3, Plus, Settings2, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import {
   MDC_PRODUCTS,
   MDC_PRODUCTS_BY_MODE,
@@ -11,6 +12,8 @@ import {
   type MdcProduct,
 } from "@/modules/mdc/data/mdc-products-mock";
 import { getStoredOrganization } from "@/lib/auth-api";
+import { writeProductEditSession } from "@/modules/mdc/lib/mdc-form-session";
+import { fetchFinanceProducts } from "@/modules/mdc/services/mdc-rules.service";
 
 const PRODUCTS_STORAGE_KEY = "mdc:products:v4";
 
@@ -125,10 +128,10 @@ export function MdcProductsTab({
     () => dedupeProducts((initialProducts ?? MDC_PRODUCTS_BY_MODE[mode] ?? MDC_PRODUCTS).map(normalizeProductFinancials)),
     [initialProducts, mode],
   );
+  const router = useRouter();
   const [products, setProducts] = useState<MdcProduct[]>(defaultProducts);
   const [isMounted, setIsMounted] = useState(false);
   const [modal, setModal] = useState<ModalState>(null);
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -145,36 +148,76 @@ export function MdcProductsTab({
 
     const fetchProducts = async () => {
       try {
-        const baseUrl = process.env.NEXT_PUBLIC_MDC_API_URL || "http://127.0.0.1:3000";
-        console.log("=== MDC DEBUG GET ===", { baseUrl, orgId, currentOrg });
-        const res = await fetch(`${baseUrl}/finance-products?orgId=${orgId}`);
-        if (res.ok) {
-          const data = await res.json();
-          const backendProducts = data
-            .filter((item: any) => mode === "natural" ? item.individualPerson : item.legalEntity)
-            .map((item: any) => ({
-              id: item.id || `product_${Math.random()}`,
-              name: item.financialProduct || "Producto financiero",
-              description: `${item.contractType || ""} - ${item.contractDestination || ""}`,
-              status: item.status === "ACTIVE" ? "ACTIVO" : "INACTIVO",
-              metrics: {
-                activeClients: 0,
-                totalPortfolio: 0
-              },
+        console.log("[MDC][products] start", {
+          mode,
+          orgId,
+          currentOrg,
+          storageKey: effectiveStorageKey,
+          defaultCount: defaultProducts.length,
+        });
+        const data = await fetchFinanceProducts(orgId || "");
+        const flags = data.map((item) => ({
+          id: item.id,
+          financialProduct: item.financialProduct,
+          individualPerson: item.individualPerson ?? item.individual_person,
+          legalEntity: item.legalEntity ?? item.legal_entity,
+        }));
+        const matchesMode = (item: Record<string, unknown>) => {
+          const individual = item.individualPerson ?? item.individual_person;
+          const legal = item.legalEntity ?? item.legal_entity;
+          if (individual === undefined && legal === undefined) return true;
+          return mode === "natural" ? Boolean(individual) : Boolean(legal);
+        };
+        const filtered = data.filter(matchesMode);
+        const backendProducts = filtered.map((item) => ({
+          id: String(item.id || `product_${Math.random()}`),
+          name: String(item.financialProduct || item.name || "Producto financiero"),
+          description: `${item.contractType || item.contract_type || ""} - ${item.contractDestination || item.contract_destination || ""}`.replace(/^ - | - $/g, ""),
+          status: item.status === "ACTIVE" || item.status === "ACTIVO" ? "ACTIVO" : "INACTIVO",
+          metrics: {
+            activeClients: 0,
+            totalPortfolio: 0,
+          },
+          configuration: {
+            interestRate: { min: Number(item.creditRate || item.credit_rate || 0), max: Number(item.creditRate || item.credit_rate || 0) },
+            amount: { min: Number(item.minimumAmount || item.minimum_amount || 0), max: Number(item.maximumAmount || item.maximum_amount || 0) },
+            residualAmount: 0,
+            term: {
+              min: Number(item.dueDatesCount || item.due_dates_count || 1),
+              max: Number(item.dueDatesCount || item.due_dates_count || 1),
+              frequency: String(item.paymentFrequency || item.payment_frequency || "mensual").toLowerCase(),
+            },
+          },
+        })) as MdcProduct[];
+        const visible = backendProducts.length > 0 ? backendProducts : data.length > 0
+          ? data.map((item) => ({
+              id: String(item.id || `product_${Math.random()}`),
+              name: String(item.financialProduct || item.name || "Producto financiero"),
+              description: String(item.contractType || item.contract_type || ""),
+              status: "ACTIVO" as const,
+              metrics: { activeClients: 0, totalPortfolio: 0 },
               configuration: {
-                interestRate: { min: item.creditRate || 0, max: item.creditRate || 0 },
-                amount: { min: item.minimumAmount || 0, max: item.maximumAmount || 0 },
+                interestRate: { min: 0, max: 0 },
+                amount: { min: 0, max: 0 },
                 residualAmount: 0,
-                term: { min: item.dueDatesCount || 1, max: item.dueDatesCount || 1, frequency: (item.paymentFrequency || "mensual").toLowerCase() }
-              }
-            }));
-          setProducts(backendProducts);
-        }
+                term: { min: 1, max: 1, frequency: "mensual" },
+              },
+            }))
+          : defaultProducts;
+        console.log("[MDC][products] mapped", {
+          rawCount: data.length,
+          flags,
+          filteredCount: filtered.length,
+          mappedCount: backendProducts.length,
+          visibleCount: visible.length,
+          visible,
+        });
+        setProducts(visible);
       } catch (err) {
-        console.error("Failed to load products from API", err);
+        console.error("[MDC][products] Failed to load products from API", err);
       }
     };
-    fetchProducts();
+    void fetchProducts();
   }, [defaultProducts, effectiveStorageKey, mode]);
 
   useEffect(() => {
@@ -206,7 +249,11 @@ export function MdcProductsTab({
             <h2 className="mdc-overview-hero__title">{title}</h2>
             <p className="mdc-prod-hero__sub">{subtitle}</p>
           </div>
-          <button type="button" className="mdc-prod-hero__cta" onClick={() => setIsCreateOpen(true)}>
+          <button
+            type="button"
+            className="mdc-prod-hero__cta"
+            onClick={() => router.push(`/mdc/products/new?mode=${mode}`)}
+          >
             Agregar producto <Plus className="h-4 w-4" />
           </button>
         </div>
@@ -230,7 +277,10 @@ export function MdcProductsTab({
           <ProductCard
             key={`${product.id}-${index}`}
             product={product}
-            onOpenConfig={() => setModal({ mode: "config", product })}
+            onOpenConfig={() => {
+              writeProductEditSession({ product, mode });
+              router.push(`/mdc/products/${product.id}/edit?mode=${mode}`);
+            }}
             onOpenMetrics={() => setModal({ mode: "metrics", product })}
             onDelete={() => setProducts((prev) => prev.filter((item) => item.id !== product.id))}
           />
@@ -240,26 +290,6 @@ export function MdcProductsTab({
       {modal?.mode === "metrics" ? (
         <MetricsModal product={modal.product} onClose={() => setModal(null)} />
       ) : null}
-      {modal?.mode === "config" ? (
-        <ConfigPanel
-          product={modal.product}
-          onClose={() => setModal(null)}
-          onSave={(updatedProduct) => {
-            setProducts((prev) => prev.map((item) => (item.id === updatedProduct.id ? updatedProduct : item)));
-            setModal(null);
-          }}
-        />
-      ) : null}
-      <div style={{ display: isCreateOpen ? "block" : "none" }}>
-        <CreateProductModal
-          mode={mode}
-          onClose={() => setIsCreateOpen(false)}
-          onCreate={(newProd) => {
-            setProducts([...products, newProd]);
-            setIsCreateOpen(false);
-          }}
-        />
-      </div>
     </section>
   );
 }

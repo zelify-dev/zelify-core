@@ -1441,22 +1441,46 @@
 .mdc-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(26, 16, 64, 0.48);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   padding: 20px;
+  backdrop-filter: blur(6px);
 }
 
 .mdc-modal {
   width: min(680px, 100%);
   background: #fff;
-  border-radius: 14px;
-  box-shadow: 0 20px 55px rgba(15, 23, 42, 0.25);
-  padding: 16px;
+  border: 1px solid #eceae4;
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(39, 26, 89, 0.22);
+  padding: 22px;
   max-height: calc(100vh - 40px);
   overflow: auto;
+}
+
+.mdc-modal.mdc-modal--page,
+.mdc-modal-backdrop.mdc-modal--page {
+  position: static;
+  inset: auto;
+  display: block;
+  padding: 0;
+  background: transparent;
+  backdrop-filter: none;
+  box-shadow: none;
+  border: 0;
+  width: 100%;
+  max-height: none;
+}
+
+.mdc-modal--page .mdc-modal--detail {
+  width: 100%;
+  max-height: none;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
 }
 
 .mdc-modal-head {
@@ -1464,21 +1488,22 @@
   justify-content: space-between;
   gap: 10px;
   align-items: flex-start;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .mdc-modal-head p {
   margin: 0;
   font-size: 11px;
   font-weight: 700;
-  color: #64748b;
+  color: #6b6578;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .mdc-modal-head h3 {
   margin: 4px 0 0;
-  font-size: 18px;
-  color: #0f172a;
+  font-size: 20px;
+  color: #271a59;
 }
 
 .mdc-icon-btn {
