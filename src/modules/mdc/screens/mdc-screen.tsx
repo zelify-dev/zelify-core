@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Eye, Settings, Trash2, AlertTriangle } from "lucide-react";
@@ -31,6 +31,7 @@ import { createTraceabilityLog, fetchTraceabilityLogs } from "@/modules/mdc/serv
 
 import {
   analyzeFinanceRequest,
+  attachFinanceRequestKyc,
   createFinanceRequest,
   deleteFinanceRequest,
   fetchFinanceRequestById,
@@ -43,6 +44,17 @@ import {
   type FinanceRequestDetail,
   type MdcApiError,
 } from "@/modules/mdc/services/mdc-finance-requests.service";
+import {
+  createZelifyKycOnboardingSession,
+  fetchZelifyKycOnboardingSession,
+  formatIneMatched,
+  formatKycAddressSummary,
+  formatKycIdentitySummary,
+  isCurpLike,
+  kycStatusLabel,
+  normalizeMxPhone10,
+  type ZelifyKycSessionStatus,
+} from "@/modules/mdc/services/zelify-kyc-onboarding.service";
 import { getStoredOrganization, getStoredUser } from "@/lib/auth-api";
 import { MdcProductsTab } from "@/modules/mdc/components/mdc-products-tab";
 import { MdcRequestsTab } from "@/modules/mdc/components/mdc-requests-tab";
@@ -3299,6 +3311,110 @@ function AppDetailModal({
       });
   }, [app, isDemoOrganization, mode]);
 
+
+  const [mdcKycSessionId, setMdcKycSessionId] = useState<string | null>(
+    app.kycSessionId || financeRequestDetailQuery.data?.kycSessionId || null,
+  );
+  const [mdcKycWebviewUrl, setMdcKycWebviewUrl] = useState<string | null>(
+    app.kycWebviewUrl || financeRequestDetailQuery.data?.kycWebviewUrl || null,
+  );
+  const [mdcZelifyUserId, setMdcZelifyUserId] = useState<string | null>(
+    app.zelifyUserId || financeRequestDetailQuery.data?.zelifyUserId || null,
+  );
+  const [kycResending, setKycResending] = useState(false);
+  const syncedZelifyUserIdRef = useRef<string | null>(
+    app.zelifyUserId || financeRequestDetailQuery.data?.zelifyUserId || null,
+  );
+
+  useEffect(() => {
+    setMdcKycSessionId(app.kycSessionId || financeRequestDetailQuery.data?.kycSessionId || null);
+    setMdcKycWebviewUrl(app.kycWebviewUrl || financeRequestDetailQuery.data?.kycWebviewUrl || null);
+    setMdcZelifyUserId(app.zelifyUserId || financeRequestDetailQuery.data?.zelifyUserId || null);
+  }, [
+    app.kycSessionId,
+    app.kycWebviewUrl,
+    app.zelifyUserId,
+    financeRequestDetailQuery.data?.kycSessionId,
+    financeRequestDetailQuery.data?.kycWebviewUrl,
+    financeRequestDetailQuery.data?.zelifyUserId,
+  ]);
+
+  const kycSessionQuery = useQuery({
+    queryKey: ["zelify-kyc-session", mdcKycSessionId],
+    queryFn: () => fetchZelifyKycOnboardingSession(mdcKycSessionId as string),
+    enabled: Boolean(mdcKycSessionId) && !isMoralApplicant && !isDemoOrganization,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (status === "completed" || status === "rejected" || status === "failed" || status === "expired") {
+        return false;
+      }
+      return 12_000;
+    },
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+  });
+
+  useEffect(() => {
+    const userId = kycSessionQuery.data?.userId;
+    if (!mdcKycSessionId || !mdcKycWebviewUrl || !userId) return;
+    if (syncedZelifyUserIdRef.current === userId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await attachFinanceRequestKyc(app.id, {
+          kycSessionId: mdcKycSessionId,
+          kycWebviewUrl: mdcKycWebviewUrl,
+          zelifyUserId: userId,
+        });
+        if (!cancelled) {
+          syncedZelifyUserIdRef.current = userId;
+          setMdcZelifyUserId(userId);
+        }
+      } catch (err) {
+        console.warn("Failed to attach zelifyUserId", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [app.id, kycSessionQuery.data?.userId, mdcKycSessionId, mdcKycWebviewUrl]);
+
+  const handleResendKyc = async () => {
+    const curp =
+      (app.rawPayload?.identificationNumber as string | undefined) ||
+      financeRequestDetailQuery.data?.identificationNumber ||
+      "";
+    const email = app.applicantEmail;
+    const phoneRaw = (app.rawPayload?.phone as string | undefined) || "";
+    if (!isCurpLike(curp) || !email || email === "N/A") {
+      setFeedback("Faltan CURP/email para reenviar la verificación.");
+      return;
+    }
+    setKycResending(true);
+    try {
+      const phone10 = phoneRaw ? normalizeMxPhone10(phoneRaw) : "";
+      const session = await createZelifyKycOnboardingSession({
+        email,
+        curp: curp.replace(/\s+/g, "").toUpperCase(),
+        ...(phone10.length === 10 ? { phone: phone10 } : {}),
+      });
+      await attachFinanceRequestKyc(app.id, {
+        kycSessionId: session.sessionId,
+        kycWebviewUrl: session.webviewUrl,
+      });
+      setMdcKycSessionId(session.sessionId);
+      setMdcKycWebviewUrl(session.webviewUrl);
+      syncedZelifyUserIdRef.current = null;
+      setMdcZelifyUserId(null);
+      setFeedback("Nuevo link KYC generado (válido ~24h).");
+    } catch (err) {
+      setFeedback(err instanceof Error ? err.message : "No se pudo reenviar KYC.");
+    } finally {
+      setKycResending(false);
+    }
+  };
+
+
   if (isMoralApplicant) {
     return <MoralApplicantDetailModal app={app} rules={rules} onClose={onClose} />;
   }
@@ -3311,9 +3427,6 @@ function AppDetailModal({
   const monthlyEstimate = Math.round(totalWithInterest / Math.max(termMonths, 1));
   const fraudScore = Math.min(96, Math.max(10, Math.round(app.riskScore * 0.72 + (quickHash(app.id) % 17))));
   const dti = Math.min(0.62, Math.max(0.19, app.requestedAmount / (isAutomotriz ? 8_500_000 : 2_100_000)));
-  const kycIdentity = app.riskScore < 70 ? "Aprobada" : "Revision";
-  const kycAddress = app.riskScore < 65 ? "Aprobada" : "Revision";
-  const kycWatchlist = app.riskScore < 78 ? "Sin alertas" : "Coincidencia";
   const docs = [
     {
       type: "INE / Pasaporte",
@@ -3945,12 +4058,159 @@ function AppDetailModal({
             </section>
 
             <section className="mdc-detail-card">
-              <h4>KYC / KYB</h4>
-              <dl className="mdc-detail-dl">
-                <div><dt>Identidad</dt><dd><span className={kycIdentity === "Aprobada" ? "mdc-badge mdc-badge--ok" : "mdc-badge mdc-badge--warn"}>{kycIdentity}</span></dd></div>
-                <div><dt>Domicilio</dt><dd><span className={kycAddress === "Aprobada" ? "mdc-badge mdc-badge--ok" : "mdc-badge mdc-badge--warn"}>{kycAddress}</span></dd></div>
-                <div><dt>Listas</dt><dd><span className={kycWatchlist === "Sin alertas" ? "mdc-badge mdc-badge--ok" : "mdc-badge mdc-badge--bad"}>{kycWatchlist}</span></dd></div>
-              </dl>
+              <h4>KYC</h4>
+              {(() => {
+                const session = kycSessionQuery.data;
+                const status: ZelifyKycSessionStatus | null = session?.status ?? null;
+                const hasLink = Boolean(mdcKycWebviewUrl);
+                // Dueño del estado = status. Pendiente visual también si hay link MDC y aún no hay zelifyUserId.
+                const pendingVisual =
+                  status === "pending" ||
+                  status === "in_progress" ||
+                  (!status && hasLink && mdcZelifyUserId == null);
+                const showContinue =
+                  status === "pending" ||
+                  status === "in_progress" ||
+                  (!status && hasLink);
+                const showResend = status === "expired" || status === "rejected" || status === "failed";
+                const identity = session?.identity ?? null;
+                const address = session?.address ?? null;
+                const ineMatched = identity?.ineMatched ?? null;
+                const showIdentityAddress = status === "completed" || identity != null || address != null;
+                const identitySummary = formatKycIdentitySummary(identity);
+                const addressSummary = formatKycAddressSummary(address);
+                const ineLabel = formatIneMatched(ineMatched);
+
+                if (!mdcKycSessionId && !hasLink) {
+                  return <p style={{ margin: 0, color: "#64748b", fontSize: 13 }}>Sin sesión KYC vinculada.</p>;
+                }
+
+                return (
+                  <>
+                    <dl className="mdc-detail-dl">
+                      <div>
+                        <dt>Estado</dt>
+                        <dd>
+                          <span
+                            className={
+                              status === "completed"
+                                ? "mdc-badge mdc-badge--ok"
+                                : status === "rejected" || status === "failed" || status === "expired"
+                                  ? "mdc-badge mdc-badge--bad"
+                                  : "mdc-badge mdc-badge--warn"
+                            }
+                          >
+                            {kycSessionQuery.isLoading && !session
+                              ? "Consultando…"
+                              : kycStatusLabel(status || (pendingVisual ? "pending" : undefined))}
+                          </span>
+                        </dd>
+                      </div>
+                      {showIdentityAddress ? (
+                        <>
+                          <div>
+                            <dt>Identidad</dt>
+                            <dd>
+                              {identity == null ? (
+                                <span style={{ color: "#94a3b8" }}>—</span>
+                              ) : (
+                                <div style={{ display: "grid", gap: 4 }}>
+                                  {ineLabel ? (
+                                    <span
+                                      className={
+                                        ineMatched === false
+                                          ? "mdc-badge mdc-badge--bad"
+                                          : ineMatched === true
+                                            ? "mdc-badge mdc-badge--ok"
+                                            : undefined
+                                      }
+                                    >
+                                      {ineLabel}
+                                    </span>
+                                  ) : null}
+                                  {identity.firstNames || identity.lastNames ? (
+                                    <span>{[identity.firstNames, identity.lastNames].filter(Boolean).join(" ")}</span>
+                                  ) : null}
+                                  {identity.curp ? <span>CURP: {identity.curp}</span> : null}
+                                  {identity.sex ? <span>Sexo: {identity.sex}</span> : null}
+                                  {identity.birthDate ? <span>Nacimiento: {identity.birthDate}</span> : null}
+                                  {!identitySummary && !ineLabel ? (
+                                    <span style={{ color: "#94a3b8" }}>—</span>
+                                  ) : null}
+                                </div>
+                              )}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Domicilio</dt>
+                            <dd>
+                              {address == null ? (
+                                <span style={{ color: "#94a3b8" }}>—</span>
+                              ) : addressSummary ? (
+                                <div style={{ display: "grid", gap: 2 }}>
+                                  {address.street ? <span>{address.street}</span> : null}
+                                  {address.colony ? <span>{address.colony}</span> : null}
+                                  {address.municipality || address.state || address.zip ? (
+                                    <span>
+                                      {[address.municipality, address.state, address.zip].filter(Boolean).join(", ")}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              ) : (
+                                <span style={{ color: "#94a3b8" }}>—</span>
+                              )}
+                            </dd>
+                          </div>
+                        </>
+                      ) : null}
+                    </dl>
+                    {kycSessionQuery.isError ? (
+                      <p style={{ margin: "8px 0 0", color: "#b45309", fontSize: 12 }}>
+                        No se pudo consultar Auth KYC. Se muestra el link de MDC si existe.
+                      </p>
+                    ) : null}
+                    <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      {showContinue && mdcKycWebviewUrl ? (
+                        <>
+                          <a
+                            className="mdc-btn mdc-btn--primary"
+                            href={mdcKycWebviewUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ textDecoration: "none" }}
+                          >
+                            Continuar verificación
+                          </a>
+                          <button
+                            type="button"
+                            className="mdc-btn mdc-btn--ghost"
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText(mdcKycWebviewUrl);
+                                setFeedback("Link KYC copiado (válido ~24h).");
+                              } catch {
+                                setFeedback("No se pudo copiar el link KYC.");
+                              }
+                            }}
+                          >
+                            Copiar link
+                          </button>
+                        </>
+                      ) : null}
+                      {showResend ? (
+                        <button
+                          type="button"
+                          className="mdc-btn mdc-btn--primary"
+                          disabled={kycResending}
+                          onClick={handleResendKyc}
+                        >
+                          {kycResending ? "Reenviando…" : "Reenviar verificación"}
+                        </button>
+                      ) : null}
+                    </div>
+                  </>
+                );
+              })()}
             </section>
 
             <section className="mdc-detail-card">
@@ -4551,22 +4811,13 @@ function AddApplicationModal({
   products: readonly RuleProduct[];
   onCreate: (values: {
     identificationNumber: string;
-    firstName: string;
-    lastName: string;
     email: string;
     product: string;
     amount: number;
-    montoCredito?: number;
-    bank: string;
-    phone: string;
-    birthPlace: string;
-    maritalStatus: string;
-    educationLevel: string;
-    tipoEmpleo?: string;
-    edad?: number;
-    plazo?: number;
-    capacidadPago?: number;
-  }) => void;
+    phone?: string;
+    bank?: string;
+    businessName?: string;
+  }) => void | Promise<void>;
 }) {
   const localProductOptions = useMemo<FinanceProductOption[]>(() => {
     const catalog = MDC_PRODUCTS_BY_MODE[mode] ?? [];
@@ -4580,22 +4831,15 @@ function AddApplicationModal({
       }));
   }, [mode, products]);
   const [identificationNumber, setIdentificationNumber] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [businessName, setBusinessName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [bank, setBank] = useState("");
-  const [birthPlace, setBirthPlace] = useState("");
-  const [maritalStatus, setMaritalStatus] = useState("");
-  const [educationLevel, setEducationLevel] = useState("");
   const [product, setProduct] = useState<string>(products[0] ?? NATURAL_CREDIT_PRODUCTS[0]);
   const [amount, setAmount] = useState("12000");
-  const [tipoEmpleo, setTipoEmpleo] = useState("Jubilado Confianza");
-  const [edad, setEdad] = useState("10");
-  const [plazo, setPlazo] = useState("1000");
-  const [capacidadPago, setCapacidadPago] = useState("25.5");
   const [apiProducts, setApiProducts] = useState<FinanceProductOption[]>(localProductOptions);
-  const [alertMsg, setAlertMsg] = useState<{ message: string, type: "error" | "success" } | null>(null);
+  const [alertMsg, setAlertMsg] = useState<{ message: string; type: "error" | "success" } | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const isMoral = mode === "moral";
 
   useEffect(() => {
@@ -4640,24 +4884,17 @@ function AddApplicationModal({
     };
   }, [localProductOptions]);
 
-  const displayProducts = apiProducts.length > 0 ? apiProducts.map(p => p.financialProduct) : products;
+  const displayProducts = apiProducts.length > 0 ? apiProducts.map((p) => p.financialProduct) : products;
 
   const reset = () => {
     setIdentificationNumber("");
-    setFirstName("");
-    setLastName("");
+    setBusinessName("");
     setEmail("");
     setPhone("");
     setBank("");
-    setBirthPlace("");
-    setMaritalStatus("");
-    setEducationLevel("");
     setProduct(displayProducts[0] ?? NATURAL_CREDIT_PRODUCTS[0]);
     setAmount("12000");
-    setTipoEmpleo("Jubilado Confianza");
-    setEdad("10");
-    setPlazo("1000");
-    setCapacidadPago("25.5");
+    setSubmitting(false);
   };
 
   useEffect(() => {
@@ -4681,45 +4918,46 @@ function AddApplicationModal({
           </header>
           <div className="mdc-form-grid">
             <label>
-              <span>ID (RFC/CURP) *</span>
-              <input value={identificationNumber} onChange={(e) => setIdentificationNumber(e.target.value.replace(/[^A-Za-z0-9]/g, ''))} required />
+              <span>{isMoral ? "RFC *" : "ID (CURP) *"}</span>
+              <input
+                value={identificationNumber}
+                onChange={(e) => setIdentificationNumber(e.target.value.replace(/[^A-Za-z0-9]/g, "").toUpperCase())}
+                maxLength={isMoral ? 13 : 18}
+                required
+              />
             </label>
-            <label>
-              <span>{isMoral ? "Razon social *" : "Nombre *"}</span>
-              <input value={firstName} onChange={(e) => setFirstName(e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]/g, ''))} required />
-            </label>
-            {!isMoral ? (
+            {isMoral ? (
               <label>
-                <span>Apellido *</span>
-                <input value={lastName} onChange={(e) => setLastName(e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]/g, ''))} required />
+                <span>Razón social *</span>
+                <input
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                  required
+                />
               </label>
             ) : null}
             <label>
               <span>{isMoral ? "Correo corporativo *" : "Email *"}</span>
               <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required />
             </label>
-            <label>
-              <span>Teléfono (Celular)</span>
-              <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" />
-            </label>
+            {!isMoral ? (
+              <label>
+                <span>Teléfono (10 dígitos, sin +52)</span>
+                <input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="5512345678"
+                />
+              </label>
+            ) : null}
             <label>
               <span>Banco</span>
               <input value={bank} onChange={(e) => setBank(e.target.value)} />
             </label>
             <label>
-              <span>Lugar de nacimiento</span>
-              <input value={birthPlace} onChange={(e) => setBirthPlace(e.target.value)} />
-            </label>
-            <label>
-              <span>Estado civil</span>
-              <input value={maritalStatus} onChange={(e) => setMaritalStatus(e.target.value)} />
-            </label>
-            <label>
-              <span>Escolaridad</span>
-              <input value={educationLevel} onChange={(e) => setEducationLevel(e.target.value)} />
-            </label>
-            <label>
-              <span>Producto</span>
+              <span>Producto *</span>
               <select value={product} onChange={(e) => setProduct(e.target.value)}>
                 {displayProducts.map((p, i) => (
                   <option key={`${p}-${i}`} value={p}>{p}</option>
@@ -4732,33 +4970,17 @@ function AddApplicationModal({
                 value={amount}
                 onChange={(e) => {
                   let val = e.target.value;
-                  const maxAmt = apiProducts.find(p => p.financialProduct === product)?.maximumAmount;
+                  const maxAmt = apiProducts.find((p) => p.financialProduct === product)?.maximumAmount;
                   const maxLimit = maxAmt ? Number(maxAmt) : 9999999;
                   if (Number(val) > maxLimit) val = maxLimit.toString();
                   setAmount(val);
                 }}
                 type="number"
-                min={apiProducts.find(p => p.financialProduct === product)?.minimumAmount ? Number(apiProducts.find(p => p.financialProduct === product)?.minimumAmount) : 0}
-                max={apiProducts.find(p => p.financialProduct === product)?.maximumAmount ? Number(apiProducts.find(p => p.financialProduct === product)?.maximumAmount) : 9999999}
+                min={apiProducts.find((p) => p.financialProduct === product)?.minimumAmount ? Number(apiProducts.find((p) => p.financialProduct === product)?.minimumAmount) : 0}
+                max={apiProducts.find((p) => p.financialProduct === product)?.maximumAmount ? Number(apiProducts.find((p) => p.financialProduct === product)?.maximumAmount) : 9999999}
                 step="0.01"
                 required
               />
-            </label>
-            <label>
-              <span>Tipo de empleo</span>
-              <input value={tipoEmpleo} onChange={(e) => setTipoEmpleo(e.target.value)} placeholder="Ej. Jubilado Confianza" />
-            </label>
-            <label>
-              <span>Edad</span>
-              <input value={edad} onChange={(e) => setEdad(e.target.value)} type="number" placeholder="Ej. 10" />
-            </label>
-            <label>
-              <span>Plazo</span>
-              <input value={plazo} onChange={(e) => setPlazo(e.target.value)} type="number" placeholder="Ej. 1000" />
-            </label>
-            <label>
-              <span>Capacidad de pago (%)</span>
-              <input value={capacidadPago} onChange={(e) => setCapacidadPago(e.target.value)} type="number" step="0.1" placeholder="Ej. 25.5" />
             </label>
           </div>
           <footer className="mdc-modal-actions">
@@ -4766,49 +4988,59 @@ function AddApplicationModal({
             <button
               type="button"
               className="mdc-btn mdc-btn--primary"
-              onClick={() => {
-                if (!identificationNumber || !firstName || !email) {
-                  setAlertMsg({ message: "Por favor completa los campos obligatorios (*)", type: "error" });
+              disabled={submitting}
+              onClick={async () => {
+                if (!identificationNumber.trim() || !email.trim() || !product) {
+                  setAlertMsg({ message: "Completa identificación, email y producto.", type: "error" });
+                  return;
+                }
+                if (isMoral && !businessName.trim()) {
+                  setAlertMsg({ message: "La razón social es obligatoria para persona moral.", type: "error" });
                   return;
                 }
                 if (!email.includes("@")) {
                   setAlertMsg({ message: "Correo inválido", type: "error" });
                   return;
                 }
-                const minAmt = apiProducts.find(p => p.financialProduct === product)?.minimumAmount;
+                const amountNum = Number(amount);
+                if (!Number.isFinite(amountNum) || amountNum <= 0) {
+                  setAlertMsg({ message: "El monto (amount) es obligatorio y debe ser mayor a 0.", type: "error" });
+                  return;
+                }
+                const minAmt = apiProducts.find((p) => p.financialProduct === product)?.minimumAmount;
                 const minLimit = minAmt ? Number(minAmt) : 0;
-                if (Number(amount) < minLimit) {
+                if (amountNum < minLimit) {
                   setAlertMsg({ message: `El monto mínimo para este producto es de ${minLimit} MXN`, type: "error" });
                   return;
                 }
-                onCreate({
-                  identificationNumber,
-                  firstName,
-                  lastName,
-                  email,
-                  phone,
-                  bank,
-                  birthPlace,
-                  maritalStatus,
-                  educationLevel,
-                  product,
-                  amount: Number(amount) || 0,
-                  montoCredito: Number(amount) || 0,
-                  tipoEmpleo: tipoEmpleo || "Jubilado Confianza",
-                  edad: Number(edad) || 10,
-                  plazo: Number(plazo) || 1000,
-                  capacidadPago: Number(capacidadPago) || 25.5,
-                });
-                reset();
-                onClose();
+                if (!isMoral && phone && phone.length > 0 && phone.length !== 10) {
+                  setAlertMsg({ message: "El teléfono debe tener 10 dígitos (sin +52).", type: "error" });
+                  return;
+                }
+                setSubmitting(true);
+                try {
+                  await onCreate({
+                    identificationNumber: identificationNumber.trim().toUpperCase(),
+                    email: email.trim(),
+                    product,
+                    amount: amountNum,
+                    phone: !isMoral && phone ? phone : undefined,
+                    bank: bank.trim() || undefined,
+                    businessName: isMoral ? businessName.trim() : undefined,
+                  });
+                  reset();
+                  onClose();
+                } catch {
+                  setSubmitting(false);
+                }
               }}
             >
-              Crear solicitud
+              {submitting ? "Creando…" : "Crear solicitud"}
             </button>
           </footer>
         </div>
       </div>
-      {alertMsg && <AlertModal message={alertMsg.message} type={alertMsg.type} onClose={() => setAlertMsg(null)} />}
+      {alertMsg ? <AlertModal message={alertMsg.message} type={alertMsg.type} onClose={() => setAlertMsg(null)} /> : null}
     </>
   );
 }
@@ -5312,6 +5544,7 @@ function RuleModal({
 
 export function MdcScreen() {
   const [globalAlert, setGlobalAlert] = useState<{ message: string, type: "error" | "success" } | null>(null);
+  const [kycPrompt, setKycPrompt] = useState<{ requestId: string; webviewUrl: string; expiresAt?: string } | null>(null);
   const router = useRouter();
   const creditStore = useCreditDemoStore();
   const [applicantMode, setApplicantMode] = useState<MdcApplicantMode>("natural");
@@ -5503,6 +5736,9 @@ export function MdcScreen() {
           riskScore: item.riskScore || 50,
           submittedAt: item.createdAt || new Date().toISOString(),
           updatedAt: item.updatedAt || item.createdAt || new Date().toISOString(),
+          kycSessionId: item.kycSessionId || item.kyc_session_id || null,
+          kycWebviewUrl: item.kycWebviewUrl || item.kyc_webview_url || null,
+          zelifyUserId: item.zelifyUserId || item.zelify_user_id || null,
           rawPayload: {
             product: item.product,
             personType: item.personType || applicantMode,
@@ -6755,55 +6991,38 @@ export function MdcScreen() {
         products={activeProducts}
         onCreate={async ({
           identificationNumber,
-          firstName,
-          lastName,
           email,
           phone,
           bank,
-          birthPlace,
-          maritalStatus,
-          educationLevel,
           product,
           amount,
-          montoCredito,
-          tipoEmpleo,
-          edad,
-          plazo,
-          capacidadPago,
+          businessName,
         }) => {
           try {
             const orgId = getStoredOrganization()?.id || "ORG-001";
-            const analyzePayload = {
+            const createPayload = {
               product,
               personType: applicantMode,
               orgId,
               identificationNumber,
-              firstName,
-              lastName,
               email,
-              phone,
-              bank,
-              birthPlace,
-              maritalStatus,
-              educationLevel,
               amount: Number(amount),
-              montoCredito: Number(montoCredito || amount),
-              tipoEmpleo: tipoEmpleo || "Jubilado Confianza",
-              edad: Number(edad) || 10,
-              plazo: Number(plazo) || 1000,
-              capacidadPago: Number(capacidadPago) || 25.5,
+              montoCredito: Number(amount),
+              status: "Pendiente" as const,
+              ...(phone ? { phone: normalizeMxPhone10(phone) } : {}),
+              ...(bank ? { bank } : {}),
+              ...(applicantMode === "moral" && businessName ? { businessName } : {}),
             };
 
             let analysisResult: AnalyzeFinanceRequestResponse | null = null;
             try {
-              analysisResult = await analyzeFinanceRequest(analyzePayload);
+              analysisResult = await analyzeFinanceRequest(createPayload);
             } catch (analysisErr) {
               console.warn("Failed to analyze finance request", analysisErr);
             }
 
             const response = await createFinanceRequest({
-              ...analyzePayload,
-              status: "Pendiente",
+              ...createPayload,
               riskLevel: analysisResult?.riskLevel || "Medio",
               riskScore: analysisResult?.status === "Rechazado" || analysisResult?.status === "Rechazada" ? 85 : 50,
             });
@@ -6823,12 +7042,47 @@ export function MdcScreen() {
               analysisResult?.riskLevel === "Alto" || item.riskLevel === "Alto" ? "high" :
                 analysisResult?.riskLevel === "Bajo" || item.riskLevel === "Bajo" ? "low" : "medium";
 
+            let kycSessionId: string | null = item.kycSessionId || null;
+            let kycWebviewUrl: string | null = item.kycWebviewUrl || null;
+
+            // KYC Zelify solo natural + CURP (18). Moral / RFC: no llamar.
+            if (applicantMode === "natural" && item.id && isCurpLike(identificationNumber)) {
+              try {
+                const phone10 = phone ? normalizeMxPhone10(phone) : "";
+                const kycSession = await createZelifyKycOnboardingSession({
+                  email,
+                  curp: identificationNumber.replace(/\s+/g, "").toUpperCase(),
+                  ...(phone10.length === 10 ? { phone: phone10 } : {}),
+                });
+                await attachFinanceRequestKyc(item.id, {
+                  kycSessionId: kycSession.sessionId,
+                  kycWebviewUrl: kycSession.webviewUrl,
+                });
+                kycSessionId = kycSession.sessionId;
+                kycWebviewUrl = kycSession.webviewUrl;
+                setKycPrompt({
+                  requestId: item.id,
+                  webviewUrl: kycSession.webviewUrl,
+                  expiresAt: kycSession.expiresAt,
+                });
+              } catch (kycErr: any) {
+                console.warn("KYC onboarding failed", kycErr);
+                setGlobalAlert({
+                  message: kycErr?.message || "Solicitud creada, pero no se pudo iniciar KYC Zelify.",
+                  type: "error",
+                });
+              }
+            }
+
             const next: Application = {
               id: item.id || `local-${Date.now()}`,
               appNo: `APP-${(item.id || String(Date.now())).split("-")[0].toUpperCase()}`,
               userId: item.user?.id || null,
-              applicantId: item.user?.id || item.applicantId || 'N/A',
-              applicantName: applicantMode === "moral" ? (firstName.trim() || email) : `${firstName} ${lastName}`.trim() || email,
+              applicantId: item.user?.id || item.applicantId || identificationNumber || "N/A",
+              applicantName:
+                applicantMode === "moral"
+                  ? (businessName || email)
+                  : [item.firstName, item.lastName].filter(Boolean).join(" ").trim() || email,
               applicantEmail: email,
               product,
               requestedAmount: Number(amount) || 0,
@@ -6837,7 +7091,9 @@ export function MdcScreen() {
               risk: mappedRisk,
               riskScore: analysisResult?.status === "Rechazado" || analysisResult?.status === "Rechazada" ? 85 : (item.riskScore || 50),
               submittedAt: item.createdAt || new Date().toISOString(),
-              rawPayload: analyzePayload,
+              kycSessionId,
+              kycWebviewUrl,
+              rawPayload: createPayload,
               analysis: analysisResult || undefined,
               rulesBreakdown: analysisResult?.rulesBreakdown || undefined,
               rulesBreakdownStatus: analysisResult?.status || undefined,
@@ -6845,16 +7101,62 @@ export function MdcScreen() {
             setApps((current) => [next, ...current]);
             setPage(0);
             if (applicantMode === "moral") {
-              openKybForApplication(next, lastName);
+              openKybForApplication(next, identificationNumber);
             }
           } catch (e: any) {
             setGlobalAlert({ message: e.message || "Error al crear la solicitud", type: "error" });
             console.error("Failed to create application", e);
+            throw e;
           }
         }}
       />
 
       {globalAlert && <AlertModal message={globalAlert.message} type={globalAlert.type} onClose={() => setGlobalAlert(null)} />}
+
+      {kycPrompt ? (
+        <div className="mdc-modal-backdrop" onClick={() => setKycPrompt(null)}>
+          <div className="mdc-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
+            <header className="mdc-modal-head">
+              <div>
+                <p>Verificación KYC</p>
+                <h3>Continuar verificación</h3>
+              </div>
+              <button type="button" className="mdc-icon-btn" onClick={() => setKycPrompt(null)}>×</button>
+            </header>
+            <p style={{ margin: "0 0 12px", color: "#475569", fontSize: 14 }}>
+              El enlace de verificación dura 24 horas. Ábrelo en una pestaña o cópialo para enviárselo al cliente.
+            </p>
+            {kycPrompt.expiresAt ? (
+              <p style={{ margin: "0 0 12px", fontSize: 12, color: "#64748b" }}>Expira: {new Date(kycPrompt.expiresAt).toLocaleString("es-MX")}</p>
+            ) : null}
+            <footer className="mdc-modal-actions">
+              <button
+                type="button"
+                className="mdc-btn mdc-btn--ghost"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(kycPrompt.webviewUrl);
+                    setGlobalAlert({ message: "Link KYC copiado al portapapeles.", type: "success" });
+                  } catch {
+                    setGlobalAlert({ message: "No se pudo copiar el link.", type: "error" });
+                  }
+                }}
+              >
+                Copiar link
+              </button>
+              <a
+                className="mdc-btn mdc-btn--primary"
+                href={kycPrompt.webviewUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+              >
+                Continuar verificación
+              </a>
+            </footer>
+          </div>
+        </div>
+      ) : null}
 
       {detailApp && (
         <AppDetailModal

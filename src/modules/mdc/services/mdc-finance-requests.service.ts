@@ -150,6 +150,11 @@ export type FinanceRequest = {
   riskScore: number;
   createdAt: string;
   updatedAt: string;
+  kycSessionId?: string | null;
+  kycWebviewUrl?: string | null;
+  zelifyUserId?: string | null;
+  phone?: string;
+  bank?: string;
 };
 
 // The detail endpoint returns a reduced payload while the list endpoint keeps
@@ -167,6 +172,9 @@ export type FinanceRequestDetail = {
   };
   buroScore?: number;
   lastConsulteBuro?: string;
+  kycSessionId?: string | null;
+  kycWebviewUrl?: string | null;
+  zelifyUserId?: string | null;
 };
 
 export async function fetchFinanceRequests(orgId: string, personType?: string): Promise<FinanceRequest[]> {
@@ -533,6 +541,35 @@ export async function createFinanceRequest(body: CreateFinanceRequest): Promise<
     });
   }
   return responseJson;
+}
+
+export type AttachFinanceRequestKycPayload = {
+  kycSessionId: string;
+  kycWebviewUrl: string;
+  zelifyUserId?: string;
+};
+
+/** Vincula la sesión KYC Zelify a la solicitud MDC. */
+export async function attachFinanceRequestKyc(
+  financeRequestId: string,
+  body: AttachFinanceRequestKycPayload,
+): Promise<unknown> {
+  const res = await customFetch(`${getBaseUrl()}/finance-requests/${encodeURIComponent(financeRequestId)}/kyc`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let errorMessage = `Failed to attach KYC session (${res.status})`;
+    try {
+      const errorJson = await res.json();
+      if (errorJson.message) errorMessage = errorJson.message;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(errorMessage);
+  }
+  return res.json().catch(() => ({ ok: true }));
 }
 
 export async function updateFinanceRequest(id: string, patch: Partial<CreateFinanceRequest> & { riskLevel?: string; riskScore?: number }): Promise<FinanceRequest | null> {
