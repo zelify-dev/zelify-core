@@ -44,8 +44,8 @@
 }
 
 .zelify-group-filters__search:focus-within {
-  border-color: var(--zelify-brand-green, #a9fb5d);
-  box-shadow: 0 0 0 2px rgba(169, 251, 93, 0.2);
+  border-color: var(--zelify-brand-green, #271a59);
+  box-shadow: 0 0 0 2px rgba(39, 26, 89, 0.2);
 }
 
 .zelify-group-filters__search-icon {
@@ -74,8 +74,8 @@
 }
 
 .zelify-group-filters__btn {
-  background: var(--zelify-brand-green, #a9fb5d);
-  color: #0d1b3d;
+  background: var(--zelify-brand-green, #271a59);
+  color: var(--zelify-brand-on-green, #ffffff);
   border: none;
   font-size: 14px;
   font-weight: 700;
@@ -90,7 +90,7 @@
 }
 
 .zelify-group-filters__btn:hover {
-  background: #98e84a;
+  background: var(--zelify-brand-green-hover, #3a2a75);
   transform: translateY(-1px);
 }
 

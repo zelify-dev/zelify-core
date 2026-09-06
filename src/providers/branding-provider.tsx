@@ -21,13 +21,16 @@ type BrandingContextValue = {
 const STORAGE_KEY = "zelify-branding-settings";
 
 export const DEFAULT_BRANDING: BrandingState = {
-  displayName: "Zelify",
+  displayName: "Aethereun",
   tagline: "Core banking para equipos modernos",
-  primaryHex: "#1a2740",
-  accentHex: "#c4f542",
-  logoUrl: "/zelifyLogo_dark.svg",
+  primaryHex: "#271a59",
+  accentHex: "#271a59",
+  logoUrl: "/mdc-navbar-logo.svg",
   loginMessage: "Mensaje opcional en la pantalla de acceso.",
 };
+
+const LEGACY_GREEN_ACCENTS = new Set(["#c4f542", "#a9fb5d", "#98e84a", "#86d441"]);
+const LEGACY_NAVY_PRIMARY = "#1a2740";
 
 const BrandingContext = createContext<BrandingContextValue | null>(null);
 
@@ -64,9 +67,13 @@ function applyBrandingToDocument(branding: BrandingState) {
 
   root.style.setProperty("--zelify-brand-primary", branding.primaryHex);
   root.style.setProperty("--zelify-brand-primary-rgb", `${primaryR}, ${primaryG}, ${primaryB}`);
+  const accentLuminance = (0.299 * accentR + 0.587 * accentG + 0.114 * accentB) / 255;
+  const hoverShift = accentLuminance > 0.55 ? -18 : 22;
+  const activeShift = accentLuminance > 0.55 ? -34 : 10;
+
   root.style.setProperty("--zelify-brand-green", branding.accentHex);
-  root.style.setProperty("--zelify-brand-green-hover", shiftHex(branding.accentHex, -18));
-  root.style.setProperty("--zelify-brand-green-active", shiftHex(branding.accentHex, -34));
+  root.style.setProperty("--zelify-brand-green-hover", shiftHex(branding.accentHex, hoverShift));
+  root.style.setProperty("--zelify-brand-green-active", shiftHex(branding.accentHex, activeShift));
   root.style.setProperty("--zelify-brand-on-green", getReadableText(branding.accentHex));
   root.style.setProperty("--zelify-brand-green-rgb", `${accentR}, ${accentG}, ${accentB}`);
 }
@@ -77,7 +84,18 @@ function getStoredBranding(): BrandingState {
   if (!raw) return DEFAULT_BRANDING;
   try {
     const parsed = JSON.parse(raw) as Partial<BrandingState>;
-    return { ...DEFAULT_BRANDING, ...parsed };
+    const merged = { ...DEFAULT_BRANDING, ...parsed };
+    const accent = merged.accentHex.toLowerCase();
+    const primary = merged.primaryHex.toLowerCase();
+    if (LEGACY_GREEN_ACCENTS.has(accent) || primary === LEGACY_NAVY_PRIMARY) {
+      return {
+        ...merged,
+        primaryHex: DEFAULT_BRANDING.primaryHex,
+        accentHex: DEFAULT_BRANDING.accentHex,
+        logoUrl: merged.logoUrl === "/zelifyLogo_dark.svg" ? DEFAULT_BRANDING.logoUrl : merged.logoUrl,
+      };
+    }
+    return merged;
   } catch {
     window.localStorage.removeItem(STORAGE_KEY);
     return DEFAULT_BRANDING;

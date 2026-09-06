@@ -73,7 +73,7 @@ export const es: Messages = {
       products: "Productos",
       reporting: "Informes",
       accounting: "Contabilidad",
-      administration: "Administración",
+      administration: "Configuración",
       mdc: "MDC",
       kyb: "KYB",
     },

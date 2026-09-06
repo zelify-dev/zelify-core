@@ -1,5 +1,5 @@
-import { AdministrationLandingScreen } from "@/modules/settings/screens/administration-landing-screen";
+import { MdcScreen } from "@/modules/mdc/screens/mdc-screen";
 
 export default function SettingsIndexPage() {
-  return <AdministrationLandingScreen />;
+  return <MdcScreen variant="config" />;
 }

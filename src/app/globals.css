@@ -1,12 +1,12 @@
-/* Verde primario de producto (alineado con botones del topbar, ej. Create) */
+/* Paleta de producto (morados MDC). Los tokens --zelify-brand-green* se mantienen por compatibilidad. */
 :root {
-  --zelify-brand-primary: #1a2740;
-  --zelify-brand-primary-rgb: 26, 39, 64;
-  --zelify-brand-green: #a9fb5d;
-  --zelify-brand-green-hover: #98e84a;
-  --zelify-brand-green-active: #86d441;
-  --zelify-brand-on-green: #0d1b3d;
-  --zelify-brand-green-rgb: 169, 251, 93;
+  --zelify-brand-primary: #271a59;
+  --zelify-brand-primary-rgb: 39, 26, 89;
+  --zelify-brand-green: #271a59;
+  --zelify-brand-green-hover: #3a2a75;
+  --zelify-brand-green-active: #1f1638;
+  --zelify-brand-on-green: #ffffff;
+  --zelify-brand-green-rgb: 39, 26, 89;
 }
 
 html {
@@ -23,10 +23,8 @@ body {
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  background:
-    radial-gradient(circle at top, rgba(var(--zelify-brand-primary-rgb), 0.14), transparent 32%),
-    linear-gradient(180deg, #f5f8fc 0%, #eef3f9 100%);
-  color: #102033;
+  background: #fafaf9;
+  color: #271a59;
   font-family: var(--font-nata-sans), Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

@@ -1,188 +1,197 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
 import "@/components/ui/templates/workspace-page.css";
-import { Button, Dialog } from "tamagui";
-import { Copy } from "lucide-react";
-import { SandboxBanner } from "../components/sandbox-banner";
-import { CustomerTable } from "../components/customer-table";
-import { CreateClientModal } from "../components/create-client-modal";
-import { customersService } from "../services/customers.service";
-import { registerZelifyCustomerForLcc } from "@/modules/scotia/services/lcc-customer-sync";
-import { Customer } from "../types/customer.types";
-import { useI18n } from "@/providers/i18n-provider";
+import "@/modules/mdc/screens/mdc-screen.css";
+import { getStoredOrganization } from "@/lib/auth-api";
+import { APPLICATIONS_BY_MODE } from "@/modules/mdc/data/mdc-credit-mock";
+import { fetchFinanceRequests } from "@/modules/mdc/services/mdc-finance-requests.service";
+
+type MdcClientRow = {
+  id: string;
+  name: string;
+  email: string;
+  product: string;
+  amount: number;
+  status: string;
+  submittedAt: string;
+  personType: string;
+};
+
+function money(value: number) {
+  return new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "MXN",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function statusLabel(status: string) {
+  const normalized = status.toLowerCase();
+  if (normalized.includes("aprob")) return "Aprobada";
+  if (normalized.includes("rechaz")) return "Rechazada";
+  if (normalized.includes("manual") || normalized.includes("revision")) return "Revisión manual";
+  if (normalized.includes("override")) return "Override";
+  if (normalized === "approved") return "Aprobada";
+  if (normalized === "declined") return "Rechazada";
+  if (normalized === "manualreview") return "Revisión manual";
+  if (normalized === "overridden") return "Override";
+  return "Pendiente";
+}
+
+function uniqueClients(rows: MdcClientRow[]) {
+  const map = new Map<string, MdcClientRow>();
+  for (const row of rows) {
+    const key = (row.email || row.name).trim().toLowerCase();
+    if (!key) continue;
+    const current = map.get(key);
+    if (!current || new Date(row.submittedAt).getTime() > new Date(current.submittedAt).getTime()) {
+      map.set(key, row);
+    }
+  }
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
+  );
+}
 
 export const CustomersListScreen: React.FC = () => {
-  useI18n();
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [clients, setClients] = useState<MdcClientRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
-  const [onboardingLink, setOnboardingLink] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
-    const fetchCustomers = async () => {
+    const load = async () => {
       try {
-        const data = await customersService.getCustomers();
-        setCustomers(data);
+        const orgId = getStoredOrganization()?.id || "ORG-001";
+        if (orgId === "demo-bypass-org") {
+          const demo = uniqueClients(
+            [...APPLICATIONS_BY_MODE.natural, ...APPLICATIONS_BY_MODE.moral].map((app) => ({
+              id: app.id,
+              name: app.applicantName,
+              email: app.applicantEmail,
+              product: app.product,
+              amount: app.requestedAmount,
+              status: app.status,
+              submittedAt: app.submittedAt,
+              personType: APPLICATIONS_BY_MODE.moral.some((item) => item.id === app.id) ? "moral" : "natural",
+            })),
+          );
+          setClients(demo);
+          return;
+        }
+
+        const [natural, moral] = await Promise.all([
+          fetchFinanceRequests(orgId, "natural").catch(() => []),
+          fetchFinanceRequests(orgId, "moral").catch(() => []),
+        ]);
+
+        const mapped = uniqueClients(
+          [...natural, ...moral].map((item) => ({
+            id: item.id,
+            name:
+              item.personType === "natural"
+                ? `${item.firstName || ""} ${item.lastName || ""}`.trim() || item.email
+                : item.businessName || item.email,
+            email: item.email || "—",
+            product: item.product || "—",
+            amount: Number(item.amount) || 0,
+            status: item.status || "pending",
+            submittedAt: item.createdAt || item.updatedAt || new Date().toISOString(),
+            personType: item.personType || "natural",
+          })),
+        );
+        setClients(mapped);
       } catch (error) {
-        console.error("Error fetching customers:", error);
+        console.error("Error fetching MDC clients:", error);
+        setClients([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchCustomers();
+    void load();
   }, []);
 
-  const openCreate = () => {
-    setEditingCustomer(null);
-    setCopied(false);
-    setIsCopyModalOpen(false);
-    setIsModalOpen(true);
-  };
-
-  const openEdit = (customer: Customer) => {
-    setEditingCustomer(customer);
-    setIsModalOpen(true);
-  };
-
-  const handleSave = async (customer: Customer) => {
-    if (editingCustomer) {
-      const updated = await customersService.updateCustomer(editingCustomer.id, customer);
-      setCustomers((prev) => prev.map((c) => (c.id === editingCustomer.id ? updated : c)));
-    } else {
-      registerZelifyCustomerForLcc({
-        ...customer,
-        createdAt: customer.createdAt ?? new Date().toISOString(),
-      });
-      try {
-        const created = await customersService.createCustomer(customer);
-        registerZelifyCustomerForLcc({
-          ...created,
-          createdAt: created.createdAt ?? customer.createdAt ?? new Date().toISOString(),
-        });
-        setCustomers((prev) => [created, ...prev]);
-        setOnboardingLink("https://pegalo-zelify.vercel.app/kyc-zelify?start=identity");
-        setCopied(false);
-      } catch (error) {
-        console.error("Error creating customer:", error);
-        setCustomers((prev) => [customer, ...prev]);
-        setOnboardingLink("https://pegalo-zelify.vercel.app/kyc-zelify?start=identity");
-        setCopied(false);
-      }
-    }
-  };
-
-  const copyOnboardingLink = async () => {
-    if (!onboardingLink) return;
-    try {
-      await navigator.clipboard.writeText(onboardingLink);
-      setCopied(true);
-      setIsCopyModalOpen(true);
-    } catch (error) {
-      console.error("Error copying onboarding link:", error);
-      setCopied(false);
-      setIsCopyModalOpen(true);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    await customersService.deleteCustomer(id);
-    setCustomers((prev) => prev.filter((c) => c.id !== id));
-  };
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return clients;
+    return clients.filter((client) =>
+      `${client.name} ${client.email} ${client.product} ${client.status}`.toLowerCase().includes(q),
+    );
+  }, [clients, query]);
 
   return (
-    <div className="zelify-workspace-page">
+    <div className="zelify-workspace-page mdc-workspace mdc-workspace--solo">
       <ZelifyTopNavbar />
-      <SandboxBanner />
-
-      <div className="zelify-workspace-page__scroll">
-        <div className="zelify-workspace-page__inner">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-            <h1 className="zelify-workspace-page__title">Clientes individuales</h1>
-            <Button theme="green" onPress={openCreate}>
-              Crear cliente
-            </Button>
-          </div>
-
-          {onboardingLink ? (
-            <div
-              style={{
-                marginTop: 10,
-                border: "1px solid rgba(16, 185, 129, 0.32)",
-                background: "#ECFDF5",
-                borderRadius: 12,
-                padding: "12px 14px",
-                display: "flex",
-                flexWrap: "wrap",
-                alignItems: "center",
-                gap: 10,
-              }}
-            >
-              <strong style={{ color: "#065F46" }}>Usuario creado correctamente.</strong>
-              <span style={{ color: "#065F46" }}>Link de onboarding:</span>
-              <button
-                type="button"
-                onClick={copyOnboardingLink}
-                style={{
-                  border: 0,
-                  background: "transparent",
-                  color: "#1D4ED8",
-                  fontWeight: 700,
-                  textDecoration: "underline",
-                  cursor: "pointer",
-                  padding: 0,
-                }}
-              >
-                Link
-              </button>
-            </div>
-          ) : null}
-
-          <div className="zelify-workspace-page__stack">
-            {loading ? (
-              <div className="zelify-workspace-page__loading">
-                <div className="zelify-workspace-page__spinner" aria-hidden />
-                <span>Cargando clientes...</span>
+      <div className="zelify-workspace-page__scroll mdc-workspace__body">
+        <div className="mdc-workspace__main">
+          <div className="mdc-root">
+            <div className="mdc-overview-hero mdc-prod-hero">
+              <div className="mdc-prod-hero__row">
+                <div>
+                  <h2 className="mdc-overview-hero__title">Clientes</h2>
+                  <p className="mdc-prod-hero__sub">Base de clientes del Motor de Decisión de Crédito.</p>
+                </div>
               </div>
-            ) : (
-              <CustomerTable customers={customers} onEdit={openEdit} onDelete={handleDelete} />
-            )}
+            </div>
+
+            <article className="mdc-card mdc-apps-panel">
+              <div className="mdc-filters mdc-apps-filters" style={{ gridTemplateColumns: "1fr" }}>
+                <label>
+                  <span>Buscar</span>
+                  <input
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Nombre, email o producto"
+                  />
+                </label>
+              </div>
+
+              <div className="mdc-table-wrap">
+                <table className="mdc-table mdc-apps-table">
+                  <thead>
+                    <tr>
+                      <th>Cliente</th>
+                      <th>Email</th>
+                      <th>Tipo</th>
+                      <th>Producto</th>
+                      <th>Monto</th>
+                      <th>Estado</th>
+                      <th>Última solicitud</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td colSpan={7}>Cargando clientes de MDC...</td>
+                      </tr>
+                    ) : filtered.length === 0 ? (
+                      <tr>
+                        <td colSpan={7}>No hay clientes en la base de MDC.</td>
+                      </tr>
+                    ) : (
+                      filtered.map((client) => (
+                        <tr key={client.id}>
+                          <td>{client.name}</td>
+                          <td>{client.email}</td>
+                          <td>{client.personType === "moral" ? "Persona jurídica" : "Persona natural"}</td>
+                          <td>{client.product}</td>
+                          <td>{money(client.amount)}</td>
+                          <td>
+                            <span className="mdc-badge mdc-badge--ok">{statusLabel(client.status)}</span>
+                          </td>
+                          <td>{new Date(client.submittedAt).toLocaleDateString("es-MX")}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </article>
           </div>
         </div>
       </div>
-
-      <CreateClientModal
-        open={isModalOpen}
-        onOpenChange={setIsModalOpen}
-        mode={editingCustomer ? "edit" : "create"}
-        initialCustomer={editingCustomer}
-        onSave={handleSave}
-      />
-
-      <Dialog modal open={isCopyModalOpen} onOpenChange={setIsCopyModalOpen}>
-        <Dialog.Portal>
-          <Dialog.Overlay backgroundColor="#020617" opacity={0.45} />
-          <Dialog.Content width={360} maxWidth="90vw" gap="$3" padding="$4">
-            <div style={{ display: "flex", justifyContent: "center", marginTop: 6 }}>
-              <Copy size={34} color="#1D4ED8" />
-            </div>
-            <Dialog.Title textAlign="center">Enlace de onboarding</Dialog.Title>
-            <Dialog.Description textAlign="center">
-              {copied ? "Link copiado al portapapeles." : "No se pudo copiar el link. Intenta de nuevo."}
-            </Dialog.Description>
-            <div style={{ display: "flex", justifyContent: "center" }}>
-              <Dialog.Close asChild>
-                <Button>Cerrar</Button>
-              </Dialog.Close>
-            </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog>
     </div>
   );
 };

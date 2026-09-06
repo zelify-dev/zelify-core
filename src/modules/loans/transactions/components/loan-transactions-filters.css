@@ -32,7 +32,7 @@
 }
 
 .zelify-loan-tx-filters__search:focus-within {
-  border-color: var(--zelify-brand-green, #a9fb5d);
+  border-color: var(--zelify-brand-green, #271a59);
   box-shadow: 0 0 0 2px rgba(169, 251, 93, 0.2);
 }
 

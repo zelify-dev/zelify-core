@@ -126,7 +126,7 @@ function BrandingEditor({
               </div>
               <strong style={{ color: draft.primaryHex }}>{draft.displayName || "Institución"}</strong>
               <span style={{ color: "#475569" }}>{draft.tagline}</span>
-              <span className="zelify-branding__preview-cta" style={{ background: draft.accentHex, color: draft.primaryHex }}>
+              <span className="zelify-branding__preview-cta" style={{ background: draft.accentHex, color: "#ffffff" }}>
                 Acción principal
               </span>
             </div>

@@ -16,7 +16,7 @@
   justify-content: space-between;
   gap: 14px;
   padding: 8px 20px;
-  background: var(--zelify-brand-primary);
+  background: #271a59;
   min-height: 52px;
   transition:
     min-height 180ms ease,
@@ -554,4 +554,179 @@
   .zelify-topbar-search-wrap:focus-within {
     right: 0;
   }
+}
+
+.zelify-topbar-wrapper--mdc,
+.zelify-topbar-wrapper--mdc button,
+.zelify-topbar-wrapper--mdc input,
+.zelify-topbar-wrapper--mdc a,
+.zelify-topbar-wrapper--mdc span,
+.zelify-topbar-wrapper--mdc strong {
+  font-family: var(--font-nata-sans), "Nata Sans", Arial, Helvetica, sans-serif !important;
+}
+
+.zelify-topbar-wrapper--mdc .zelify-topbar-primary {
+  background: #271a59;
+}
+
+.zelify-topbar-wrapper--mdc .zelify-topbar__brand {
+  gap: 14px;
+}
+
+.zelify-topbar-wrapper--mdc .zelify-topbar__brand-logo {
+  max-width: 168px;
+  max-height: 22px;
+}
+
+.zelify-topbar-wrapper--mdc .zelify-topbar__brand-divider {
+  width: 1px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.28);
+  flex-shrink: 0;
+}
+
+.zelify-topbar-wrapper--mdc .zelify-topbar__brand-logo--partner {
+  max-width: 118px;
+  max-height: 26px;
+  filter: brightness(0) invert(1);
+}
+
+.zelify-topbar-wrapper--mdc .zelify-topbar__actions {
+  gap: 10px;
+}
+
+.zelify-topbar-wrapper--mdc .zelify-topbar-button {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.zelify-topbar-wrapper--mdc .zelify-topbar-button.is-primary {
+  background: #f3f4f6;
+  border-color: #f3f4f6;
+  color: #271a59;
+}
+
+.zelify-topbar-wrapper--mdc .zelify-topbar-button.is-primary:hover,
+.zelify-topbar-wrapper--mdc .zelify-topbar-button.is-primary.is-open {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #271a59;
+}
+
+.zelify-topbar-wrapper--mdc .zelify-topbar-button.is-secondary,
+.zelify-topbar-wrapper--mdc .zelify-topbar-button.is-secondary:hover,
+.zelify-topbar-wrapper--mdc .zelify-topbar-button.is-secondary.is-open {
+  background: transparent;
+  border-color: #ffffff;
+  color: #ffffff;
+}
+
+.zelify-topbar-wrapper--mdc .zelify-topbar-search {
+  width: 280px;
+  height: 36px;
+  border: 1px solid #ffffff;
+  border-radius: 8px;
+  background: transparent;
+}
+
+.zelify-topbar-wrapper--mdc .zelify-topbar-search:hover,
+.zelify-topbar-wrapper--mdc .zelify-topbar-search-wrap:focus-within .zelify-topbar-search,
+.zelify-topbar-wrapper--mdc .zelify-topbar-search:focus-within {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: #ffffff;
+}
+
+.zelify-topbar-wrapper--mdc .zelify-topbar-search-icon path {
+  fill: #ffffff;
+}
+
+.zelify-topbar-wrapper--mdc .zelify-topbar-search-input {
+  color: #ffffff;
+}
+
+.zelify-topbar-wrapper--mdc .zelify-topbar-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.zelify-topbar-wrapper--mdc .zelify-icon-button,
+.zelify-topbar-wrapper--mdc .zelify-topbar-icon-button {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #ffffff;
+  border-radius: 8px;
+  background: transparent;
+  color: #ffffff;
+}
+
+.zelify-topbar-wrapper--mdc .zelify-icon-button:hover,
+.zelify-topbar-wrapper--mdc .zelify-icon-button:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.zelify-topbar-wrapper--mdc .zelify-profile-trigger {
+  color: #ffffff;
+}
+
+.zelify-topbar-wrapper--mdc .zelify-profile-trigger__avatar,
+.zelify-topbar-wrapper--mdc .zelify-avatar {
+  width: 28px;
+  height: 28px;
+  background: #f3f4f6;
+  border-color: #f3f4f6;
+  color: #271a59;
+}
+
+.zelify-topbar-wrapper--mdc .zelify-profile-trigger__meta strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.zelify-topbar-wrapper--mdc .zelify-lang-dropdown__trigger,
+.zelify-topbar-wrapper--mdc .zelify-lang-dropdown__trigger:hover,
+.zelify-topbar-wrapper--mdc .zelify-lang-dropdown__trigger.is-open {
+  height: 36px;
+  border: 1px solid #ffffff;
+  border-radius: 8px;
+  background: transparent;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.zelify-topbar-wrapper--mdc .zelify-lang-dropdown--compact .zelify-lang-dropdown__trigger {
+  min-width: 68px;
+  padding: 0 10px;
+}
+
+.zelify-topbar-wrapper--mdc .zelify-lang-dropdown__chevron {
+  opacity: 1;
+}
+
+.zelify-topbar-wrapper--mdc .zelify-context-selector {
+  min-width: 220px;
+  height: 36px;
+  padding: 0 18px;
+  justify-content: space-between;
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  border-radius: 8px;
+  background: transparent;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.zelify-topbar-wrapper--mdc .zelify-context-selector:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: #ffffff;
+}
+
+.zelify-topbar-wrapper--mdc .zelify-context-selector svg {
+  color: #ffffff;
+}
+
+.zelify-topbar-wrapper--mdc .zelify-topbar__brand-name {
+  color: #ffffff;
 }

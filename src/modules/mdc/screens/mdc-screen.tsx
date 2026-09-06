@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Eye, Settings, Trash2, AlertTriangle } from "lucide-react";
+import { Eye, Plus, Settings, Trash2, AlertTriangle } from "lucide-react";
 import { seedScotiaCreditStorage, useCreditDemoStore } from "@/modules/cortex/hooks/use-credit-demo-store";
 import { AppCheckbox } from "@/components/ui/atoms/checkbox/app-checkbox";
 import { ZelifyTopNavbar } from "@/components/ui/organisms/topbar/zelify-top-navbar";
@@ -131,7 +131,7 @@ const RANGE_DAYS: Record<RangePreset, number> = {
 
 const PERSONA_OPTIONS: { id: MdcApplicantMode; label: string }[] = [
   { id: "natural", label: "Persona natural" },
-  { id: "moral", label: "Persona moral" },
+  { id: "moral", label: "Persona jurídica" },
 ];
 
 const MODE_STORAGE_KEYS: Record<MdcApplicantMode, { applications: string; rules: string; products: string }> = {
@@ -149,15 +149,21 @@ const MODE_STORAGE_KEYS: Record<MdcApplicantMode, { applications: string; rules:
 
 const MODE_COPY: Record<MdcApplicantMode, { title: string; subtitle: string; recentTitle: string }> = {
   natural: {
-    title: "MDC · Motor de Decision de Credito",
-    subtitle: "Analisis de solicitudes, reglas y decisiones para originacion de persona natural.",
+    title: "MDC - Motor de Decisión de Crédito",
+    subtitle: "Análisis de solicitudes, reglas y decisiones para originación de persona natural.",
     recentTitle: "Solicitudes recientes",
   },
   moral: {
-    title: "MDC · Motor de Decision de Credito Empresarial",
-    subtitle: "Evaluacion de empresas, razones financieras y politicas de originacion para persona moral.",
-    recentTitle: "Empresas evaluadas recientemente",
+    title: "MDC - Motor de Decisión de Crédito Empresarial",
+    subtitle: "Evaluación de empresas, razones financieras y políticas de originación para persona moral.",
+    recentTitle: "Solicitudes recientes",
   },
+};
+
+const TREND_COPY: Record<RangePreset, string> = {
+  "7d": "Tendencia de ingreso al motor según rango seleccionado.",
+  "30d": "Tendencia de ingreso al motor según rango seleccionado.",
+  "90d": "Tendencia de ingreso al motor según rango seleccionado.",
 };
 
 const MORAL_TRACEABILITY: MdcTraceabilityEntry[] = [
@@ -366,7 +372,6 @@ const TABS: { id: MdcTab; label: string; moralOnly?: boolean }[] = [
   { id: "payments", label: "Pagos" },
   { id: "collections", label: "Cobranza" },
   { id: "reports", label: "Informes", moralOnly: true },
-  { id: "configuration", label: "Configuracion" },
 ];
 
 const STATUS_OPTIONS: (ApplicationStatus | "all")[] = [
@@ -1245,7 +1250,7 @@ function getRuleFieldsForProduct(product: RuleProduct) {
 
 function renderRuleOperator(rule: CreditRuleRow) {
   if (rule.decisionBands) {
-    return <span className="mdc-badge mdc-badge--neutral">Por bandas</span>;
+    return <span className="mdc-badge mdc-badge--bands">Por bandas</span>;
   }
   return <span className="mdc-rule-operator-label">{RULE_OPERATOR_LABELS[rule.operator]}</span>;
 }
@@ -1255,7 +1260,7 @@ function renderRuleValue(rule: CreditRuleRow) {
   if (rule.operator === "contains") {
     return rule.value;
   }
-  return <span className="mdc-badge mdc-badge--neutral">Por bandas</span>;
+  return <span className="mdc-badge mdc-badge--bands">Por bandas</span>;
 }
 
 function renderRuleSeverity(rule: CreditRuleRow) {
@@ -1686,18 +1691,10 @@ function LineChart({ points }: { points: { label: string; value: number }[] }) {
   const xForIndex = (index: number) => leftPad + (chartWidth * index) / Math.max(points.length - 1, 1);
   const yForValue = (value: number) => topPad + chartHeight - (value / chartMax) * chartHeight;
   const linePoints = points.map((point, index) => `${xForIndex(index)},${yForValue(point.value)}`).join(" ");
-  const areaPoints = `${leftPad},${topPad + chartHeight} ${linePoints} ${leftPad + chartWidth},${topPad + chartHeight}`;
   const labelStep = points.length > 14 ? Math.ceil(points.length / 12) : 1;
 
   return (
     <svg className="mdc-line-chart" viewBox={`0 0 ${width} ${height}`} aria-hidden>
-      <defs>
-        <linearGradient id="mdcOverviewLineFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#2563eb" stopOpacity="0.2" />
-          <stop offset="100%" stopColor="#2563eb" stopOpacity="0.05" />
-        </linearGradient>
-      </defs>
-
       {uniqueTicks.map((tick) => {
         const y = yForValue(tick);
         return (
@@ -1710,7 +1707,6 @@ function LineChart({ points }: { points: { label: string; value: number }[] }) {
         );
       })}
 
-      <polygon points={areaPoints} className="mdc-line-chart__area" />
       <polyline points={linePoints} className="mdc-line-chart__line" />
 
       {points.map((point, index) => (
@@ -1727,7 +1723,15 @@ function LineChart({ points }: { points: { label: string; value: number }[] }) {
   );
 }
 
-function DonutChart({ data }: { data: { label: string; value: number; color: string }[] }) {
+function DonutChart({
+  data,
+  centerLabel = "solicitudes",
+  legendFirst = true,
+}: {
+  data: { label: string; value: number; color: string }[];
+  centerLabel?: string;
+  legendFirst?: boolean;
+}) {
   const rawTotal = data.reduce((sum, d) => sum + d.value, 0);
   const total = Math.max(rawTotal, 1);
   const percentages = rawTotal === 0 ? data.map(() => 0) : normalizedPercentages(data.map((d) => d.value));
@@ -1753,16 +1757,11 @@ function DonutChart({ data }: { data: { label: string; value: number; color: str
     );
 
   return (
-    <div className="mdc-donut-wrap">
+    <div className={`mdc-donut-wrap${legendFirst ? " mdc-donut-wrap--legend-first" : ""}`}>
       <div className="mdc-donut-shell">
         <svg viewBox="0 0 124 124" className="mdc-donut" aria-hidden>
-          <defs>
-            <filter id="mdcDonutShadow" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="0" dy="1" stdDeviation="1.2" floodColor="#0f172a" floodOpacity="0.18" />
-            </filter>
-          </defs>
-          <circle cx={c} cy={c} r={r} fill="none" stroke="#e2e8f0" strokeWidth="18" />
-          <g filter="url(#mdcDonutShadow)">
+          <circle cx={c} cy={c} r={r} fill="none" stroke="#efeaf6" strokeWidth="12" />
+          <g>
             {slices.map((slice) => {
               return (
                 <circle
@@ -1772,8 +1771,8 @@ function DonutChart({ data }: { data: { label: string; value: number; color: str
                   r={r}
                   fill="none"
                   stroke={slice.color}
-                  strokeWidth="18"
-                  strokeLinecap="round"
+                  strokeWidth="12"
+                  strokeLinecap="butt"
                   strokeDasharray={`${slice.len} ${circumference - slice.len}`}
                   strokeDashoffset={-slice.offset}
                   transform={`rotate(-90 ${c} ${c})`}
@@ -1781,21 +1780,9 @@ function DonutChart({ data }: { data: { label: string; value: number; color: str
               );
             })}
           </g>
-          <circle cx={c} cy={c} r="35" fill="#ffffff" stroke="#e2e8f0" strokeWidth="1" />
+          <circle cx={c} cy={c} r="38" fill="#ffffff" />
           <text x={c} y={58} textAnchor="middle" className="mdc-donut-total">{rawTotal}</text>
-          <text x={c} y={72} textAnchor="middle" className="mdc-donut-sub">Solicitudes</text>
-          {slices.map((slice) => {
-            const angle = ((slice.offset + slice.len / 2) / circumference) * 2 * Math.PI - Math.PI / 2;
-            const labelRadius = 52;
-            const x = c + Math.cos(angle) * labelRadius;
-            const y = c + Math.sin(angle) * labelRadius;
-            const idx = data.findIndex((item) => item.label === slice.label);
-            return (
-              <text key={`${slice.label}-pct`} x={x} y={y} textAnchor="middle" dominantBaseline="middle" className="mdc-donut-slice-pct">
-                {pctLabel(percentages[idx] ?? 0)}
-              </text>
-            );
-          })}
+          <text x={c} y={72} textAnchor="middle" className="mdc-donut-sub">{centerLabel}</text>
         </svg>
       </div>
       <div className="mdc-donut-legend">
@@ -3902,8 +3889,8 @@ function AppDetailModal({
                         {ruleResultLabel[rule.result]}
                       </span>
                     </article>
-                  )) : null
-                )}
+                  ))
+                ) : null}
               </div>
             </section>
 
@@ -5310,12 +5297,19 @@ function RuleModal({
   );
 }
 
-export function MdcScreen() {
+type MdcScreenVariant = "full" | "panel" | "config";
+
+export function MdcScreen({ variant = "full" }: { variant?: MdcScreenVariant }) {
+  const lockedTab: MdcTab | null = variant === "panel" ? "overview" : variant === "config" ? "configuration" : null;
   const [globalAlert, setGlobalAlert] = useState<{ message: string, type: "error" | "success" } | null>(null);
   const router = useRouter();
   const creditStore = useCreditDemoStore();
   const [applicantMode, setApplicantMode] = useState<MdcApplicantMode>("natural");
-  const [activeTab, setActiveTab] = useState<MdcTab>("overview");
+  const [activeTab, setActiveTabState] = useState<MdcTab>(lockedTab ?? "overview");
+  const setActiveTab = (tab: MdcTab) => {
+    if (lockedTab) return;
+    setActiveTabState(tab);
+  };
   const [activeProducts, setActiveProducts] = useState<readonly RuleProduct[]>(() => {
     return [] as readonly RuleProduct[];
   });
@@ -5652,21 +5646,24 @@ export function MdcScreen() {
     const declined = rangeScopedApps.filter((a) => a.status === "declined").length;
     const manualOrPending = rangeScopedApps.filter((a) => a.status === "pending" || a.status === "manualReview").length;
     const avgAmount = total > 0 ? rangeScopedApps.reduce((sum, a) => sum + a.requestedAmount, 0) / total : 0;
+    const avgRisk = total > 0 ? rangeScopedApps.reduce((sum, a) => sum + a.riskScore, 0) / total : 0;
 
     const previousTotal = previousRangeApps.length;
     const previousApproved = previousRangeApps.filter((a) => a.status === "approved").length;
     const previousDeclined = previousRangeApps.filter((a) => a.status === "declined").length;
     const previousAvgAmount =
       previousTotal > 0 ? previousRangeApps.reduce((sum, a) => sum + a.requestedAmount, 0) / previousTotal : 0;
+    const previousAvgRisk =
+      previousTotal > 0 ? previousRangeApps.reduce((sum, a) => sum + a.riskScore, 0) / previousTotal : 0;
     const approvedPct = approved / Math.max(total, 1);
     const declinedPct = declined / Math.max(total, 1);
     const previousApprovedPct = previousApproved / Math.max(previousTotal, 1);
     const previousDeclinedPct = previousDeclined / Math.max(previousTotal, 1);
 
     const approvalRatio = [
-      { label: "Aprobadas automaticas", value: approved, color: "#0f766e" },
-      { label: "Rechazadas por politica", value: declined, color: "#b91c1c" },
-      { label: "En revision manual", value: manualOrPending, color: "#334155" },
+      { label: "Aprobadas automáticas", value: approved, color: "#b8a4d8" },
+      { label: "Rechazadas por política", value: declined, color: "#6d5a9c" },
+      { label: "En revisión manual", value: manualOrPending, color: "#1f1638" },
     ];
 
     const lowTarget = rangeScopedApps.filter((a) => riskFromApplicationStatus(a.status, a.riskScore) === "low").length;
@@ -5674,9 +5671,9 @@ export function MdcScreen() {
     const highTarget = rangeScopedApps.filter((a) => riskFromApplicationStatus(a.status, a.riskScore) === "high").length;
 
     const riskDistribution = [
-      { label: "Bajo", value: lowTarget, color: "#0f766e" },
-      { label: "Medio", value: mediumTarget, color: "#1d4ed8" },
-      { label: "Alto", value: highTarget, color: "#b91c1c" },
+      { label: "Bajo", value: lowTarget, color: "#b8a4d8" },
+      { label: "Medio", value: mediumTarget, color: "#6d5a9c" },
+      { label: "Alto", value: highTarget, color: "#1f1638" },
     ];
 
     const recent = [...rangeScopedApps]
@@ -5690,6 +5687,7 @@ export function MdcScreen() {
       approvedPct,
       declinedPct,
       avgAmount,
+      avgRisk,
       approvalRatio,
       riskDistribution,
       recent,
@@ -5698,6 +5696,7 @@ export function MdcScreen() {
         approvedPct: pctDelta(approvedPct, previousApprovedPct),
         declinedPct: pctDelta(declinedPct, previousDeclinedPct),
         avgAmount: pctDelta(avgAmount, previousAvgAmount),
+        avgRisk: pctDelta(avgRisk, previousAvgRisk),
       },
     };
   }, [previousRangeApps, rangeScopedApps]);
@@ -5956,47 +5955,11 @@ export function MdcScreen() {
   };
 
   return (
-    <div className="zelify-workspace-page">
-      <ZelifyTopNavbar />
-      <div className="zelify-workspace-page__scroll">
-        <div className="zelify-workspace-page__inner mdc-root">
-          <header className="mdc-header">
-            <div className="mdc-header__row">
-              <div>
-                <p className="mdc-header__eyebrow">Core Module</p>
-                <h1>{MODE_COPY[applicantMode].title}</h1>
-                <p className="mdc-header__sub">{MODE_COPY[applicantMode].subtitle}</p>
-                <div className="mdc-persona-switch" role="tablist" aria-label="Tipo de solicitante">
-                  {PERSONA_OPTIONS.map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      className={`mdc-persona-switch__btn${applicantMode === option.id ? " mdc-persona-switch__btn--active" : ""}`}
-                      onClick={() => setApplicantMode(option.id)}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="mdc-header__date">
-                <label htmlFor="mdc-range">Rango</label>
-                <select
-                  id="mdc-range"
-                  value={rangeFilter}
-                  onChange={(e) => {
-                    setRangeFilter(e.target.value as RangePreset);
-                    setPage(0);
-                  }}
-                >
-                  <option value="7d">Ultimos 7 dias</option>
-                  <option value="30d">Ultimos 30 dias</option>
-                  <option value="90d">Ultimos 90 dias</option>
-                </select>
-              </div>
-            </div>
-          </header>
-
+    <div className={`zelify-workspace-page mdc-workspace${variant !== "full" ? " mdc-workspace--solo" : ""}`}>
+      <ZelifyTopNavbar variant="mdc" />
+      <div className="zelify-workspace-page__scroll mdc-workspace__body">
+        {variant === "full" ? (
+        <aside className="mdc-sidebar" aria-label="Navegación MDC">
           <div className="mdc-tabs" role="tablist" aria-label="MDC tabs">
             {visibleTabs.map((tab) => (
               <button
@@ -6011,50 +5974,95 @@ export function MdcScreen() {
               </button>
             ))}
           </div>
+        </aside>
+        ) : null}
+        <div className="mdc-workspace__main">
+        <div className="mdc-root">
+          {variant !== "config" ? (
+          <header className="mdc-header">
+            <div className="mdc-header__row">
+              <div>
+                <p className="mdc-header__eyebrow">Core Module</p>
+                <h1>{MODE_COPY[applicantMode].title}</h1>
+                <p className="mdc-header__sub">{MODE_COPY[applicantMode].subtitle}</p>
+              </div>
+              <div className="mdc-persona-switch" role="tablist" aria-label="Tipo de solicitante">
+                {PERSONA_OPTIONS.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={`mdc-persona-switch__btn${applicantMode === option.id ? " mdc-persona-switch__btn--active" : ""}`}
+                    onClick={() => setApplicantMode(option.id)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <div className="mdc-header__date">
+                <label htmlFor="mdc-range">Rango</label>
+                <select
+                  id="mdc-range"
+                  value={rangeFilter}
+                  onChange={(e) => {
+                    setRangeFilter(e.target.value as RangePreset);
+                    setPage(0);
+                  }}
+                >
+                  <option value="7d">Últimos 7 días</option>
+                  <option value="30d">Últimos 30 días</option>
+                  <option value="90d">Últimos 90 días</option>
+                </select>
+              </div>
+            </div>
+          </header>
+          ) : null}
 
           {activeTab === "overview" && (
             <section className="mdc-section">
               {appsLoading && (
-                <div style={{ padding: "0.5rem 1rem", background: "rgba(37,99,235,0.07)", borderRadius: "0.5rem", marginBottom: "0.75rem", color: "#2563eb", fontSize: "0.83rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "#2563eb", opacity: 0.7 }} />
+                <div style={{ padding: "0.5rem 1rem", background: "rgba(76,40,140,0.08)", borderRadius: "0.5rem", marginBottom: "0.75rem", color: "#4c288c", fontSize: "0.83rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "#4c288c", opacity: 0.7 }} />
                   Sincronizando datos del motor...
                 </div>
               )}
-              <div className="mdc-kpis">
-                <MdcStatCard
-                  title="Solicitudes totales"
-                  value={appsLoading ? "—" : String(overview.total)}
-                  deltaPct={overview.deltas.total}
-                  positive={overview.deltas.total >= 0}
-                  comparisonLabel="vs periodo anterior"
-                />
-                <MdcStatCard
-                  title="Porcentaje de aprobacion"
-                  value={appsLoading ? "—" : ratioLabel(overview.approvedPct)}
-                  deltaPct={overview.deltas.approvedPct}
-                  positive={overview.deltas.approvedPct >= 0}
-                  comparisonLabel="vs periodo anterior"
-                />
-                <MdcStatCard
-                  title="Porcentaje de rechazo"
-                  value={appsLoading ? "—" : ratioLabel(overview.declinedPct)}
-                  deltaPct={overview.deltas.declinedPct}
-                  positive={overview.deltas.declinedPct >= 0}
-                  comparisonLabel="vs periodo anterior"
-                />
-                <MdcStatCard
-                  title="Monto promedio solicitado / aprobado"
-                  value={appsLoading ? "—" : money(overview.avgAmount)}
-                  deltaPct={overview.deltas.avgAmount}
-                  positive={overview.deltas.avgAmount >= 0}
-                  comparisonLabel="vs periodo anterior"
-                />
+              <div className="mdc-overview-hero">
+                <h2 className="mdc-overview-hero__title">Tablero</h2>
+                <div className="mdc-kpis">
+                  <MdcStatCard
+                    title="Solicitudes totales"
+                    value={appsLoading ? "—" : String(overview.total)}
+                    deltaPct={overview.deltas.total}
+                    positive={overview.deltas.total >= 0}
+                    comparisonLabel="vs periodo anterior"
+                  />
+                  <MdcStatCard
+                    title="Porcentaje de aprobación"
+                    value={appsLoading ? "—" : ratioLabel(overview.approvedPct)}
+                    deltaPct={overview.deltas.approvedPct}
+                    positive={overview.deltas.approvedPct >= 0}
+                    comparisonLabel="vs periodo anterior"
+                  />
+                  <MdcStatCard
+                    title="Porcentaje de rechazo"
+                    value={appsLoading ? "—" : ratioLabel(overview.declinedPct)}
+                    deltaPct={overview.deltas.declinedPct}
+                    positive={overview.deltas.declinedPct >= 0}
+                    comparisonLabel="vs periodo anterior"
+                  />
+                  <MdcStatCard
+                    title="Monto promedio solicitado / aprobado"
+                    value={appsLoading ? "—" : money(overview.avgAmount)}
+                    deltaPct={overview.deltas.avgAmount}
+                    positive={overview.deltas.avgAmount >= 0}
+                    comparisonLabel="vs periodo anterior"
+                  />
+                </div>
               </div>
 
               <article className="mdc-card">
                 <div className="mdc-card__head">
-                  <h3>Solicitudes por dia</h3>
-                  <p>Tendencia de ingreso al motor segun rango seleccionado</p>
+                  <h3>Solicitudes por día</h3>
+                  <p>{TREND_COPY[rangeFilter]}</p>
                 </div>
                 <LineChart points={applicationsTrendPoints} />
               </article>
@@ -6062,32 +6070,33 @@ export function MdcScreen() {
               <div className="mdc-grid-2">
                 <article className="mdc-card">
                   <div className="mdc-card__head">
-                    <h3>Ratio de decision</h3>
-                    <p>Distribucion por estado principal</p>
+                    <h3>Ratio de decisión</h3>
+                    <p>Distribución por estado principal</p>
                   </div>
                   <SegmentedBar data={overview.approvalRatio} />
                 </article>
                 <article className="mdc-card">
                   <div className="mdc-card__head">
-                    <h3>Distribucion de riesgo</h3>
+                    <h3>Distribución de riesgo</h3>
                     <p>Bajo, medio y alto</p>
                   </div>
                   <DonutChart data={overview.riskDistribution} />
                 </article>
               </div>
 
-              <article className="mdc-card mdc-card--tight">
-                <div className="mdc-card__head mdc-card__head--row mdc-recent-head">
+              <div className="mdc-overview-recent-block">
+                <div className="mdc-card__head mdc-card__head--row">
                   <h3>{MODE_COPY[applicantMode].recentTitle}</h3>
                   <button type="button" className="mdc-link-btn" onClick={() => setActiveTab("applications")}>
                     Ver todas
                   </button>
                 </div>
+              <article className="mdc-card mdc-card--tight mdc-overview-recent">
                 <div className="mdc-table-wrap">
-                  <table className="mdc-table mdc-table--rules">
+                  <table className="mdc-table mdc-overview-table">
                     <thead>
                       <tr>
-                        <th>No.</th>
+                        <th>Número</th>
                         <th>Solicitante</th>
                         <th>Producto</th>
                         <th>Monto</th>
@@ -6120,6 +6129,7 @@ export function MdcScreen() {
                   </table>
                 </div>
               </article>
+              </div>
             </section>
           )}
 
@@ -6138,21 +6148,26 @@ export function MdcScreen() {
           )}
 
           {activeTab === "applications" && (
-            <section className="mdc-section">
-              <article className="mdc-card">
-                <div className="mdc-app-top">
-                  <div className="mdc-card__head mdc-card__head--row">
-                    <div>
-                      <h3>Solicitudes</h3>
-                      <p>Gestion y seguimiento del pipeline</p>
-                    </div>
-                    <button type="button" className="mdc-btn mdc-btn--primary" onClick={() => setShowAddApplication(true)}>
-                      Agregar solicitud
-                    </button>
+            <section className="mdc-section mdc-apps-section">
+              <div className="mdc-overview-hero mdc-prod-hero">
+                <div className="mdc-prod-hero__row">
+                  <div>
+                    <h2 className="mdc-overview-hero__title">Solicitudes</h2>
+                    <p className="mdc-prod-hero__sub">Gestión y seguimiento del pipeline</p>
                   </div>
+                  <button type="button" className="mdc-prod-hero__cta" onClick={() => setShowAddApplication(true)}>
+                    Agregar solicitud <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <article className="mdc-card mdc-apps-panel">
+                <div className="mdc-card__head">
+                  <h3>Resumen de desempeño</h3>
+                  <p>Indicadores principales de la familia de productos.</p>
                 </div>
 
-                <div className="mdc-filters">
+                <div className="mdc-filters mdc-apps-filters">
                   <label>
                     <span>Buscar</span>
                     <input
@@ -6161,7 +6176,7 @@ export function MdcScreen() {
                         setSearch(e.target.value);
                         setPage(0);
                       }}
-                      placeholder="APP, cliente, email"
+                      placeholder="APP, cliente, mail"
                     />
                   </label>
                   <label>
@@ -6212,15 +6227,11 @@ export function MdcScreen() {
                     </select>
                   </label>
                 </div>
-                <p className="mdc-date-hint">
-                  La fecha se toma del rango global del tablero para filtrar resultados de solicitudes ({rangeDays} dias).
-                </p>
-
                 <div className="mdc-table-wrap">
-                  <table className="mdc-table mdc-table--rules">
+                  <table className="mdc-table mdc-apps-table">
                     <thead>
                       <tr>
-                        <th>No.</th>
+                        <th>Número</th>
                         <th>Solicitante</th>
                         <th>Email</th>
                         <th>Producto</th>
@@ -6251,7 +6262,7 @@ export function MdcScreen() {
                             <td><span className={classForStatus(app.status)}>{STATUS_LABELS[app.status]}</span></td>
                             <td>
                               <span className={classForRisk(riskFromApplicationStatus(app.status, app.riskScore))}>
-                                {RISK_LABELS[riskFromApplicationStatus(app.status, app.riskScore)]} · {normalizeRiskScoreForStatus(app.status, app.riskScore)}
+                                {RISK_LABELS[riskFromApplicationStatus(app.status, app.riskScore)]}
                               </span>
                             </td>
                             <td>{shortDate(app.submittedAt)}</td>
@@ -6434,19 +6445,21 @@ export function MdcScreen() {
           )}
 
           {activeTab === "rules" && (
-            <section className="mdc-section">
-              <article className="mdc-card">
-                <div className="mdc-card__head mdc-card__head--row">
+            <section className="mdc-section mdc-rules-section">
+              <div className="mdc-overview-hero mdc-prod-hero">
+                <div className="mdc-prod-hero__row">
                   <div>
-                    <h3>Reglas y thresholds</h3>
-                    <p>Configuracion operativa del motor MDC</p>
+                    <h2 className="mdc-overview-hero__title">Reglas y thresholds</h2>
+                    <p className="mdc-prod-hero__sub">Configuración operativa del motor MDC</p>
                   </div>
-                  <button type="button" className="mdc-btn mdc-btn--primary" onClick={openCreateRule}>
-                    Agregar regla
+                  <button type="button" className="mdc-prod-hero__cta" onClick={openCreateRule}>
+                    Agregar regla <Plus className="h-4 w-4" />
                   </button>
                 </div>
+              </div>
 
-                <div className="mdc-filters mdc-filters--single">
+              <article className="mdc-card mdc-rules-panel">
+                <div className="mdc-filters mdc-rules-filters">
                   <label>
                     <span>Producto activo</span>
                     <select
@@ -6464,14 +6477,14 @@ export function MdcScreen() {
                     <input
                       value={ruleQuery}
                       onChange={(e) => setRuleQuery(e.target.value)}
-                      placeholder="nombre, campo o descripcion"
+                      placeholder="Nombre, campo o descripción"
                     />
                   </label>
                 </div>
 
                 <div className="mdc-table-wrap">
                   {isDemoOrg ? (
-                    <table className="mdc-table mdc-table--rules">
+                    <table className="mdc-table mdc-rules-table">
                       <thead>
                         <tr>
                           <th>Nombre</th>
@@ -6582,7 +6595,7 @@ export function MdcScreen() {
                       </tbody>
                     </table>
                   ) : (
-                    <table className="mdc-table mdc-table--rules">
+                    <table className="mdc-table mdc-rules-table">
                       <thead>
                         <tr>
                           <th>Producto Financiero</th>
@@ -6665,14 +6678,19 @@ export function MdcScreen() {
           )}
 
           {activeTab === "traceability" && (
-            <section className="mdc-section">
-              <article className="mdc-card">
-                <div className="mdc-card__head">
-                  <h3>Trazabilidad</h3>
-                  <p>Reglas, IA, cross-sell y fijaciones.</p>
+            <section className="mdc-section mdc-trace-section">
+              <div className="mdc-overview-hero mdc-prod-hero">
+                <div className="mdc-prod-hero__row">
+                  <div>
+                    <h2 className="mdc-overview-hero__title">Trazabilidad</h2>
+                    <p className="mdc-prod-hero__sub">Reglas, IA, cross-sell y fijaciones.</p>
+                  </div>
                 </div>
+              </div>
+
+              <article className="mdc-card mdc-trace-panel">
                 <div className="mdc-table-wrap">
-                  <table className="mdc-table mdc-table--traceability">
+                  <table className="mdc-table mdc-trace-table">
                     <thead>
                       <tr>
                         <th>Fecha</th>
@@ -6745,6 +6763,7 @@ export function MdcScreen() {
           )}
           {activeTab === "reports" && applicantMode === "moral" && <MdcReportsTab />}
           {activeTab === "configuration" && <MdcConfigurationTab />}
+        </div>
         </div>
       </div>
 

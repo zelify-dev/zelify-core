@@ -112,50 +112,65 @@ export function MdcCollectionsTab({
     : 0;
 
   return (
-    <section className="mdc-section">
-      <article className="mdc-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3>Cobranza</h3>
-      </article>
+    <section className="mdc-section mdc-col-section">
+      <div className="mdc-overview-hero mdc-prod-hero">
+        <div className="mdc-prod-hero__row">
+          <div>
+            <h2 className="mdc-overview-hero__title">Cobranza</h2>
+          </div>
+        </div>
+      </div>
 
-      <article className="mdc-card">
-        <h3>Resumen de cobranza</h3>
-        <p>{mode === "moral" ? "Indicadores clave para priorizar recuperacion corporativa y seguimiento empresarial." : "Indicadores clave para priorizar la gestion diaria."}</p>
+      <article className="mdc-card mdc-col-summary">
+        <div className="mdc-card__head">
+          <h3>Resumen de cobranza</h3>
+          <p>
+            {mode === "moral"
+              ? "Indicadores clave para priorizar recuperación corporativa y seguimiento empresarial."
+              : "Indicadores clave para priorizar la gestión diaria."}
+          </p>
+        </div>
         <div className="mdc-col-kpis">
           <KpiCard title="Casos activos" value={String(filteredCases.length)} />
           <KpiCard title="Monto vencido total" value={`$${formatMoney(totalMontoVencido)} MXN`} />
-          <KpiCard title="DPD promedio" value={`${dpdPromedio} dias`} />
+          <KpiCard title="DPD promedio" value={`${dpdPromedio} días`} />
           <KpiCard title="Casos escalados" value={String(casosEscalados)} />
         </div>
       </article>
 
-      <article className="mdc-card">
-        <h3>Casos de cobranza</h3>
-        <p>{mode === "moral" ? "Casos activos de seguimiento a empresas y razones sociales." : "Casos de cobranza activos."}</p>
+      <article className="mdc-card mdc-col-panel">
+        <div className="mdc-card__head">
+          <h3>Casos de cobranza</h3>
+          <p>{mode === "moral" ? "Casos activos de seguimiento a empresas y razones sociales." : "Casos de cobranza activos."}</p>
+        </div>
 
         <div className="mdc-col-search-wrap">
-          <input
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setPage(1);
-            }}
-            placeholder="Buscar por caso, solicitud, cliente, agente o estado..."
-            className="mdc-col-search"
-          />
+          <label>
+            <span>Buscar</span>
+            <input
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Caso, solicitud, cliente o estado."
+              className="mdc-col-search"
+            />
+          </label>
         </div>
 
         <div className="mdc-table-wrap">
           <table className="mdc-table mdc-col-table">
             <thead>
               <tr>
-                <th>ID de caso</th>
-                <th>No. aplicacion</th>
+                <th>ID Caso</th>
+                <th>No. Aplicación</th>
                 <th>Cliente</th>
                 <th>Monto vencido</th>
                 <th>DPD</th>
                 <th>Estado</th>
                 <th>Agente asignado</th>
-                <th>Ultima actividad</th>
+                <th>Última actividad</th>
                 <th>Creado el</th>
                 <th>Acciones</th>
               </tr>
@@ -354,7 +369,7 @@ function DpdBadge({ dpd }: { dpd: number }) {
   let styles = "mdc-col-pill mdc-col-pill--ok";
   if (dpd >= 14) styles = "mdc-col-pill mdc-col-pill--warn";
   if (dpd >= 31) styles = "mdc-col-pill mdc-col-pill--bad";
-  return <span className={styles}>{dpd} dias</span>;
+  return <span className={styles}>{dpd} días</span>;
 }
 
 function StatusBadge({ status }: { status: CollectionCase["status"] }) {
@@ -376,8 +391,8 @@ function formatMoney(value: number) {
 function KpiCard({ title, value }: { title: string; value: string }) {
   return (
     <div className="mdc-col-kpi-card">
-      <p>{title}</p>
       <strong>{value}</strong>
+      <p>{title}</p>
     </div>
   );
 }

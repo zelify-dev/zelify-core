@@ -88,8 +88,8 @@ export const ColumnPresets: React.FC = () => {
             <Button
               icon={<Plus size={16} />}
               variant="outlined"
-              borderColor="#a9fb5d"
-              color="#0d1b3d"
+              borderColor="#271a59"
+              color="#271a59"
               borderRadius="$4"
               size="$3"
             >
@@ -103,7 +103,7 @@ export const ColumnPresets: React.FC = () => {
         <Button variant="outlined" borderColor="$borderColor">
           {t("customers.columnPresets.cancel")}
         </Button>
-        <Button backgroundColor="#a9fb5d" color="#0d1b3d" hoverStyle={{ backgroundColor: "#98e84a" }}>
+        <Button backgroundColor="#271a59" color="#ffffff" hoverStyle={{ backgroundColor: "#3a2a75" }}>
           {t("customers.columnPresets.saveChanges")}
         </Button>
       </XStack>

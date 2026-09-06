@@ -6,9 +6,6 @@ import { usePathname } from "next/navigation";
 import { LanguageSwitcher } from "@/components/common/language-switcher/language-switcher";
 import {
   type ZelifyTopNavItem,
-  isAccountingPath,
-  resolveActiveAccountingSubNavId,
-  zelifyAccountingSubNavItems,
   resolveActiveTopNavId,
   zelifyTopNavItems,
 } from "@/config/navigation";
@@ -75,6 +72,7 @@ type ZelifyTopNavbarProps = {
   userName?: string;
   userInitials?: string;
   items?: ZelifyTopNavItem[];
+  variant?: "default" | "mdc";
 };
 
 export function ZelifyTopNavbar({
@@ -87,8 +85,6 @@ export function ZelifyTopNavbar({
   const { t } = useI18n();
   const pathname = usePathname();
   const activeNavId = activeNavIdProp ?? resolveActiveTopNavId(pathname, items);
-  const accountingSubActiveId = resolveActiveAccountingSubNavId(pathname);
-  const showAccountingSubBar = isAccountingPath(pathname);
   const organizationLabel = organizationLabelProp ?? t("org.allOrganizations");
   const createMenuItems: DropdownMenuItem[] = CREATE_MENU_KEYS.map((key, index) => ({
     label: t(key),
@@ -177,11 +173,14 @@ export function ZelifyTopNavbar({
   }, []);
 
   return (
-    <header className={`zelify-topbar-wrapper ${isCondensed ? "is-condensed" : ""}`}>
+    <header className={`zelify-topbar-wrapper zelify-topbar-wrapper--mdc${isCondensed ? " is-condensed" : ""}`}>
       {/* Nivel Superior: Marca y Acciones */}
       <div className="zelify-topbar-primary">
         <div className="zelify-topbar__brand-wrap">
-          <BrandBlock organizationLabel={organizationLabel} brandAlt={t("topbar.brandAlt")} />
+          <BrandBlock
+            organizationLabel={organizationLabel}
+            brandAlt={t("topbar.brandAlt")}
+          />
         </div>
 
         <div className="zelify-topbar__actions">
@@ -249,7 +248,7 @@ export function ZelifyTopNavbar({
             <BellIcon />
           </AppIconButton>
           <ProfileMenu name={actualUserName} initials={actualUserInitials} />
-          <LanguageSwitcher />
+          <LanguageSwitcher compact />
         </div>
         {/* Fin Nivel Superior Actions */}
       </div>
@@ -286,24 +285,6 @@ export function ZelifyTopNavbar({
         </nav>
       </div>
 
-      {showAccountingSubBar ? (
-        <div className="zelify-topbar-tertiary">
-          <nav
-            className="zelify-topbar__nav"
-            aria-label={t("topbar.navAccounting")}
-          >
-            {zelifyAccountingSubNavItems.map((item) => (
-              <NavTab
-                key={item.href}
-                label={t(item.labelKey)}
-                href={item.href}
-                variant="adminSub"
-                isActive={item.id === accountingSubActiveId}
-              />
-            ))}
-          </nav>
-        </div>
-      ) : null}
     </header>
   );
 }
@@ -315,18 +296,28 @@ type BrandBlockProps = {
 
 function BrandBlock({ organizationLabel, brandAlt }: BrandBlockProps) {
   const { branding } = useBranding();
+  const logoUrl = branding.logoUrl || "/mdc-navbar-logo.svg";
+  const logoAlt = branding.displayName || brandAlt;
   return (
     <div className="zelify-topbar__brand">
-      {branding.logoUrl ? (
+      {logoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={branding.logoUrl}
-          alt={branding.displayName || brandAlt}
+          src={logoUrl}
+          alt={logoAlt}
           className="zelify-topbar__brand-logo"
         />
       ) : (
-        <span className="zelify-topbar__brand-name">{branding.displayName || brandAlt}</span>
+        <span className="zelify-topbar__brand-name">{logoAlt}</span>
       )}
+
+      <span className="zelify-topbar__brand-divider" aria-hidden="true" />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/LOGO%20TULANA.svg"
+        alt="Tulana"
+        className="zelify-topbar__brand-logo zelify-topbar__brand-logo--partner"
+      />
 
       <ContextSelector label={organizationLabel} icon={<ChevronDownIcon />} />
     </div>

@@ -38,10 +38,10 @@ export const CustomerFilters: React.FC = () => {
 
         <Button 
           icon={<FilterIcon size={16} />} 
-          backgroundColor="#a9fb5d" 
-          color="#0d1b3d"
+          backgroundColor="#271a59" 
+          color="#ffffff"
           borderRadius="$4"
-          hoverStyle={{ backgroundColor: '#98e84a' }}
+          hoverStyle={{ backgroundColor: '#3a2a75' }}
         >
           {t("customers.list.filters.filter")}
         </Button>

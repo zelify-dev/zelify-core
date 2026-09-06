@@ -8,7 +8,11 @@ import { useI18n } from "@/providers/i18n-provider";
 
 import "./language-switcher.css";
 
-export function LanguageSwitcher() {
+type LanguageSwitcherProps = {
+  compact?: boolean;
+};
+
+export function LanguageSwitcher({ compact = false }: LanguageSwitcherProps) {
   const { locale, setLocale, t } = useI18n();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -30,10 +34,14 @@ export function LanguageSwitcher() {
     };
   }, [open]);
 
-  const currentLabel = locale === "en" ? t("common.english") : t("common.spanish");
+  const currentLabel = compact
+    ? locale.toUpperCase()
+    : locale === "en"
+      ? t("common.english")
+      : t("common.spanish");
 
   return (
-    <div className="zelify-lang-dropdown" ref={wrapRef}>
+    <div className={`zelify-lang-dropdown${compact ? " zelify-lang-dropdown--compact" : ""}`} ref={wrapRef}>
       <button
         type="button"
         className={`zelify-lang-dropdown__trigger ${open ? "is-open" : ""}`}

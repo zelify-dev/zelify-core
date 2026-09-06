@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, X, Upload, FileSpreadsheet, CheckCircle2, AlertCircle } from "lucide-react";
+import { Plus, X, Upload, FileSpreadsheet, CheckCircle2, AlertCircle } from "lucide-react";
 import { useCallback, useMemo, useState, useEffect } from "react";
 import type { MdcApplicantMode } from "@/modules/mdc/data/mdc-credit-mock";
 import { getStoredOrganization } from "@/lib/auth-api";
@@ -74,7 +74,7 @@ export const MORAL_SESSIONS: Session[] = [
 export const SESSIONS = NATURAL_SESSIONS;
 
 function rangeLabel(days: number) {
-  return days === 7 ? "Ultimos 7 dias" : days === 30 ? "Ultimos 30 dias" : "Ultimos 90 dias";
+  return days === 7 ? "últimos 7 días" : days === 30 ? "últimos 30 días" : "últimos 90 días";
 }
 
 export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPaymentsTabProps) {
@@ -259,19 +259,25 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
 
   return (
     <>
-      <section className="mdc-section">
-        <article className="mdc-card mdc-pay-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h3>Pagos</h3>
-            <p>{mode === "moral" ? "Gestione cobros empresariales y sesiones de pago corporativas." : "Gestione y supervise todas las sesiones de pago."}</p>
+      <section className="mdc-section mdc-pay-section">
+        <div className="mdc-overview-hero mdc-prod-hero">
+          <div className="mdc-prod-hero__row">
+            <div>
+              <h2 className="mdc-overview-hero__title">Pagos</h2>
+              <p className="mdc-prod-hero__sub">
+                {mode === "moral"
+                  ? "Gestione cobros empresariales y sesiones de pago corporativas."
+                  : "Gestione y supervise todas las sesiones de pago."}
+              </p>
+            </div>
+            <button type="button" className="mdc-prod-hero__cta" onClick={() => setIsUploadModalOpen(true)}>
+              Agregar pago <Plus className="h-4 w-4" />
+            </button>
           </div>
-          <button className="mdc-btn mdc-btn--primary" onClick={() => setIsUploadModalOpen(true)}>
-            Subir información
-          </button>
-        </article>
+        </div>
 
         <div className="mdc-pay-kpis">
-          <KpiCard title="Pagos" value={String(kpis.totalSessions)} delta={`Total de operaciones en ${rangeLabel(rangeDays).toLowerCase()}`} />
+          <KpiCard title="Pagos" value={String(kpis.totalSessions)} delta={`Total de operaciones en ${rangeLabel(rangeDays)}`} />
           <KpiCard title="Pagos exitosos" value={`${kpis.successRate.toFixed(1)}%`} delta={`${kpis.totalSessions - kpis.failed} de ${kpis.totalSessions} operaciones`} />
           <KpiCard title="Motivo principal de no pago" value={kpis.failed ? kpis.topFailureReason : "Sin fallos"} delta={kpis.failed ? `${kpis.topFailureCount} caso(s)` : "0 casos"} />
           <KpiCard title="Ticket promedio del periodo" value={`$${formatMoney(kpis.avgTicket)} MXN`} delta="Promedio de pagos exitosos" />
@@ -281,29 +287,31 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
         <article className="mdc-card">
           <div className="mdc-card__head">
             <h3>Tendencia de pago</h3>
-            <p>Monto capturado por periodo segun rango seleccionado</p>
+            <p>Monto capturado por periodo según rango seleccionado</p>
           </div>
           <PaymentTrendChart points={trendPoints} />
         </article>
 
         <article className="mdc-card mdc-pay-table-wrap">
+          <div className="mdc-card__head">
+            <h3>Pagos recientes</h3>
+          </div>
           <div className="mdc-table-wrap">
-            <table className="mdc-table">
+            <table className="mdc-table mdc-pay-table">
               <thead>
                 <tr>
                   <th>Ficha (Ref) / Solicitud</th>
                   <th>Usuario</th>
                   <th>Estado de pago</th>
-                  <th>Metodo</th>
+                  <th>Método</th>
                   <th>Monto</th>
                   <th>Fecha</th>
-                  <th>Detalle</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredSessions.length === 0 ? (
                   <tr>
-                    <td colSpan={7}>Sin sesiones de pago en el rango seleccionado.</td>
+                    <td colSpan={6}>Sin sesiones de pago en el rango seleccionado.</td>
                   </tr>
                 ) : (
                   filteredSessions.map((session) => (
@@ -314,7 +322,6 @@ export function MdcPaymentsTab({ mode = "natural", range, onRangeChange }: MdcPa
                       <td className="mdc-pay-capitalize">{session.paymentMethod}</td>
                       <td className="mdc-pay-num">${formatMoney(session.amount)} {session.currency}</td>
                       <td>{session.createdAt}</td>
-                      <td className="mdc-pay-arrow"><ChevronRight className="h-4 w-4" /></td>
                     </tr>
                   ))
                 )}
@@ -500,18 +507,10 @@ function PaymentTrendChart({ points }: { points: { label: string; value: number 
   const xForIndex = (index: number) => leftPad + (chartWidth * index) / Math.max(points.length - 1, 1);
   const yForValue = (value: number) => topPad + chartHeight - (value / chartMax) * chartHeight;
   const linePoints = points.map((point, index) => `${xForIndex(index)},${yForValue(point.value)}`).join(" ");
-  const areaPoints = `${leftPad},${topPad + chartHeight} ${linePoints} ${leftPad + chartWidth},${topPad + chartHeight}`;
   const labelStep = points.length > 10 ? Math.ceil(points.length / 8) : 1;
 
   return (
     <svg className="mdc-pay-trend-chart" viewBox={`0 0 ${width} ${height}`} aria-hidden>
-      <defs>
-        <linearGradient id="mdcPayArea" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#2563eb" stopOpacity="0.2" />
-          <stop offset="100%" stopColor="#2563eb" stopOpacity="0.05" />
-        </linearGradient>
-      </defs>
-
       {ticks.map((tick) => {
         const y = yForValue(tick);
         return (
@@ -524,7 +523,6 @@ function PaymentTrendChart({ points }: { points: { label: string; value: number 
         );
       })}
 
-      <polygon points={areaPoints} className="mdc-pay-trend-chart__area" />
       <polyline points={linePoints} className="mdc-pay-trend-chart__line" />
 
       {points.map((point, index) => (

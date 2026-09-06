@@ -199,18 +199,20 @@ export function MdcProductsTab({
   const avgAprobacion = products.length > 0 ? "25.0" : "0.0";
 
   return (
-    <section className="mdc-section">
-      <article className="mdc-card mdc-prod-header">
-        <div>
-          <h3>{title}</h3>
-          <p>{subtitle}</p>
+    <section className="mdc-section mdc-prod-section">
+      <div className="mdc-overview-hero mdc-prod-hero">
+        <div className="mdc-prod-hero__row">
+          <div>
+            <h2 className="mdc-overview-hero__title">{title}</h2>
+            <p className="mdc-prod-hero__sub">{subtitle}</p>
+          </div>
+          <button type="button" className="mdc-prod-hero__cta" onClick={() => setIsCreateOpen(true)}>
+            Agregar producto <Plus className="h-4 w-4" />
+          </button>
         </div>
-        <button type="button" className="mdc-btn mdc-btn--primary" onClick={() => setIsCreateOpen(true)}>
-          <Plus className="h-4 w-4" /> Agregar producto
-        </button>
-      </article>
+      </div>
 
-      <article className="mdc-card">
+      <article className="mdc-card mdc-prod-summary">
         <div className="mdc-card__head">
           <h3>Resumen de desempeño</h3>
           <p>Indicadores principales de la familia de productos.</p>
@@ -219,7 +221,7 @@ export function MdcProductsTab({
           <MetricCard value={String(activeClients)} label="Clientes activos" />
           <MetricCard value={formatCurrency(totalPortfolio)} label="Cartera total" />
           <MetricCard value={`${avgMorosidad}%`} label="Tasa de morosidad" />
-          <MetricCard value={`${avgAprobacion}%`} label="Tasa de aprobacion" />
+          <MetricCard value={`${avgAprobacion}%`} label="Tasa de aprobación" />
         </div>
       </article>
 
@@ -293,7 +295,7 @@ function ProductCard({
           <p>{product.description}</p>
         </div>
         <div className="mdc-prod-card__badges">
-          <span className="mdc-badge mdc-badge--ok">{product.status}</span>
+          <span className="mdc-prod-card__status">{product.status}</span>
           <button type="button" onClick={onDelete} aria-label="Eliminar producto" className="mdc-prod-card__delete">
             <Trash2 className="h-4 w-4" />
           </button>
