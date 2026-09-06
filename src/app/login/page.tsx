@@ -3,7 +3,7 @@
 import { EyeClosedIcon, EyeOpenIcon } from "@/assets/login-icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import InputGroup from "@/components/form-elements/input-group";
 import { login, verifyDashboardOtp, persistAuthSession, AuthError, syncMe, type AuthSuccessResponse } from "@/lib/auth-api";
 import { getLoginAuthErrorDisplay } from "@/lib/auth-error-messages";
@@ -12,11 +12,14 @@ import { resetScopedDemoExperienceStorage } from "@/lib/demo-storage";
 import { seedScotiaDemoStorage } from "@/modules/lim/hooks/use-lim-demo-store";
 import { seedScotiaCreditStorage } from "@/modules/cortex/hooks/use-credit-demo-store";
 import { resetDemoRulesState } from "@/modules/mdc/services/mdc-rules.service";
-import { useBranding } from "@/providers/branding-provider";
+import { DEFAULT_BRANDING, useBranding } from "@/providers/branding-provider";
+import "./login-page.css";
 
 const DEMO_BYPASS_EMAIL = "demo@zwippe.com";
 const DEMO_BYPASS_PASSWORD = "image.png";
 const DEMO_BYPASS_STORAGE_KEY = "zelify_demo_bypass";
+const CLIENT_LOGO_SRC = "/LOGO%20TULANA.svg";
+const PRODUCT_LOGO_DARK = "/mdc-navbar-logo-dark.svg";
 
 // ============================================================================
 // TRANSLATIONS
@@ -89,140 +92,6 @@ const TRANSLATIONS = {
   },
 };
 
-// ============================================================================
-// CONSTANTS - Colors (Cambia estos colores fácilmente)
-// ============================================================================
-const COLORS = {
-  // Background colors
-  backgroundLight: "#f1f5f9", // Light mode background
-  backgroundDark: "#001832", // Dark mode background
-
-  // Card colors
-  cardLight: "#ffffff", // Light mode card
-  cardDark: "#0d1224", // Dark mode card
-
-  // Right panel colors
-  rightPanelBg: "rgb(170, 255, 59)", // Color verde del panel derecho
-  rightPanelBorderDark: "#04335A", // Borde del panel derecho en dark mode
-
-  // Button colors
-  buttonPrimaryLight: "#004195", // Botón en light mode
-  buttonPrimaryLightHover: "#0a56c2", // Hover del botón en light mode
-  buttonPrimaryDark: "#66ff00", // Botón en dark mode (verde)
-  buttonPrimaryDarkHover: "#ffffff", // Hover del botón en dark mode
-
-  // Error colors
-  errorBorder: "#dd2f2c", // Color del borde de error
-
-  // Animation colors (para la animación halftone)
-  halftoneLight: "rgb(12, 13, 14)", // Color de puntos en light mode
-  halftoneDark: "rgba(255, 255, 255, 1)", // Color de puntos en dark mode
-} as const;
-
-function AnimatedHalftoneBackdrop({ isDarkMode }: { isDarkMode: boolean }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number | undefined>(undefined);
-  const resizeObserverRef = useRef<ResizeObserver | undefined>(undefined);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const parent = canvas.parentElement;
-    if (!parent) return;
-
-    const dpr =
-      typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-
-    const resize = () => {
-      const { width, height } = parent.getBoundingClientRect();
-      canvas.width = Math.max(1, Math.floor(width * dpr));
-      canvas.height = Math.max(1, Math.floor(height * dpr));
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    };
-
-    resize();
-
-    if (typeof ResizeObserver !== "undefined") {
-      const observer = new ResizeObserver(resize);
-      observer.observe(parent);
-      resizeObserverRef.current = observer;
-    }
-
-    const start = performance.now();
-    const spacing = 26;
-    const waveFrequency = 1.35;
-    const waveSpeed = 0.35;
-
-    const render = (time: number) => {
-      const elapsed = (time - start) / 1000;
-      const logicalWidth = canvas.width / dpr;
-      const logicalHeight = canvas.height / dpr;
-      ctx.clearRect(0, 0, logicalWidth, logicalHeight);
-
-      const centerX = logicalWidth / 2;
-      const centerY = logicalHeight / 2;
-      const maxDistance = Math.sqrt(centerX * centerX + centerY * centerY);
-      // Usar colores de las constantes - parsear rgba
-      const halftoneColor = isDarkMode
-        ? COLORS.halftoneDark
-        : COLORS.halftoneLight;
-      const rgbaMatch = halftoneColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-      const [r, g, b] = rgbaMatch
-        ? [Number(rgbaMatch[1]), Number(rgbaMatch[2]), Number(rgbaMatch[3])]
-        : [255, 255, 255];
-
-      for (let y = -spacing; y <= logicalHeight + spacing; y += spacing) {
-        for (let x = -spacing; x <= logicalWidth + spacing; x += spacing) {
-          const dx = x - centerX;
-          const dy = y - centerY;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          const normalizedDistance = distance / maxDistance;
-          const wavePhase =
-            (normalizedDistance * waveFrequency - elapsed * waveSpeed) *
-            Math.PI *
-            2;
-          const pulse = (Math.cos(wavePhase) + 1) / 2;
-          const edgeFade = Math.pow(1 - normalizedDistance, 1.4);
-          const alpha = (0.06 + pulse * 0.45) * edgeFade;
-          ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
-          ctx.beginPath();
-          ctx.arc(x, y, 1.4 + pulse * 0.6, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-
-      animationRef.current = requestAnimationFrame(render);
-    };
-
-    animationRef.current = requestAnimationFrame(render);
-
-    return () => {
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
-      if (resizeObserverRef.current) resizeObserverRef.current.disconnect();
-    };
-  }, [isDarkMode]);
-
-  return <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />;
-}
-
-function EdgeFadeOverlay({ isDarkMode }: { isDarkMode: boolean }) {
-  const fadeColor = isDarkMode ? "rgba(8,11,25,1)" : "rgba(250,252,255,1)";
-  return (
-    <div
-      className="pointer-events-none absolute inset-0 rounded-3xl"
-      style={{
-        background: `radial-gradient(circle at center, rgba(0,0,0,0) 60%, ${fadeColor} 100%)`,
-      }}
-    ></div>
-  );
-}
-
 export default function LoginPage() {
   const { branding } = useBranding();
   const router = useRouter();
@@ -236,7 +105,6 @@ export default function LoginPage() {
   const [sessionId, setSessionId] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const [language, setLanguage] = useState<"en" | "es">("es");
 
   const toggleLanguage = () => {
@@ -282,24 +150,6 @@ export default function LoginPage() {
     return "";
   };
 
-  // Detectar modo dark/light
-  useEffect(() => {
-    const checkDarkMode = () => {
-      const isDark = document.documentElement.classList.contains("dark");
-      setIsDarkMode(isDark);
-    };
-
-    checkDarkMode();
-
-    const observer = new MutationObserver(checkDarkMode);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-
-    return () => observer.disconnect();
-  }, []);
-
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!sessionExpiredInfo) return;
@@ -312,22 +162,6 @@ export default function LoginPage() {
       `${window.location.pathname}${q ? `?${q}` : ""}`,
     );
   }, [sessionExpiredInfo]);
-
-  // Agregar estilos de animación
-  useEffect(() => {
-    const styleId = "login-halftone-animations";
-    if (typeof document !== "undefined" && !document.getElementById(styleId)) {
-      const style = document.createElement("style");
-      style.id = styleId;
-      style.textContent = `
-        @keyframes halftonePulse {
-          0%, 100% { opacity: 0; }
-          50% { opacity: 0.8; }
-        }
-      `;
-      document.head.appendChild(style);
-    }
-  }, []);
 
   const validateForm = () => {
     let isValid = true;
@@ -525,291 +359,159 @@ export default function LoginPage() {
     }
   };
 
+  const isDefaultProductLogo =
+    !branding.logoUrl || branding.logoUrl === "/mdc-navbar-logo.svg" || branding.logoUrl === DEFAULT_BRANDING.logoUrl;
+  const productLogoSrc = isDefaultProductLogo ? PRODUCT_LOGO_DARK : branding.logoUrl;
+  const showLoginMessage =
+    step === 1 &&
+    Boolean(branding.loginMessage) &&
+    branding.loginMessage !== DEFAULT_BRANDING.loginMessage;
+
   return (
-    <div
-      className="relative flex min-h-screen items-center justify-center bg-gray-2 px-4 overflow-hidden"
-      style={{
-        backgroundColor: isDarkMode
-          ? COLORS.backgroundDark
-          : COLORS.backgroundLight,
-      }}
-    >
-      <div className="absolute top-6 right-6 z-50 transition-transform duration-300 hover:scale-105">
-        <button
-          onClick={toggleLanguage}
-          className="flex items-center justify-center rounded-lg border-2 border-dark px-3 py-1.5 font-bold text-dark dark:border-white dark:text-white bg-white/10 backdrop-blur-sm"
-        >
-          {language === "en" ? "EN" : "ES"}
-        </button>
-      </div>
+    <div className="zelify-login">
+      <div className="zelify-login__glow" aria-hidden="true" />
+      <button type="button" onClick={toggleLanguage} className="zelify-login__lang">
+        {language === "en" ? "EN" : "ES"}
+      </button>
 
-      {/* ======================================================================
-          ANIMACIÓN DE FONDO - Aquí se aplica la animación halftone
-          ====================================================================== */}
-      <div className="absolute inset-0">
-        {/* Base gradient background */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: isDarkMode
-              ? "linear-gradient(135deg, rgba(0, 24, 50, 0.95) 0%, rgba(0, 8, 26, 1) 50%, rgba(0, 24, 50, 0.95) 100%)"
-              : "linear-gradient(135deg, rgba(241, 245, 249, 0.95) 0%, rgba(226, 232, 240, 1) 50%, rgba(241, 245, 249, 0.95) 100%)",
-          }}
-        ></div>
-
-        {/* ANIMACIÓN PRINCIPAL: Puntos halftone animados con efecto de onda */}
-        <AnimatedHalftoneBackdrop isDarkMode={isDarkMode} />
-
-        {/* Overlay con fade en los bordes */}
-        <EdgeFadeOverlay isDarkMode={isDarkMode} />
-
-        {/* Capa adicional de patrón halftone con animación de pulso */}
-        <div
-          className="absolute inset-0 mix-blend-overlay"
-          style={{
-            backgroundImage: isDarkMode
-              ? `radial-gradient(circle at 2px 2px, rgba(255,255,255,0.2) 1.2px, transparent 0)`
-              : `radial-gradient(circle at 2px 2px, rgba(0,0,0,0.12) 1.2px, transparent 0)`,
-            backgroundSize: "28px 28px",
-            opacity: 0.5,
-            animation: "halftonePulse 8s ease-in-out infinite",
-          }}
-        ></div>
-      </div>
-
-      {/* CONTENEDOR PRINCIPAL - solo formulario */}
-      <div className="relative z-10 w-full max-w-[440px]">
-        <div
-          className="relative rounded-[10px] shadow-1 dark:shadow-card"
-          style={{
-            backgroundColor: isDarkMode ? COLORS.cardDark : COLORS.cardLight,
-          }}
-        >
+      <div className="zelify-login__card-wrap">
+        <div className="zelify-login__card">
           {loading ? (
-            <div
-              className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-[10px] bg-white/75 px-6 backdrop-blur-sm dark:bg-[#0d1224]/85"
-              role="status"
-              aria-live="polite"
-              aria-busy="true"
-            >
-              <div
-                className="h-10 w-10 animate-spin rounded-full border-[3px] border-solid border-current border-t-transparent text-primary dark:text-[#66ff00]"
-                aria-hidden
-              />
-              <span className="text-center text-sm font-medium text-dark dark:text-white">
-                {step === 1 ? t.signingIn : t.verifying}
-              </span>
+            <div className="zelify-login__busy" role="status" aria-live="polite" aria-busy="true">
+              <div className="zelify-login__spinner" aria-hidden />
+              <span className="zelify-login__busy-text">{step === 1 ? t.signingIn : t.verifying}</span>
             </div>
           ) : null}
-          <div className="w-full p-4 sm:p-10">
-            {sessionExpiredInfo ? (
-              <div
-                className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100"
-                role="status"
-              >
-                {t.sessionExpiredInfo}
-              </div>
-            ) : null}
-            {/* Logo + título centrados */}
-            <div className="mb-10 flex justify-center">
-              <Link href="/" className="inline-block">
-                {branding.logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={branding.logoUrl}
-                    alt={branding.displayName || "Logo"}
-                    style={{ maxWidth: "176px", maxHeight: "40px", objectFit: "contain" }}
-                  />
-                ) : (
-                  <span className="text-2xl font-bold text-dark dark:text-white">{branding.displayName}</span>
-                )}
-              </Link>
+
+          {sessionExpiredInfo ? (
+            <div className="zelify-login__alert zelify-login__alert--warn" role="status">
+              {t.sessionExpiredInfo}
             </div>
+          ) : null}
 
-            <h1 className="mb-2 text-center text-2xl font-bold text-dark dark:text-white sm:text-heading-3">
-              {step === 1 ? branding.displayName || t.welcome : t.otpTitle}
-            </h1>
-            <p className="mb-8 text-center text-sm text-dark-6 dark:text-dark-6">
-              {step === 1 ? branding.tagline || t.subWelcome : t.otpSub}
-            </p>
-            {step === 1 && branding.loginMessage ? (
-              <p className="mb-6 text-center text-xs text-slate-500 dark:text-slate-300">
-                {branding.loginMessage}
-              </p>
+          <div className="zelify-login__brands">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={productLogoSrc}
+              alt={branding.displayName || "Aethereun"}
+              className={`zelify-login__logo zelify-login__logo--product${isDefaultProductLogo ? "" : " zelify-login__logo--ink"}`}
+            />
+            <span className="zelify-login__brand-divider" aria-hidden="true" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={CLIENT_LOGO_SRC} alt="Tulana" className="zelify-login__logo zelify-login__logo--client" />
+          </div>
+
+          {step === 2 ? (
+            <>
+              <h1 className="zelify-login__otp-title">{t.otpTitle}</h1>
+              <p className="zelify-login__subtitle">{t.otpSub}</p>
+            </>
+          ) : (
+            <p className="zelify-login__subtitle">{t.subWelcome}</p>
+          )}
+          {showLoginMessage ? <p className="zelify-login__note">{branding.loginMessage}</p> : null}
+
+          <form onSubmit={handleSubmit} className="zelify-login__fields">
+            {error ? (
+              <div className="zelify-login__alert zelify-login__alert--error">{error}</div>
             ) : null}
 
-            <form onSubmit={handleSubmit}>
-              {/* Mensaje de error */}
-              {error && (
-                <div
-                  className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/20"
-                  style={{
-                    borderColor: isDarkMode
-                      ? COLORS.errorBorder
-                      : undefined,
-                    color: isDarkMode ? COLORS.errorBorder : undefined,
-                  }}
-                >
-                  {error}
-                </div>
-              )}
+            {step === 1 ? (
+              <>
+                <InputGroup
+                  type="email"
+                  variant="minimal"
+                  label={t.email}
+                  className={`mb-4${formErrors.email ? " is-invalid" : ""}`}
+                  placeholder={t.placeholderEmail}
+                  name="email"
+                  handleChange={handleChange}
+                  value={data.email}
+                  required
+                />
+                {formErrors.email ? <p className="zelify-login__field-error">{formErrors.email}</p> : null}
 
-              {step === 1 ? (
-                <>
-                  <InputGroup
-                    type="email"
-                    variant="minimal"
-                    label={t.email}
-                    className={`mb-4 ${formErrors.email
-                      ? "[&_input]:border-red-400/75 [&_input]:focus:border-red-400/90 [&_input]:focus:ring-red-500/12"
-                      : ""
-                      }`}
-                    placeholder={t.placeholderEmail}
-                    name="email"
-                    handleChange={handleChange}
-                    value={data.email}
-                    required
-                  />
-                  {formErrors.email && (
-                    <p className="mb-4 mt-[-10px] text-sm text-red-500">
-                      {formErrors.email}
-                    </p>
-                  )}
-
-                  <InputGroup
-                    type={showPassword ? "text" : "password"}
-                    variant="minimal"
-                    label={t.password}
-                    className={`mb-5 ${formErrors.password
-                      ? "[&_input]:border-red-400/75 [&_input]:focus:border-red-400/90 [&_input]:focus:ring-red-500/12"
-                      : ""
-                      }`}
-                    placeholder={t.placeholderPassword}
-                    name="password"
-                    handleChange={handleChange}
-                    value={data.password}
-                    endAdornment={
-                      <button
-                        type="button"
-                        aria-label={showPassword ? t.hidePasswordAria : t.showPasswordAria}
-                        className="group inline-flex cursor-pointer items-center justify-center border-0 bg-transparent p-0 shadow-none outline-none ring-0 focus-visible:rounded focus-visible:ring-1 focus-visible:ring-primary/35"
-                        onClick={() => setShowPassword((v) => !v)}
-                      >
-                        {showPassword ? (
-                          <EyeClosedIcon
-                            strokeWidth={1.5}
-                            className="h-[18px] w-[18px] shrink-0 text-slate-400 transition-colors group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300"
-                          />
-                        ) : (
-                          <EyeOpenIcon
-                            strokeWidth={1.5}
-                            className="h-[18px] w-[18px] shrink-0 text-slate-400 transition-colors group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300"
-                          />
-                        )}
-                      </button>
-                    }
-                    required
-                  />
-                  {formErrors.password && (
-                    <p className="mb-5 mt-[-15px] text-sm text-red-500">
-                      {formErrors.password}
-                    </p>
-                  )}
-
-                  {requiresOrganizationId && (
-                    <>
-                      <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
-                        {t.organizationIdHelp}
-                      </div>
-                      <InputGroup
-                        type="text"
-                        variant="minimal"
-                        label={t.organizationId}
-                        className={`mb-4 ${formErrors.organization_id
-                          ? "[&_input]:border-red-400/75 [&_input]:focus:border-red-400/90 [&_input]:focus:ring-red-500/12"
-                          : ""
-                          }`}
-                        placeholder={t.organizationIdPlaceholder}
-                        name="organization_id"
-                        handleChange={handleChange}
-                        value={data.organization_id}
-                        required
-                      />
-                      {formErrors.organization_id && (
-                        <p className="mb-4 mt-[-10px] text-sm text-red-500">
-                          {formErrors.organization_id}
-                        </p>
+                <InputGroup
+                  type={showPassword ? "text" : "password"}
+                  variant="minimal"
+                  label={t.password}
+                  className={`mb-5${formErrors.password ? " is-invalid" : ""}`}
+                  placeholder={t.placeholderPassword}
+                  name="password"
+                  handleChange={handleChange}
+                  value={data.password}
+                  endAdornment={
+                    <button
+                      type="button"
+                      aria-label={showPassword ? t.hidePasswordAria : t.showPasswordAria}
+                      className="group inline-flex cursor-pointer items-center justify-center border-0 bg-transparent p-0 shadow-none outline-none"
+                      onClick={() => setShowPassword((v) => !v)}
+                    >
+                      {showPassword ? (
+                        <EyeClosedIcon
+                          strokeWidth={1.5}
+                          className="h-[18px] w-[18px] shrink-0 text-slate-400 transition-colors group-hover:text-slate-600"
+                        />
+                      ) : (
+                        <EyeOpenIcon
+                          strokeWidth={1.5}
+                          className="h-[18px] w-[18px] shrink-0 text-slate-400 transition-colors group-hover:text-slate-600"
+                        />
                       )}
-                    </>
-                  )}
-                </>
-              ) : (
-                <>
-                  <InputGroup
-                    type="text"
-                    variant="minimal"
-                    label={t.otpLabel}
-                    className="mb-5"
-                    placeholder={t.otpPlaceholder}
-                    name="otp"
-                    handleChange={(e) => setOtp(e.target.value)}
-                    value={otp}
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setStep(1)}
-                    className="mb-4 text-sm font-medium text-primary hover:underline"
-                  >
-                    {language === "en" ? "Change email/password" : "Cambiar correo/contraseña"}
-                  </button>
-                </>
-              )}
+                    </button>
+                  }
+                  required
+                />
+                {formErrors.password ? <p className="zelify-login__field-error">{formErrors.password}</p> : null}
 
-              {/* Botón de login */}
-              <div className="mb-6">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg p-4 font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{
-                    backgroundColor: isDarkMode
-                      ? COLORS.buttonPrimaryDark
-                      : COLORS.buttonPrimaryLight,
-                    color: isDarkMode ? "#000000" : "#ffffff",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!loading) {
-                      e.currentTarget.style.backgroundColor = isDarkMode
-                        ? COLORS.buttonPrimaryDarkHover
-                        : COLORS.buttonPrimaryLightHover;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = isDarkMode
-                      ? COLORS.buttonPrimaryDark
-                      : COLORS.buttonPrimaryLight;
-                  }}
-                >
-                  {loading ? (
-                    <>
-                      {step === 1 ? t.signingIn : t.verifying}
-                      <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-white border-t-transparent" />
-                    </>
-                  ) : (
-                    step === 1 ? t.signIn : t.verify
-                  )}
+                {requiresOrganizationId ? (
+                  <>
+                    <div className="zelify-login__alert zelify-login__alert--warn">{t.organizationIdHelp}</div>
+                    <InputGroup
+                      type="text"
+                      variant="minimal"
+                      label={t.organizationId}
+                      className={`mb-4${formErrors.organization_id ? " is-invalid" : ""}`}
+                      placeholder={t.organizationIdPlaceholder}
+                      name="organization_id"
+                      handleChange={handleChange}
+                      value={data.organization_id}
+                      required
+                    />
+                    {formErrors.organization_id ? (
+                      <p className="zelify-login__field-error">{formErrors.organization_id}</p>
+                    ) : null}
+                  </>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <InputGroup
+                  type="text"
+                  variant="minimal"
+                  label={t.otpLabel}
+                  className="mb-5"
+                  placeholder={t.otpPlaceholder}
+                  name="otp"
+                  handleChange={(e) => setOtp(e.target.value)}
+                  value={otp}
+                  required
+                />
+                <button type="button" onClick={() => setStep(1)} className="zelify-login__back">
+                  {language === "en" ? "Change email/password" : "Cambiar correo/contraseña"}
                 </button>
-              </div>
+              </>
+            )}
 
-              <p className="text-center text-sm text-dark-6 dark:text-dark-6">
-                {t.noAccount}
-                <Link href="/register" className="font-medium text-primary hover:underline">
-                  {t.createAccount}
-                </Link>
-              </p>
-            </form>
-          </div>
+            <button type="submit" disabled={loading} className="zelify-login__submit">
+              {step === 1 ? t.signIn : t.verify}
+            </button>
+
+            <p className="zelify-login__footer">
+              {t.noAccount}
+              <Link href="/register">{t.createAccount}</Link>
+            </p>
+          </form>
         </div>
       </div>
     </div>
