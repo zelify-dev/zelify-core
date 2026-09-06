@@ -19,6 +19,10 @@ export type Application = {
   riskScore: number;
   submittedAt: string;
   updatedAt?: string;
+  /** Link KYC Zelify (natural + CURP). Válido ~24h. El link operable es el de MDC. */
+  kycSessionId?: string | null;
+  kycWebviewUrl?: string | null;
+  zelifyUserId?: string | null;
   rawPayload?: any;
   analysis?: any;
   rulesBreakdown?: Array<{
