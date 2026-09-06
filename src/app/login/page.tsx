@@ -3,7 +3,7 @@
 import { EyeClosedIcon, EyeOpenIcon } from "@/assets/login-icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import InputGroup from "@/components/form-elements/input-group";
 import { login, verifyDashboardOtp, persistAuthSession, AuthError, syncMe, type AuthSuccessResponse } from "@/lib/auth-api";
 import { getLoginAuthErrorDisplay } from "@/lib/auth-error-messages";
@@ -20,6 +20,87 @@ const DEMO_BYPASS_PASSWORD = "image.png";
 const DEMO_BYPASS_STORAGE_KEY = "zelify_demo_bypass";
 const CLIENT_LOGO_SRC = "/LOGO%20TULANA.svg";
 const PRODUCT_LOGO_DARK = "/mdc-navbar-logo-dark.svg";
+
+function AnimatedHalftoneBackdrop() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animationRef = useRef<number | undefined>(undefined);
+  const resizeObserverRef = useRef<ResizeObserver | undefined>(undefined);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const parent = canvas.parentElement;
+    if (!parent) return;
+
+    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+
+    const resize = () => {
+      const { width, height } = parent.getBoundingClientRect();
+      canvas.width = Math.max(1, Math.floor(width * dpr));
+      canvas.height = Math.max(1, Math.floor(height * dpr));
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+
+    resize();
+
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(resize);
+      observer.observe(parent);
+      resizeObserverRef.current = observer;
+    }
+
+    const start = performance.now();
+    const spacing = 26;
+    const waveFrequency = 1.35;
+    const waveSpeed = 0.35;
+    const [r, g, b] = [232, 224, 255];
+
+    const render = (time: number) => {
+      const elapsed = (time - start) / 1000;
+      const logicalWidth = canvas.width / dpr;
+      const logicalHeight = canvas.height / dpr;
+      ctx.clearRect(0, 0, logicalWidth, logicalHeight);
+
+      const centerX = logicalWidth / 2;
+      const centerY = logicalHeight / 2;
+      const maxDistance = Math.sqrt(centerX * centerX + centerY * centerY);
+
+      for (let y = -spacing; y <= logicalHeight + spacing; y += spacing) {
+        for (let x = -spacing; x <= logicalWidth + spacing; x += spacing) {
+          const dx = x - centerX;
+          const dy = y - centerY;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const normalizedDistance = distance / maxDistance;
+          const wavePhase = (normalizedDistance * waveFrequency - elapsed * waveSpeed) * Math.PI * 2;
+          const pulse = (Math.cos(wavePhase) + 1) / 2;
+          const edgeFade = Math.pow(1 - normalizedDistance, 1.4);
+          const alpha = (0.08 + pulse * 0.5) * edgeFade;
+          ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+          ctx.beginPath();
+          ctx.arc(x, y, 1.4 + pulse * 0.6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      animationRef.current = requestAnimationFrame(render);
+    };
+
+    animationRef.current = requestAnimationFrame(render);
+
+    return () => {
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+      if (resizeObserverRef.current) resizeObserverRef.current.disconnect();
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="zelify-login__halftone-canvas" />;
+}
 
 // ============================================================================
 // TRANSLATIONS
@@ -369,7 +450,12 @@ export default function LoginPage() {
 
   return (
     <div className="zelify-login">
-      <div className="zelify-login__glow" aria-hidden="true" />
+      <div className="zelify-login__backdrop" aria-hidden="true">
+        <AnimatedHalftoneBackdrop />
+        <div className="zelify-login__halftone" />
+        <div className="zelify-login__fade" />
+        <div className="zelify-login__glow" />
+      </div>
       <button type="button" onClick={toggleLanguage} className="zelify-login__lang">
         {language === "en" ? "EN" : "ES"}
       </button>
