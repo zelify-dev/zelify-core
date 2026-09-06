@@ -4015,8 +4015,8 @@ function AppDetailModal({
                         {ruleResultLabel[rule.result]}
                       </span>
                     </article>
-                  )) : null
-                )}
+                  ))
+                ) : null}
               </div>
             </section>
 
